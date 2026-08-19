@@ -10,6 +10,7 @@ export interface VisitorPassItem {
   visitor_name: string;
   visitor_phone?: string;
   vehicle_number?: string;
+  pass_code?: string;
   qr_token: string;
   valid_from: string;
   valid_until: string;
@@ -57,6 +58,7 @@ export function usePasses() {
     passes: passesQuery.data || [],
     isLoading: passesQuery.isLoading,
     error: passesQuery.error,
+    refetch: passesQuery.refetch,
     createPass: createPassMutation.mutateAsync,
     isCreating: createPassMutation.isPending,
   };

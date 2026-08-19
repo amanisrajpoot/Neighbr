@@ -124,7 +124,7 @@ export function useAmenities() {
       );
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["amenityBookings", societyId] });
+      queryClient.invalidateQueries({ queryKey: ["amenityBookings"] });
     },
   });
 
@@ -147,7 +147,7 @@ export function useAmenities() {
       );
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["amenityBookings", societyId] });
+      queryClient.invalidateQueries({ queryKey: ["amenityBookings"] });
     },
   });
 

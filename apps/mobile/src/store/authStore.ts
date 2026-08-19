@@ -24,13 +24,13 @@ export const useAuthStore = create<AuthStore>((set) => ({
   isAuthenticated: true, // Default to demo active session
   accessToken: "mock-access-token",
   user: {
-    id: "u-resident-01",
+    id: "35f84c33-268a-4073-b52e-f0b780785d7b",
     phone: "+919876530002",
     name: "Siddharth Verma",
     role: "resident",
     societyId: "34090e70-34f9-4cdd-9522-e2098982a5ed",
     societyName: "Greenwood Palms Heights",
-    unitId: "unit-v42",
+    unitId: "5edff9df-0046-4aca-b993-00bf116ce67f",
     unitNumber: "Villa-42",
   },
   login: (token, user) => set({ isAuthenticated: true, accessToken: token, user }),

@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, StyleSheet, TouchableOpacity, Share, Platform } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, Share, Platform, Linking } from "react-native";
 import Svg, { Rect } from "react-native-svg";
 import { Colors } from "../theme/colors";
 import { generateStandardQrMatrix } from "../utils/qrGenerator";
@@ -34,26 +34,42 @@ export function QRCodeView({
     ? `${pinCode.slice(0, 3)} ${pinCode.slice(3)}`
     : pinCode;
 
-  const handleShare = async () => {
-    const shareMessage = `━━━━━━━━━━━━━━━━━━━━━
+  const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=500x500&data=${encodeURIComponent(value)}`;
+
+  const shareMessage = `━━━━━━━━━━━━━━━━━━━━━
 🎟️ NEIGHBR DIGITAL GATE PASS
 ━━━━━━━━━━━━━━━━━━━━━
 👤 Visitor: ${visitorName}
 📍 Destination: Flat ${unitNumber}
 🔑 6-Digit Gate PIN: ${formattedPin}
 ⏳ Valid Until: ${validUntil}
-🔖 Pass Token: ${value}
+📷 QR Image Pass: ${qrImageUrl}
 
 👉 Present this pass or tell the 6-digit PIN to security guards at the society gate.`;
 
+  const handleWhatsAppShare = async () => {
+    const waUrl = `https://wa.me/?text=${encodeURIComponent(shareMessage)}`;
+    if (Platform.OS === "web") {
+      window.open(waUrl, "_blank");
+    } else {
+      const supported = await Linking.canOpenURL(waUrl).catch(() => false);
+      if (supported) {
+        await Linking.openURL(waUrl);
+      } else {
+        await Share.share({ message: shareMessage });
+      }
+    }
+  };
+
+  const handleShare = async () => {
     if (Platform.OS === "web") {
       if (typeof navigator !== "undefined" && navigator.share) {
         try {
-          await navigator.share({ title: "Neighbr Gate Pass", text: shareMessage });
+          await navigator.share({ title: "Neighbr Gate Pass", text: shareMessage, url: qrImageUrl });
         } catch {}
       } else if (typeof navigator !== "undefined" && navigator.clipboard) {
         await navigator.clipboard.writeText(shareMessage);
-        window.alert("🎟️ Digital Pass details copied to clipboard!");
+        window.alert("🎟️ Digital Pass & QR link copied to clipboard!");
       }
     } else {
       await Share.share({ message: shareMessage });
@@ -118,13 +134,23 @@ export function QRCodeView({
 
       {/* Share / Save Actions */}
       {showShareButton && (
-        <TouchableOpacity
-          style={styles.shareButton}
-          onPress={handleShare}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.shareText}>📤 Share Pass on WhatsApp / SMS</Text>
-        </TouchableOpacity>
+        <View style={styles.actionButtonsRow}>
+          <TouchableOpacity
+            style={styles.whatsAppButton}
+            onPress={handleWhatsAppShare}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.whatsAppText}>💬 Send on WhatsApp (with QR)</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.shareButton}
+            onPress={handleShare}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.shareText}>📤 More Options / Copy</Text>
+          </TouchableOpacity>
+        </View>
       )}
     </View>
   );
@@ -264,17 +290,33 @@ const styles = StyleSheet.create({
     color: Colors.text,
     fontWeight: "700",
   },
-  shareButton: {
+  actionButtonsRow: {
     width: "100%",
-    backgroundColor: Colors.primary,
+    gap: 8,
+    marginTop: 14,
+  },
+  whatsAppButton: {
+    width: "100%",
+    backgroundColor: "#16a34a",
     paddingVertical: 13,
     borderRadius: 14,
     alignItems: "center",
-    marginTop: 16,
   },
-  shareText: {
+  whatsAppText: {
     color: "#ffffff",
     fontSize: 13,
+    fontWeight: "900",
+  },
+  shareButton: {
+    width: "100%",
+    backgroundColor: "#f1f5f9",
+    paddingVertical: 12,
+    borderRadius: 14,
+    alignItems: "center",
+  },
+  shareText: {
+    color: "#475569",
+    fontSize: 12,
     fontWeight: "800",
   },
 });
