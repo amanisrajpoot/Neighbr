@@ -1,0 +1,46 @@
+{
+  "name": "neighbr-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "overrides": {
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "@types/react": "~19.2.4",
+    "@types/react-dom": "~19.2.3"
+  },
+  "dependencies": {
+    "@expo/metro-config": "~57.0.8",
+    "expo": "~57.0.14",
+    "expo-constants": "~57.0.12",
+    "expo-linking": "~57.0.6",
+    "expo-router": "~57.0.14",
+    "expo-secure-store": "~57.0.1",
+    "expo-splash-screen": "~57.0.7",
+    "expo-status-bar": "~57.0.1",
+    "next": "^15.2.0",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "react-native": "0.86.2",
+    "react-native-safe-area-context": "~5.7.0",
+    "react-native-screens": "~4.26.0",
+    "react-native-svg": "15.15.4",
+    "react-native-web": "~0.21.0"
+  },
+  "scripts": {
+    "dev:admin": "npm run dev --workspace=@neighbr/admin",
+    "dev:mobile": "npm run start --workspace=@neighbr/mobile",
+    "build:packages": "npm run build --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present"
+  },
+  "devDependencies": {
+    "@types/react": "~19.2.4",
+    "@types/react-dom": "~19.2.3",
+    "typescript": "~6.0.3"
+  }
+}

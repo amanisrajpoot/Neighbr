@@ -1,0 +1,63 @@
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiClient } from "../api/client";
+import { useAuthStore } from "../store/authStore";
+
+export interface VisitorPassItem {
+  id: string;
+  society_id: string;
+  unit_id: string;
+  pass_type: string;
+  visitor_name: string;
+  visitor_phone?: string;
+  vehicle_number?: string;
+  qr_token: string;
+  valid_from: string;
+  valid_until: string;
+  status: string;
+}
+
+export interface CreatePassPayload {
+  unit_id: string;
+  pass_type: string;
+  visitor_name: string;
+  visitor_phone?: string;
+  vehicle_number?: string;
+  purpose?: string;
+  valid_from: string;
+  valid_until: string;
+}
+
+export function usePasses() {
+  const queryClient = useQueryClient();
+  const user = useAuthStore((state) => state.user);
+
+  const passesQuery = useQuery({
+    queryKey: ["passes", user?.societyId],
+    queryFn: async () => {
+      if (!user?.societyId) return [];
+      return apiClient<VisitorPassItem[]>(`/societies/${user.societyId}/visitors/passes`);
+    },
+    enabled: !!user?.societyId,
+  });
+
+  const createPassMutation = useMutation({
+    mutationFn: async (payload: CreatePassPayload) => {
+      if (!user?.societyId) throw new Error("No active society");
+      return apiClient<VisitorPassItem>(`/societies/${user.societyId}/visitors/passes`, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["passes"] });
+    },
+  });
+
+  return {
+    passes: passesQuery.data || [],
+    isLoading: passesQuery.isLoading,
+    error: passesQuery.error,
+    createPass: createPassMutation.mutateAsync,
+    isCreating: createPassMutation.isPending,
+  };
+}

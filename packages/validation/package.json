@@ -1,0 +1,16 @@
+{
+  "name": "@neighbr/validation",
+  "version": "0.1.0",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "dependencies": {
+    "@neighbr/shared-config": "*",
+    "zod": "^3.23.8"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5"
+  }
+}

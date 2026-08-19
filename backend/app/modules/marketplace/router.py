@@ -1,0 +1,168 @@
+import uuid
+from fastapi import APIRouter, Depends, status
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.database import get_db
+from app.dependencies import get_current_user
+from app.middleware.tenancy import require_society_membership, require_roles
+from app.modules.auth.models import User
+from app.modules.marketplace.schemas import (
+    ListingCreate,
+    ListingStatusUpdate,
+    ListingOut,
+    VendorCreate,
+    VendorOut,
+    ServiceBookingCreate,
+    ServiceBookingOut,
+)
+from app.modules.marketplace.service import MarketplaceService
+
+router = APIRouter(prefix="/societies/{society_id}/marketplace", tags=["Resident Marketplace & Verified Services"])
+
+def _format_listing(l) -> ListingOut:
+    return ListingOut(
+        id=l.id,
+        society_id=l.society_id,
+        seller_id=l.seller_id,
+        seller_name=l.seller.full_name if l.seller else "Neighbor",
+        seller_phone=l.seller.phone if l.seller else None,
+        unit_number=l.unit.unit_number if l.unit else None,
+        title=l.title,
+        description=l.description,
+        category=l.category,
+        price=float(l.price),
+        is_free=l.is_free,
+        images=l.images or [],
+        status=l.status,
+        created_at=l.created_at,
+    )
+
+def _format_booking(b) -> ServiceBookingOut:
+    return ServiceBookingOut(
+        id=b.id,
+        society_id=b.society_id,
+        vendor_id=b.vendor_id,
+        vendor_name=b.vendor.vendor_name if b.vendor else "Vendor",
+        vendor_phone=b.vendor.contact_phone if b.vendor else None,
+        resident_name=b.resident.full_name if b.resident else "Resident",
+        unit_number=b.unit.unit_number if b.unit else None,
+        booking_date=b.booking_date,
+        time_slot=b.time_slot,
+        notes=b.notes,
+        gate_pass_code=b.gate_pass_code,
+        status=b.status,
+        created_at=b.created_at,
+    )
+
+# Listings
+@router.post("/listings", response_model=ListingOut, status_code=status.HTTP_201_CREATED)
+async def create_listing(
+    society_id: uuid.UUID,
+    payload: ListingCreate,
+    user: User = Depends(get_current_user),
+    _mem = Depends(require_society_membership),
+    db: AsyncSession = Depends(get_db),
+):
+    service = MarketplaceService(db)
+    l = await service.create_listing(society_id, payload, user)
+    listings = await service.list_listings(society_id)
+    return _format_listing(next(x for x in listings if x.id == l.id))
+
+@router.get("/listings", response_model=list[ListingOut])
+async def list_listings(
+    society_id: uuid.UUID,
+    category: str | None = None,
+    _mem = Depends(require_society_membership),
+    db: AsyncSession = Depends(get_db),
+):
+    service = MarketplaceService(db)
+    listings = await service.list_listings(society_id, category=category)
+    return [_format_listing(l) for l in listings]
+
+@router.patch("/listings/{listing_id}/status", response_model=ListingOut)
+async def update_listing_status(
+    society_id: uuid.UUID,
+    listing_id: uuid.UUID,
+    payload: ListingStatusUpdate,
+    _mem = Depends(require_society_membership),
+    db: AsyncSession = Depends(get_db),
+):
+    service = MarketplaceService(db)
+    l = await service.update_listing_status(society_id, listing_id, payload)
+    listings = await service.list_listings(society_id)
+    return _format_listing(next(x for x in listings if x.id == l.id))
+
+# Vendors
+@router.post("/vendors", response_model=VendorOut, status_code=status.HTTP_201_CREATED)
+async def create_vendor(
+    society_id: uuid.UUID,
+    payload: VendorCreate,
+    _auth = Depends(require_roles(["society_admin", "super_admin"])),
+    db: AsyncSession = Depends(get_db),
+):
+    service = MarketplaceService(db)
+    v = await service.create_vendor(society_id, payload)
+    return VendorOut(
+        id=v.id,
+        society_id=v.society_id,
+        vendor_name=v.vendor_name,
+        category=v.category,
+        description=v.description,
+        contact_phone=v.contact_phone,
+        is_verified=v.is_verified,
+        rating=float(v.rating),
+        review_count=v.review_count,
+        pricing_starts_at=float(v.pricing_starts_at),
+        is_active=v.is_active,
+    )
+
+@router.get("/vendors", response_model=list[VendorOut])
+async def list_vendors(
+    society_id: uuid.UUID,
+    category: str | None = None,
+    _mem = Depends(require_society_membership),
+    db: AsyncSession = Depends(get_db),
+):
+    service = MarketplaceService(db)
+    vendors = await service.list_vendors(society_id, category=category)
+    return [
+        VendorOut(
+            id=v.id,
+            society_id=v.society_id,
+            vendor_name=v.vendor_name,
+            category=v.category,
+            description=v.description,
+            contact_phone=v.contact_phone,
+            is_verified=v.is_verified,
+            rating=float(v.rating),
+            review_count=v.review_count,
+            pricing_starts_at=float(v.pricing_starts_at),
+            is_active=v.is_active,
+        )
+        for v in vendors
+    ]
+
+# Bookings
+@router.post("/bookings", response_model=ServiceBookingOut, status_code=status.HTTP_201_CREATED)
+async def book_service(
+    society_id: uuid.UUID,
+    payload: ServiceBookingCreate,
+    user: User = Depends(get_current_user),
+    _mem = Depends(require_society_membership),
+    db: AsyncSession = Depends(get_db),
+):
+    service = MarketplaceService(db)
+    b = await service.book_service(society_id, payload, user)
+    bookings = await service.list_bookings(society_id)
+    return _format_booking(next(x for x in bookings if x.id == b.id))
+
+@router.get("/bookings", response_model=list[ServiceBookingOut])
+async def list_bookings(
+    society_id: uuid.UUID,
+    user: User = Depends(get_current_user),
+    _mem = Depends(require_society_membership),
+    db: AsyncSession = Depends(get_db),
+):
+    service = MarketplaceService(db)
+    bookings = await service.list_bookings(society_id, resident_id=user.id)
+    return [_format_booking(b) for b in bookings]
