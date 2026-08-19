@@ -15,39 +15,6 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Colors } from "../../src/theme/colors";
 import { useStaff, StaffMember } from "../../src/hooks/useStaff";
 
-const SAMPLE_STAFF = [
-  {
-    id: "st-1",
-    name: "Laxmi Bai",
-    role: "House Maid & Cook",
-    phone: "+91 98765 40099",
-    schedule: "Mon - Sat (07:30 AM - 10:30 AM)",
-    status: "INSIDE",
-    lastEntry: "Entered Gate 1 today at 07:32 AM",
-    passCode: "STAFF-8821",
-  },
-  {
-    id: "st-2",
-    name: "Rajesh Kumar",
-    role: "Personal Driver",
-    phone: "+91 98765 40088",
-    schedule: "Mon - Fri (09:00 AM - 07:00 PM)",
-    status: "OUTSIDE",
-    lastEntry: "Exited Gate 2 yesterday at 06:45 PM",
-    passCode: "STAFF-4402",
-  },
-  {
-    id: "st-3",
-    name: "Mohan Lal",
-    role: "Car Cleaner",
-    phone: "+91 98765 40077",
-    schedule: "Daily (06:00 AM - 08:00 AM)",
-    status: "OUTSIDE",
-    lastEntry: "Exited today at 08:05 AM",
-    passCode: "STAFF-1923",
-  },
-];
-
 export default function ResidentStaffScreen() {
   const { unitStaff, allStaff, isLoadingUnitStaff, refetchUnitStaff, assignStaff } = useStaff();
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -59,7 +26,7 @@ export default function ResidentStaffScreen() {
 
   const displayStaff =
     unitStaff && unitStaff.length > 0
-      ? unitStaff.map((item, idx) => ({
+      ? unitStaff.map((item: any, idx: number) => ({
           id: item.id || `st-u-${idx}`,
           name: item.staff?.name || "Domestic Staff",
           role: item.role || item.staff?.role || "House Help",
@@ -69,17 +36,9 @@ export default function ResidentStaffScreen() {
           lastEntry: item.staff?.last_entry || (idx === 0 ? "Entered today at 07:32 AM" : "Exited Gate 1"),
           passCode: item.staff?.pass_code || `STF-${idx + 100}`,
         }))
-      : SAMPLE_STAFF;
+      : [];
 
-  const filteredDirectory = (allStaff.length > 0
-    ? allStaff
-    : [
-        { id: "dir-1", name: "Sunita Devi", role: "Cook", phone: "+91 98765 41100", pass_code: "STF-301", is_active: true },
-        { id: "dir-2", name: "Ram Singh", role: "Driver", phone: "+91 98765 41101", pass_code: "STF-302", is_active: true },
-        { id: "dir-3", name: "Geeta Verma", role: "Maid", phone: "+91 98765 41102", pass_code: "STF-303", is_active: true },
-        { id: "dir-4", name: "Mukesh Kumar", role: "Car Wash", phone: "+91 98765 41103", pass_code: "STF-304", is_active: true },
-      ]
-  ).filter((s) => {
+  const filteredDirectory = (allStaff || []).filter((s: any) => {
     const matchesRole = selectedRole === "All" || s.role.toLowerCase().includes(selectedRole.toLowerCase());
     const matchesSearch = s.name.toLowerCase().includes(searchQuery.toLowerCase()) || s.role.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesRole && matchesSearch;

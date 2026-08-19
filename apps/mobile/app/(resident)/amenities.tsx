@@ -12,93 +12,8 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Colors } from "../../src/theme/colors";
 import { useAmenities, AmenityItem, SlotInfo, BookingItem } from "../../src/hooks/useAmenities";
+import { QRCodeView } from "../../src/components/QRCodeView";
 
-const SAMPLE_AMENITIES: AmenityItem[] = [
-  {
-    id: "amn-1",
-    society_id: "soc-1",
-    name: "Olympic Swimming Pool",
-    code: "POOL",
-    category: "wellness",
-    description: "50-meter temperature controlled pool with dedicated kids splash area.",
-    capacity_per_slot: 12,
-    slot_duration_minutes: 60,
-    open_time: "06:00",
-    close_time: "21:00",
-    rules: ["Nylon swimming costume mandatory", "Shower before entering pool", "No glassware on deck"],
-    is_paid: false,
-    price_per_slot: 0,
-    is_active: true,
-  },
-  {
-    id: "amn-2",
-    society_id: "soc-1",
-    name: "Lawn Tennis Court (Synthetic)",
-    code: "TENNIS-1",
-    category: "sports",
-    description: "Floodlit championship synthetic hard court with automated ball machine.",
-    capacity_per_slot: 4,
-    slot_duration_minutes: 60,
-    open_time: "06:00",
-    close_time: "22:00",
-    rules: ["Non-marking gum-sole tennis shoes required", "Maximum 4 players per court", "Floodlights turn off at 10 PM"],
-    is_paid: false,
-    price_per_slot: 0,
-    is_active: true,
-  },
-  {
-    id: "amn-3",
-    society_id: "soc-1",
-    name: "Clubhouse Banquet & Party Lawn",
-    code: "BANQUET",
-    category: "events",
-    description: "Air-conditioned banquet hall with attached catering pantry and open lawn.",
-    capacity_per_slot: 100,
-    slot_duration_minutes: 240,
-    open_time: "10:00",
-    close_time: "23:00",
-    rules: ["Music volume limits after 10 PM", "Pre-event security deposit required", "Cleaning fee applicable"],
-    is_paid: true,
-    price_per_slot: 2500,
-    is_active: true,
-  },
-  {
-    id: "amn-4",
-    society_id: "soc-1",
-    name: "Badminton Court (Teakwood)",
-    code: "BADMINTON-1",
-    category: "sports",
-    description: "Dual indoor teakwood courts with Yonex professional netting.",
-    capacity_per_slot: 4,
-    slot_duration_minutes: 60,
-    open_time: "06:00",
-    close_time: "22:00",
-    rules: ["Non-marking shoes mandatory", "Bring own racquets & shuttles"],
-    is_paid: false,
-    price_per_slot: 0,
-    is_active: true,
-  },
-];
-
-const SAMPLE_BOOKINGS: BookingItem[] = [
-  {
-    id: "bk-1",
-    society_id: "soc-1",
-    amenity_id: "amn-2",
-    amenity_name: "Lawn Tennis Court (Synthetic)",
-    unit_number: "Villa-42",
-    booked_by: "u-1",
-    user_name: "Siddharth Verma",
-    booking_date: "2026-08-20",
-    start_time: "07:00",
-    end_time: "08:00",
-    guest_count: 2,
-    total_amount: 0,
-    status: "CONFIRMED",
-    qr_pass: "AMN-TENNIS-8F2B",
-    created_at: "2026-08-19T08:00:00Z",
-  },
-];
 
 export default function ResidentAmenitiesScreen() {
   const { amenities, myBookings, isLoadingAmenities, refetchAmenities, fetchSlots, bookSlot, cancelBooking } = useAmenities();
@@ -115,8 +30,8 @@ export default function ResidentAmenitiesScreen() {
   // View QR Pass Modal
   const [activePass, setActivePass] = useState<BookingItem | null>(null);
 
-  const displayAmenities = amenities && amenities.length > 0 ? amenities : SAMPLE_AMENITIES;
-  const displayBookings = myBookings && myBookings.length > 0 ? myBookings : SAMPLE_BOOKINGS;
+  const displayAmenities = amenities || [];
+  const displayBookings = myBookings || [];
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -129,16 +44,8 @@ export default function ResidentAmenitiesScreen() {
     setIsBookingModalOpen(true);
     setSelectedSlot(null);
 
-    // Mock initial slots
-    const mockSlots: SlotInfo[] = [
-      { start_time: "06:00", end_time: "07:00", max_capacity: amenity.capacity_per_slot, booked_count: 1, available_capacity: amenity.capacity_per_slot - 1, is_available: true },
-      { start_time: "07:00", end_time: "08:00", max_capacity: amenity.capacity_per_slot, booked_count: amenity.capacity_per_slot, available_capacity: 0, is_available: false },
-      { start_time: "08:00", end_time: "09:00", max_capacity: amenity.capacity_per_slot, booked_count: 2, available_capacity: amenity.capacity_per_slot - 2, is_available: true },
-      { start_time: "17:00", end_time: "18:00", max_capacity: amenity.capacity_per_slot, booked_count: 0, available_capacity: amenity.capacity_per_slot, is_available: true },
-      { start_time: "18:00", end_time: "19:00", max_capacity: amenity.capacity_per_slot, booked_count: 1, available_capacity: amenity.capacity_per_slot - 1, is_available: true },
-      { start_time: "19:00", end_time: "20:00", max_capacity: amenity.capacity_per_slot, booked_count: 3, available_capacity: amenity.capacity_per_slot - 3, is_available: true },
-    ];
-    setSlots(mockSlots);
+    const freshSlots = await fetchSlots(amenity.id, selectedDate);
+    setSlots(freshSlots);
   };
 
   const handleConfirmBooking = async () => {
@@ -160,9 +67,7 @@ export default function ResidentAmenitiesScreen() {
       setIsBookingModalOpen(false);
       setActiveTab("bookings");
     } catch (e: any) {
-      Alert.alert("Booking Confirmed", `Pass generated for ${selectedAmenity.name}.`);
-      setIsBookingModalOpen(false);
-      setActiveTab("bookings");
+      Alert.alert("Booking Failed", e.message || "Could not book slot.");
     } finally {
       setIsSubmitting(false);
     }
@@ -385,10 +290,7 @@ export default function ResidentAmenitiesScreen() {
               </View>
 
               <View style={styles.qrContainer}>
-                <View style={styles.qrVisual}>
-                  <Text style={styles.qrVisualText}>[QR CODE]</Text>
-                  <Text style={styles.qrVisualCode}>{activePass.qr_pass}</Text>
-                </View>
+                <QRCodeView value={activePass.qr_pass} size={160} />
               </View>
 
               <Text style={styles.passAmenityName}>{activePass.amenity_name}</Text>

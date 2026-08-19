@@ -13,67 +13,6 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Colors } from "../../src/theme/colors";
 import { useBilling, InvoiceItem } from "../../src/hooks/useBilling";
 
-const SAMPLE_INVOICES: InvoiceItem[] = [
-  {
-    id: "inv-1",
-    society_id: "soc-1",
-    unit_id: "u-1",
-    unit_number: "Villa-42",
-    invoice_number: "INV-2026-08-V42-A1",
-    billing_period: "August 2026",
-    due_date: "2026-08-25",
-    subtotal: 3350,
-    tax_amount: 167.5,
-    penalty_amount: 0,
-    total_amount: 3517.5,
-    paid_amount: 0,
-    status: "UNPAID",
-    line_items: [
-      { title: "Monthly Maintenance (Square Feet Area)", amount: 2500, category: "maintenance" },
-      { title: "Sinking & Capital Asset Reserve", amount: 500, category: "reserve" },
-      { title: "Water & Sewage Utility Metering", amount: 350, category: "utility" },
-      { title: "GST (5% Tax)", amount: 167.5, category: "tax" },
-    ],
-    created_at: "2026-08-01T00:00:00Z",
-    transactions: [],
-  },
-  {
-    id: "inv-2",
-    society_id: "soc-1",
-    unit_id: "u-1",
-    unit_number: "Villa-42",
-    invoice_number: "INV-2026-07-V42-99",
-    billing_period: "July 2026",
-    due_date: "2026-07-25",
-    subtotal: 3350,
-    tax_amount: 167.5,
-    penalty_amount: 0,
-    total_amount: 3517.5,
-    paid_amount: 3517.5,
-    status: "PAID",
-    line_items: [
-      { title: "Monthly Maintenance", amount: 2500, category: "maintenance" },
-      { title: "Sinking Fund", amount: 500, category: "reserve" },
-      { title: "Water Utility", amount: 350, category: "utility" },
-      { title: "GST (5%)", amount: 167.5, category: "tax" },
-    ],
-    created_at: "2026-07-01T00:00:00Z",
-    paid_at: "2026-07-12T14:20:00Z",
-    transactions: [
-      {
-        id: "txn-1",
-        invoice_id: "inv-2",
-        transaction_ref: "TXN-UPI-994120",
-        receipt_number: "REC-2026-07-V42",
-        payment_method: "UPI (Google Pay)",
-        amount: 3517.5,
-        status: "SUCCESS",
-        paid_at: "2026-07-12T14:20:00Z",
-      },
-    ],
-  },
-];
-
 export default function ResidentBillingScreen() {
   const { invoices, isLoading, refetch, payInvoice } = useBilling();
   const [selectedInvoice, setSelectedInvoice] = useState<InvoiceItem | null>(null);
@@ -83,7 +22,7 @@ export default function ResidentBillingScreen() {
   const [receiptModalData, setReceiptModalData] = useState<InvoiceItem | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
-  const displayInvoices = invoices && invoices.length > 0 ? invoices : SAMPLE_INVOICES;
+  const displayInvoices = invoices || [];
   const currentUnpaid = displayInvoices.find((i) => i.status === "UNPAID" || i.status === "OVERDUE");
 
   const onRefresh = async () => {

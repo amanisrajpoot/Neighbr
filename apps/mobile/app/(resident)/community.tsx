@@ -22,61 +22,6 @@ const CATEGORIES = [
   { id: "lost_found", label: "Lost & Found" },
 ];
 
-const SAMPLE_POSTS: PostItem[] = [
-  {
-    id: "p-1",
-    society_id: "soc-1",
-    author_id: "u-1",
-    author_name: "Pooja Verma",
-    unit_number: "Villa-42",
-    title: "Ganesh Chaturthi Cultural Night Organizing Committee",
-    content: "We are forming a resident volunteer group for stage setup, kids dance rehearsals, and prasad distribution for the upcoming Ganesh festival!",
-    category: "events",
-    images: [],
-    likes_count: 14,
-    is_pinned: true,
-    created_at: "2026-08-19T08:00:00Z",
-    comments: [
-      { id: "c-1", author_id: "u-2", author_name: "Vikram Sethi", content: "Count me in for evening stage coordination!", created_at: "2026-08-19T09:00:00Z" }
-    ],
-  },
-  {
-    id: "p-2",
-    society_id: "soc-1",
-    author_id: "u-3",
-    author_name: "Dr. Ananya Roy",
-    unit_number: "B-204",
-    title: "Recommended Pediatrician near Main Gate",
-    content: "Can anyone recommend a good child clinic or pediatrician within 2-3 kms of our society north gate?",
-    category: "recommendations",
-    images: [],
-    likes_count: 6,
-    is_pinned: false,
-    created_at: "2026-08-18T16:00:00Z",
-    comments: [],
-  },
-];
-
-const SAMPLE_POLLS: PollItem[] = [
-  {
-    id: "pl-1",
-    society_id: "soc-1",
-    author_name: "Society Management Committee",
-    question: "Should we install 4 additional dedicated EV Fast-Charging points in Tower A & B Basement?",
-    description: "Estimated capital cost shared via sinking fund with pay-per-unit metering.",
-    options: ["Yes, approve installation", "No, keep existing 2 points", "Need more technical details"],
-    total_votes: 42,
-    stats: [
-      { index: 0, text: "Yes, approve installation", vote_count: 32, percentage: 76.2 },
-      { index: 1, text: "No, keep existing 2 points", vote_count: 6, percentage: 14.3 },
-      { index: 2, text: "Need more technical details", vote_count: 4, percentage: 9.5 },
-    ],
-    user_voted_option: undefined,
-    is_active: true,
-    created_at: "2026-08-18T10:00:00Z",
-  },
-];
-
 export default function ResidentCommunityScreen() {
   const { posts, polls, isLoadingPosts, refetchPosts, createPost, addComment, likePost, votePoll } = useCommunity();
   const [activeCategory, setActiveCategory] = useState("all");
@@ -92,8 +37,8 @@ export default function ResidentCommunityScreen() {
   const [activePost, setActivePost] = useState<PostItem | null>(null);
   const [commentText, setCommentText] = useState("");
 
-  const displayPosts = posts && posts.length > 0 ? posts : SAMPLE_POSTS;
-  const displayPolls = polls && polls.length > 0 ? polls : SAMPLE_POLLS;
+  const displayPosts = posts || [];
+  const displayPolls = polls || [];
 
   const onRefresh = async () => {
     setRefreshing(true);

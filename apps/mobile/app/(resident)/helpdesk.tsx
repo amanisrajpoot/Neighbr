@@ -24,54 +24,6 @@ const CATEGORIES = [
   { id: "security", label: "Security", icon: "🛡️" },
 ];
 
-const SAMPLE_TICKETS: TicketItem[] = [
-  {
-    id: "t-1",
-    society_id: "soc-1",
-    unit_number: "Villa-42",
-    created_by: "u-1",
-    creator_name: "Siddharth Verma",
-    assigned_to: "u-staff-1",
-    assignee_name: "Ramesh (Senior Electrician)",
-    category: "electrical",
-    priority: "high",
-    title: "Master Bedroom Geyser Trip & Switch Spark",
-    description: "Whenever the geyser is powered on, the main MCB trips with minor sparks.",
-    images: [],
-    status: "IN_PROGRESS",
-    sla_due_at: "Today, 06:00 PM",
-    created_at: "2026-08-19T09:30:00Z",
-    comments: [
-      {
-        id: "c-1",
-        ticket_id: "t-1",
-        author_id: "u-staff-1",
-        author_name: "Ramesh (Electrician)",
-        message: "Assigned. I will visit your flat at 4:30 PM with replacement element.",
-        is_internal: false,
-        created_at: "2026-08-19T10:15:00Z",
-      },
-    ],
-  },
-  {
-    id: "t-2",
-    society_id: "soc-1",
-    unit_number: "Villa-42",
-    created_by: "u-1",
-    creator_name: "Siddharth Verma",
-    category: "plumbing",
-    priority: "normal",
-    title: "Kitchen Sink Drain Slow Flow",
-    description: "Drain pipe seems partially clogged after maintenance.",
-    images: [],
-    status: "RESOLVED",
-    resolution_notes: "Drain unclogged using pressure snake. Working smoothly.",
-    rating: 5,
-    created_at: "2026-08-18T11:00:00Z",
-    comments: [],
-  },
-];
-
 export default function ResidentHelpdeskScreen() {
   const { tickets, isLoading, refetch, createTicket, addComment, rateTicket } = useHelpdesk();
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -87,7 +39,7 @@ export default function ResidentHelpdeskScreen() {
   const [replyMessage, setReplyMessage] = useState("");
   const [ratingVal, setRatingVal] = useState(5);
 
-  const displayTickets = tickets && tickets.length > 0 ? tickets : SAMPLE_TICKETS;
+  const displayTickets = tickets || [];
 
   const onRefresh = async () => {
     setRefreshing(true);

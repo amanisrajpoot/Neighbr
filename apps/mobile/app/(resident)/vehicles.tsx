@@ -14,33 +14,6 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Colors } from "../../src/theme/colors";
 import { useVehicles, VehicleItem } from "../../src/hooks/useVehicles";
 
-const SAMPLE_VEHICLES: VehicleItem[] = [
-  {
-    id: "veh-1",
-    society_id: "soc-1",
-    owner_id: "user-1",
-    vehicle_type: "car",
-    vehicle_number: "KA01MF2024",
-    make_model: "Honda City (White)",
-    parking_slot: "B1 - Slot #42",
-    rfid_tag: "RFID-881920",
-    is_verified: true,
-    created_at: "2026-08-01",
-  },
-  {
-    id: "veh-2",
-    society_id: "soc-1",
-    owner_id: "user-1",
-    vehicle_type: "ev",
-    vehicle_number: "KA01EV9900",
-    make_model: "Ather 450X (Grey)",
-    parking_slot: "B1 - EV Station #04",
-    rfid_tag: "RFID-110293",
-    is_verified: true,
-    created_at: "2026-08-10",
-  },
-];
-
 export default function ResidentVehiclesScreen() {
   const { vehicles, isLoading, refetch, registerVehicle, deleteVehicle } = useVehicles();
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -51,7 +24,7 @@ export default function ResidentVehiclesScreen() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
-  const displayVehicles = vehicles && vehicles.length > 0 ? vehicles : SAMPLE_VEHICLES;
+  const displayVehicles = vehicles || [];
 
   const onRefresh = async () => {
     setRefreshing(true);

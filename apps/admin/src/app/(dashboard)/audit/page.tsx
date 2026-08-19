@@ -21,66 +21,8 @@ interface AuditEvent {
   payload: Record<string, any>;
 }
 
-const SAMPLE_AUDIT_LOGS: AuditEvent[] = [
-  {
-    id: "aud-001",
-    eventType: "VISITOR_CHECKED_IN",
-    actor: "Jagdish R. (SEC-101)",
-    actorRole: "GUARD",
-    targetEntity: "VisitorPass",
-    entityId: "pass-ananya-88",
-    timestamp: "Today, 10:14 AM",
-    ipAddress: "192.168.1.104 (Terminal GATE-01)",
-    payload: { visitor_name: "Ananya Roy", unit_id: "Villa-42", gate_id: "GATE-01", qr_token: "NBR-TOKEN-ANANYA", override: false },
-  },
-  {
-    id: "aud-002",
-    eventType: "PASS_MANUALLY_APPROVED",
-    actor: "Vikram Sethi",
-    actorRole: "RESIDENT",
-    targetEntity: "VisitorPass",
-    entityId: "pass-swiggy-91",
-    timestamp: "Today, 09:45 AM",
-    ipAddress: "103.21.144.2 (Mobile App iOS)",
-    payload: { visitor_name: "Swiggy Delivery Partner", unit_number: "A-102", pass_type: "delivery", valid_hours: 2 },
-  },
-  {
-    id: "aud-003",
-    eventType: "GUARD_SHIFT_CHECK_IN",
-    actor: "Jagdish R.",
-    actorRole: "GUARD",
-    targetEntity: "GuardProfile",
-    entityId: "guard-sec-101",
-    timestamp: "Today, 06:00 AM",
-    ipAddress: "192.168.1.104",
-    payload: { shift: "Morning (06:00 - 14:00)", assigned_gate: "Main North Gate", biometric_verified: true },
-  },
-  {
-    id: "aud-004",
-    eventType: "BLACKLIST_ENTRY_ADDED",
-    actor: "Admin (Siddharth V.)",
-    actorRole: "SOCIETY_ADMIN",
-    targetEntity: "Blacklist",
-    entityId: "bl-990",
-    timestamp: "Yesterday, 04:30 PM",
-    ipAddress: "14.139.12.8",
-    payload: { phone: "+91 99999 88888", reason: "Repeated unauthorized commercial solicitation", active: true },
-  },
-  {
-    id: "aud-005",
-    eventType: "GATE_CONFIG_CHANGED",
-    actor: "System Platform",
-    actorRole: "SYSTEM",
-    targetEntity: "Gate",
-    entityId: "gate-03",
-    timestamp: "Yesterday, 02:15 PM",
-    ipAddress: "127.0.0.1",
-    payload: { gate_id: "GATE-03", mode: "service_delivery", auto_lock_after_seconds: 30 },
-  },
-];
-
 export default function SecurityAuditPage() {
-  const [logs] = useState<AuditEvent[]>(SAMPLE_AUDIT_LOGS);
+  const [logs] = useState<AuditEvent[]>([]);
   const [search, setSearch] = useState("");
   const [selectedRole, setSelectedRole] = useState<string>("ALL");
   const [activeInspectionPayload, setActiveInspectionPayload] = useState<Record<string, any> | null>(null);

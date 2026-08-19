@@ -16,33 +16,6 @@ import {
 import { api, AISecurityAnomalyAdminItem } from "@/lib/api";
 import { useSociety } from "@/context/SocietyContext";
 
-const SAMPLE_ANOMALIES: AISecurityAnomalyAdminItem[] = [
-  {
-    id: "anom-1",
-    title: "Unusual After-Hours Delivery Inflow",
-    description: "3 unannounced e-commerce delivery personnel arrived at South Gate between 01:15 AM and 02:30 AM without pre-generated resident passes.",
-    severity: "medium",
-    occurred_at: "Last Night, 01:45 AM",
-    recommended_action: "Reinforce night-shift guard protocol to require instant resident OTP confirmation before barrier open.",
-  },
-  {
-    id: "anom-2",
-    title: "Overstayed Contractor In Tower B",
-    description: "Daily renovation contractor checked in at 09:00 AM for Flat B-402 and has not recorded an exit pass after 19:00 PM cutoff.",
-    severity: "high",
-    occurred_at: "Today, 07:15 PM",
-    recommended_action: "Dispatch patrolling guard to verify flat status and ensure contractor egress.",
-  },
-  {
-    id: "anom-3",
-    title: "Repeated ANPR Unregistered Vehicle Attempts",
-    description: "Black Sedan (DL 04 AB 9812) scanned 4 times at Main Inflow Gate within 30 minutes without active resident FastTag.",
-    severity: "low",
-    occurred_at: "Today, 04:30 PM",
-    recommended_action: "Instruct gate sentry to register vehicle in visitor log or allocate guest parking bay.",
-  },
-];
-
 export default function AIAssistantAdminPage() {
   const { currentSociety } = useSociety();
   const societyId = currentSociety?.id;
@@ -69,7 +42,7 @@ export default function AIAssistantAdminPage() {
     if (!societyId) return;
     try {
       const aList = await api.getSecurityAnomalies(societyId).catch(() => []);
-      setAnomalies(aList.length > 0 ? aList : SAMPLE_ANOMALIES);
+      setAnomalies(aList);
     } catch (err) {
       console.warn("Failed to load anomalies:", err);
     }

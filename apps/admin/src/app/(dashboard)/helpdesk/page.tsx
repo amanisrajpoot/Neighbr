@@ -20,61 +20,6 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { api, HelpdeskTicketItem } from "@/lib/api";
 import { useSociety } from "@/context/SocietyContext";
 
-const SAMPLE_TICKETS: HelpdeskTicketItem[] = [
-  {
-    id: "t-1",
-    society_id: "soc-1",
-    unit_number: "Villa-42",
-    created_by: "u-1",
-    creator_name: "Siddharth Verma",
-    assigned_to: "u-staff-1",
-    assignee_name: "Ramesh (Electrician)",
-    category: "electrical",
-    priority: "high",
-    title: "Master Bedroom Geyser Trip & Switch Spark",
-    description: "Whenever the geyser is powered on, the main MCB trips with minor sparks.",
-    status: "IN_PROGRESS",
-    sla_due_at: "Today, 06:00 PM",
-    created_at: "2026-08-19T09:30:00Z",
-    comments: [
-      { id: "c-1", author_name: "Ramesh (Electrician)", message: "Assigned. I will visit your flat at 4:30 PM with replacement element.", created_at: "2026-08-19T10:15:00Z" }
-    ],
-  },
-  {
-    id: "t-2",
-    society_id: "soc-1",
-    unit_number: "A-101",
-    created_by: "u-2",
-    creator_name: "Aman Sharma",
-    category: "plumbing",
-    priority: "urgent",
-    title: "Main Water Inflow Pipe Leakage in Shaft",
-    description: "Continuous water spraying in Tower A service shaft, flooding corridor floor 1.",
-    status: "OPEN",
-    sla_due_at: "Today, 02:00 PM (1h left)",
-    created_at: "2026-08-19T11:00:00Z",
-    comments: [],
-  },
-  {
-    id: "t-3",
-    society_id: "soc-1",
-    unit_number: "B-302",
-    created_by: "u-3",
-    creator_name: "Vikram Sethi",
-    assigned_to: "u-staff-2",
-    assignee_name: "Suresh (Plumber)",
-    category: "plumbing",
-    priority: "normal",
-    title: "Kitchen Sink Drain Slow Flow",
-    description: "Drain pipe seems partially clogged after quarterly maintenance.",
-    status: "RESOLVED",
-    resolution_notes: "Unclogged using rotary snake and replaced seal washer.",
-    rating: 5,
-    created_at: "2026-08-18T14:00:00Z",
-    comments: [],
-  },
-];
-
 export default function HelpdeskAdminPage() {
   const { currentSociety } = useSociety();
   const societyId = currentSociety?.id;
@@ -97,7 +42,7 @@ export default function HelpdeskAdminPage() {
     try {
       setIsLoading(true);
       const list = await api.getHelpdeskTickets(societyId).catch(() => []);
-      setTickets(list.length > 0 ? list : SAMPLE_TICKETS);
+      setTickets(list);
     } catch (err) {
       console.warn("Failed to load helpdesk tickets:", err);
     } finally {

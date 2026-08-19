@@ -19,89 +19,6 @@ import { Modal } from "@/components/Modal";
 import { api, IoTDeviceAdminItem, AutomationRuleAdminItem } from "@/lib/api";
 import { useSociety } from "@/context/SocietyContext";
 
-const SAMPLE_DEVICES: IoTDeviceAdminItem[] = [
-  {
-    id: "dev-1",
-    society_id: "soc-1",
-    name: "Main North Gate — Automated Boom Barrier (Inflow)",
-    device_type: "BOOM_BARRIER",
-    ip_address: "192.168.10.101",
-    mac_address: "B8:27:EB:01:A2:99",
-    status: "ONLINE",
-    firmware_version: "v2.4.8-firmware",
-    last_heartbeat_at: "Just now (4s ago)",
-    created_at: "2026-08-01T00:00:00Z",
-    commands: [
-      { id: "cmd-1", command: "OPEN_BARRIER", status: "EXECUTED", executed_at: "2 mins ago" }
-    ],
-  },
-  {
-    id: "dev-2",
-    society_id: "soc-1",
-    name: "Tower A & B RFID FastTag Antenna Sensor",
-    device_type: "RFID_READER",
-    ip_address: "192.168.10.102",
-    mac_address: "B8:27:EB:04:98:C1",
-    status: "ONLINE",
-    firmware_version: "v1.9.0-embedded",
-    last_heartbeat_at: "Just now (12s ago)",
-    created_at: "2026-08-01T00:00:00Z",
-    commands: [],
-  },
-  {
-    id: "dev-3",
-    society_id: "soc-1",
-    name: "South Exit Gate — High-Speed ANPR Numberplate Camera",
-    device_type: "ANPR_CAMERA",
-    ip_address: "192.168.10.105",
-    mac_address: "A4:C3:F0:88:12:34",
-    status: "ONLINE",
-    firmware_version: "v3.1.2-ai-edge",
-    last_heartbeat_at: "Just now (8s ago)",
-    created_at: "2026-08-01T00:00:00Z",
-    commands: [],
-  },
-];
-
-const SAMPLE_RULES: AutomationRuleAdminItem[] = [
-  {
-    id: "r-1",
-    society_id: "soc-1",
-    name: "Visitor Checked-In &rarr; Instant Mobile Approval Notification",
-    description: "When guard logs visitor at main gate, dispatch real-time push alert & websocket to resident phone.",
-    trigger_event: "VISITOR_CHECKED_IN",
-    conditions: { verified: true },
-    action_type: "SEND_PUSH_NOTIFICATION",
-    action_payload: { priority: "high" },
-    is_active: true,
-    created_at: "2026-08-01T00:00:00Z",
-  },
-  {
-    id: "r-2",
-    society_id: "soc-1",
-    name: "Gate Barrier Hardware Offline &rarr; Alert Duty Supervisor",
-    description: "If an IoT boom barrier fails heartbeat for > 60s, dispatch high-priority SMS to security supervisor.",
-    trigger_event: "GATE_OFFLINE",
-    conditions: { timeout_seconds: 60 },
-    action_type: "DISPATCH_SECURITY_ALERT",
-    action_payload: { role: "supervisor" },
-    is_active: true,
-    created_at: "2026-08-01T00:00:00Z",
-  },
-  {
-    id: "r-3",
-    society_id: "soc-1",
-    name: "Monthly Bill Due in 3 Days &rarr; Automated WhatsApp & App Push",
-    description: "Triggers on 22nd of each month for all flats with unpaid maintenance arrears.",
-    trigger_event: "BILL_DUE",
-    conditions: { days_left: 3 },
-    action_type: "SEND_PUSH_NOTIFICATION",
-    action_payload: { channel: "app_and_whatsapp" },
-    is_active: true,
-    created_at: "2026-08-01T00:00:00Z",
-  },
-];
-
 export default function DevicesAdminPage() {
   const { currentSociety } = useSociety();
   const societyId = currentSociety?.id;
@@ -126,8 +43,8 @@ export default function DevicesAdminPage() {
         api.getIoTDevices(societyId).catch(() => []),
         api.getAutomationRules(societyId).catch(() => []),
       ]);
-      setDevices(dList.length > 0 ? dList : SAMPLE_DEVICES);
-      setRules(rList.length > 0 ? rList : SAMPLE_RULES);
+      setDevices(dList);
+      setRules(rList);
     } catch (err) {
       console.warn("Failed to load IoT devices:", err);
     }

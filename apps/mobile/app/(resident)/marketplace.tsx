@@ -22,83 +22,6 @@ const LISTING_CATEGORIES = [
   { id: "kids", label: "Kids & Toys" },
 ];
 
-const SAMPLE_LISTINGS: ListingItem[] = [
-  {
-    id: "l-1",
-    society_id: "soc-1",
-    seller_id: "u-1",
-    seller_name: "Siddharth Verma",
-    seller_phone: "+91 98765 43210",
-    unit_number: "Villa-42",
-    title: "Solid Teak Wood Study Desk & Ergonomic Chair",
-    description: "Mint condition 4x2 ft study desk with cable organizer and adjustable mesh chair. Moving out sale.",
-    category: "furniture",
-    price: 4500,
-    is_free: false,
-    images: [],
-    status: "ACTIVE",
-    created_at: "2026-08-19T09:00:00Z",
-  },
-  {
-    id: "l-2",
-    society_id: "soc-1",
-    seller_id: "u-2",
-    seller_name: "Sneha Kapoor",
-    seller_phone: "+91 98111 22334",
-    unit_number: "A-304",
-    title: "Tricycle for Toddler (Age 2-4 yrs)",
-    description: "Kids bicycle with safety handles and bell. Free to anyone in the society whose kid can use it!",
-    category: "kids",
-    price: 0,
-    is_free: true,
-    images: [],
-    status: "ACTIVE",
-    created_at: "2026-08-18T14:30:00Z",
-  },
-];
-
-const SAMPLE_VENDORS: VendorItem[] = [
-  {
-    id: "v-1",
-    society_id: "soc-1",
-    vendor_name: "SpeedyClean Car Detailing & Wash",
-    category: "cleaning",
-    description: "Daily eco-friendly foam wash & interior vacuuming in your allocated basement parking slot.",
-    contact_phone: "+91 99000 11223",
-    is_verified: true,
-    rating: 4.9,
-    review_count: 38,
-    pricing_starts_at: 499,
-    is_active: true,
-  },
-  {
-    id: "v-2",
-    society_id: "soc-1",
-    vendor_name: "UrbanCool AC Maintenance & Gas Refill",
-    category: "appliance_repair",
-    description: "Certified Daikin/Voltas technicians for wet jet pump service and PCB diagnosis.",
-    contact_phone: "+91 99888 77665",
-    is_verified: true,
-    rating: 4.8,
-    review_count: 24,
-    pricing_starts_at: 650,
-    is_active: true,
-  },
-  {
-    id: "v-3",
-    society_id: "soc-1",
-    vendor_name: "GreenSafe Herbal Pest Control",
-    category: "pest_control",
-    description: "Odorless gel treatment for cockroaches, termites and mosquitoes with 6-month warranty.",
-    contact_phone: "+91 97777 66554",
-    is_verified: true,
-    rating: 4.7,
-    review_count: 19,
-    pricing_starts_at: 899,
-    is_active: true,
-  },
-];
-
 export default function ResidentMarketplaceScreen() {
   const { listings, vendors, bookings, refetchListings, refetchVendors, createListing, bookVendor } = useMarketplace();
   const [activeTab, setActiveTab] = useState<"bazaar" | "services">("bazaar");
@@ -124,8 +47,8 @@ export default function ResidentMarketplaceScreen() {
   // Contact Seller Modal
   const [selectedListing, setSelectedListing] = useState<ListingItem | null>(null);
 
-  const displayListings = listings && listings.length > 0 ? listings : SAMPLE_LISTINGS;
-  const displayVendors = vendors && vendors.length > 0 ? vendors : SAMPLE_VENDORS;
+  const displayListings = listings || [];
+  const displayVendors = vendors || [];
 
   const onRefresh = async () => {
     setRefreshing(true);

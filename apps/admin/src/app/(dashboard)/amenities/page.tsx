@@ -18,83 +18,6 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { api, AmenityAdminItem, AmenityBookingAdminItem } from "@/lib/api";
 import { useSociety } from "@/context/SocietyContext";
 
-const SAMPLE_AMENITIES: AmenityAdminItem[] = [
-  {
-    id: "amn-1",
-    society_id: "soc-1",
-    name: "Olympic Swimming Pool",
-    code: "POOL",
-    category: "wellness",
-    description: "50-meter temperature controlled pool with dedicated kids splash area.",
-    capacity_per_slot: 12,
-    slot_duration_minutes: 60,
-    open_time: "06:00",
-    close_time: "21:00",
-    is_paid: false,
-    price_per_slot: 0,
-    is_active: true,
-  },
-  {
-    id: "amn-2",
-    society_id: "soc-1",
-    name: "Lawn Tennis Court (Synthetic)",
-    code: "TENNIS-1",
-    category: "sports",
-    description: "Floodlit championship synthetic hard court with automated ball machine.",
-    capacity_per_slot: 4,
-    slot_duration_minutes: 60,
-    open_time: "06:00",
-    close_time: "22:00",
-    is_paid: false,
-    price_per_slot: 0,
-    is_active: true,
-  },
-  {
-    id: "amn-3",
-    society_id: "soc-1",
-    name: "Clubhouse Banquet & Party Lawn",
-    code: "BANQUET",
-    category: "events",
-    description: "Air-conditioned banquet hall with attached catering pantry and open lawn.",
-    capacity_per_slot: 100,
-    slot_duration_minutes: 240,
-    open_time: "10:00",
-    close_time: "23:00",
-    is_paid: true,
-    price_per_slot: 2500,
-    is_active: true,
-  },
-];
-
-const SAMPLE_BOOKINGS: AmenityBookingAdminItem[] = [
-  {
-    id: "bk-1",
-    amenity_id: "amn-2",
-    amenity_name: "Lawn Tennis Court (Synthetic)",
-    unit_number: "Villa-42",
-    user_name: "Siddharth Verma",
-    booking_date: "2026-08-20",
-    start_time: "07:00",
-    end_time: "08:00",
-    guest_count: 2,
-    status: "CONFIRMED",
-    qr_pass: "AMN-TENNIS-8F2B",
-  },
-  {
-    id: "bk-2",
-    amenity_id: "amn-1",
-    amenity_name: "Olympic Swimming Pool",
-    unit_number: "A-102",
-    user_name: "Pooja Verma",
-    booking_date: "2026-08-20",
-    start_time: "06:00",
-    end_time: "07:00",
-    guest_count: 1,
-    status: "CONFIRMED",
-    qr_pass: "AMN-POOL-1A90",
-  },
-];
-
 export default function AmenitiesAdminPage() {
   const { currentSociety } = useSociety();
   const societyId = currentSociety?.id;
@@ -125,8 +48,8 @@ export default function AmenitiesAdminPage() {
         api.getAmenities(societyId).catch(() => []),
         api.getAmenityBookings(societyId).catch(() => []),
       ]);
-      setAmenities(aList.length > 0 ? aList : SAMPLE_AMENITIES);
-      setBookings(bList.length > 0 ? bList : SAMPLE_BOOKINGS);
+      setAmenities(aList);
+      setBookings(bList);
     } catch (err) {
       console.warn("Failed to load amenities data:", err);
     }

@@ -20,66 +20,6 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { api, InvoiceAdminItem, LedgerSummaryAdmin } from "@/lib/api";
 import { useSociety } from "@/context/SocietyContext";
 
-const SAMPLE_INVOICES: InvoiceAdminItem[] = [
-  {
-    id: "inv-1",
-    society_id: "soc-1",
-    unit_id: "u-1",
-    unit_number: "Villa-42",
-    invoice_number: "INV-202608-V42-A1",
-    billing_period: "August 2026",
-    due_date: "2026-08-25",
-    subtotal: 3350,
-    tax_amount: 167.5,
-    penalty_amount: 0,
-    total_amount: 3517.5,
-    paid_amount: 0,
-    status: "UNPAID",
-    line_items: [
-      { title: "Monthly Society Maintenance", amount: 2500, category: "maintenance" },
-      { title: "Sinking & Asset Reserve Fund", amount: 500, category: "reserve" },
-      { title: "Water Utility Metering", amount: 350, category: "utility" },
-      { title: "GST (5% Tax)", amount: 167.5, category: "tax" },
-    ],
-    created_at: "2026-08-01T00:00:00Z",
-  },
-  {
-    id: "inv-2",
-    society_id: "soc-1",
-    unit_id: "u-2",
-    unit_number: "A-101",
-    invoice_number: "INV-202608-A101-92",
-    billing_period: "August 2026",
-    due_date: "2026-08-25",
-    subtotal: 3350,
-    tax_amount: 167.5,
-    penalty_amount: 0,
-    total_amount: 3517.5,
-    paid_amount: 3517.5,
-    status: "PAID",
-    line_items: [],
-    created_at: "2026-08-01T00:00:00Z",
-    paid_at: "2026-08-05T10:30:00Z",
-  },
-  {
-    id: "inv-3",
-    society_id: "soc-1",
-    unit_id: "u-3",
-    unit_number: "B-204",
-    invoice_number: "INV-202607-B204-03",
-    billing_period: "July 2026",
-    due_date: "2026-07-25",
-    subtotal: 3350,
-    tax_amount: 167.5,
-    penalty_amount: 150,
-    total_amount: 3667.5,
-    paid_amount: 0,
-    status: "OVERDUE",
-    line_items: [],
-    created_at: "2026-07-01T00:00:00Z",
-  },
-];
-
 const DEFAULT_LEDGER: LedgerSummaryAdmin = {
   total_billed: 105525,
   total_collected: 73867.5,
@@ -115,7 +55,7 @@ export default function BillingAdminPage() {
         api.getInvoices(societyId).catch(() => []),
         api.getLedgerSummary(societyId).catch(() => DEFAULT_LEDGER),
       ]);
-      setInvoices(invList.length > 0 ? invList : SAMPLE_INVOICES);
+      setInvoices(invList);
       setLedger(ledgerData || DEFAULT_LEDGER);
     } catch (err) {
       console.warn("Failed to load billing data:", err);

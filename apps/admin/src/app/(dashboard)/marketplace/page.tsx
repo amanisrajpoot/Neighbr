@@ -17,76 +17,6 @@ import { Modal } from "@/components/Modal";
 import { api, MarketplaceListingAdminItem, VendorAdminItem, ServiceBookingAdminItem } from "@/lib/api";
 import { useSociety } from "@/context/SocietyContext";
 
-const SAMPLE_LISTINGS: MarketplaceListingAdminItem[] = [
-  {
-    id: "l-1",
-    seller_name: "Siddharth Verma",
-    seller_phone: "+91 98765 43210",
-    unit_number: "Villa-42",
-    title: "Solid Teak Wood Study Desk & Ergonomic Chair",
-    description: "Mint condition 4x2 ft study desk with cable organizer and adjustable mesh chair.",
-    category: "furniture",
-    price: 4500,
-    is_free: false,
-    status: "ACTIVE",
-    created_at: "2026-08-19T09:00:00Z",
-  },
-  {
-    id: "l-2",
-    seller_name: "Sneha Kapoor",
-    seller_phone: "+91 98111 22334",
-    unit_number: "A-304",
-    title: "Tricycle for Toddler (Age 2-4 yrs)",
-    description: "Kids bicycle with safety handles and bell. Free to anyone in the society.",
-    category: "kids",
-    price: 0,
-    is_free: true,
-    status: "ACTIVE",
-    created_at: "2026-08-18T14:30:00Z",
-  },
-];
-
-const SAMPLE_VENDORS: VendorAdminItem[] = [
-  {
-    id: "v-1",
-    vendor_name: "SpeedyClean Car Detailing & Wash",
-    category: "cleaning",
-    description: "Daily eco-friendly foam wash & interior vacuuming in basement parking bays.",
-    contact_phone: "+91 99000 11223",
-    is_verified: true,
-    rating: 4.9,
-    review_count: 38,
-    pricing_starts_at: 499,
-    is_active: true,
-  },
-  {
-    id: "v-2",
-    vendor_name: "UrbanCool AC Maintenance & Gas Refill",
-    category: "appliance_repair",
-    description: "Certified Daikin/Voltas technicians for wet jet pump service.",
-    contact_phone: "+91 99888 77665",
-    is_verified: true,
-    rating: 4.8,
-    review_count: 24,
-    pricing_starts_at: 650,
-    is_active: true,
-  },
-];
-
-const SAMPLE_BOOKINGS: ServiceBookingAdminItem[] = [
-  {
-    id: "bk-1",
-    vendor_name: "SpeedyClean Car Detailing & Wash",
-    resident_name: "Aman Sharma",
-    unit_number: "A-101",
-    booking_date: "2026-08-20",
-    time_slot: "08:00 AM - 09:00 AM",
-    gate_pass_code: "SVC-CLEAN-8A91",
-    status: "CONFIRMED",
-    created_at: "2026-08-19T10:00:00Z",
-  },
-];
-
 export default function MarketplaceAdminPage() {
   const { currentSociety } = useSociety();
   const societyId = currentSociety?.id;
@@ -114,9 +44,9 @@ export default function MarketplaceAdminPage() {
         api.getVendors(societyId).catch(() => []),
         api.getServiceBookings(societyId).catch(() => []),
       ]);
-      setListings(lList.length > 0 ? lList : SAMPLE_LISTINGS);
-      setVendors(vList.length > 0 ? vList : SAMPLE_VENDORS);
-      setBookings(bList.length > 0 ? bList : SAMPLE_BOOKINGS);
+      setListings(lList);
+      setVendors(vList);
+      setBookings(bList);
     } catch (err) {
       console.warn("Failed to load marketplace data:", err);
     }

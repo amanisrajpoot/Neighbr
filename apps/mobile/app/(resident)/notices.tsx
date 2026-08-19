@@ -10,38 +10,11 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Colors } from "../../src/theme/colors";
 
-const SAMPLE_NOTICES = [
-  {
-    id: "n-1",
-    title: "Quarterly Water Tank Cleaning & Supply Interruption",
-    body: "Water supply across all towers (A, B, and Villas) will be briefly paused between 2:00 PM and 5:00 PM this coming Sunday for scheduled pressure cleaning of overhead reservoirs. Residents are advised to store adequate water.",
-    category: "Maintenance",
-    priority: "HIGH",
-    published_at: "Today, 08:30 AM",
-    author: "Estate Management",
-  },
-  {
-    id: "n-2",
-    title: "Clubhouse Gymnasium Equipment Upgrades Completed",
-    body: "New treadmills and strength conditioning racks are now operational in the primary clubhouse gym. Residents are requested to carry their digital pass for biometric access.",
-    category: "General",
-    priority: "NORMAL",
-    published_at: "Yesterday",
-    author: "RWA Secretary",
-  },
-  {
-    id: "n-3",
-    title: "Visitor Gate Pass Verification Protocol Reminder",
-    body: "All domestic delivery partners and cabs must present their digital QR pass at Main North Gate. Pre-approve your visitors via the Neighbr app for rapid gate check-in.",
-    category: "Security",
-    priority: "NORMAL",
-    published_at: "3 days ago",
-    author: "Head of Security",
-  },
-];
+import { useNotices, NoticeItem } from "../../src/hooks/useNotices";
 
 export default function ResidentNoticesScreen() {
-  const [selectedNotice, setSelectedNotice] = useState<typeof SAMPLE_NOTICES[0] | null>(null);
+  const { notices, isLoading } = useNotices();
+  const [selectedNotice, setSelectedNotice] = useState<NoticeItem | null>(null);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -50,7 +23,7 @@ export default function ResidentNoticesScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        {SAMPLE_NOTICES.map((notice) => (
+        {notices.map((notice: NoticeItem) => (
           <TouchableOpacity
             key={notice.id}
             onPress={() => setSelectedNotice(notice)}
@@ -74,7 +47,7 @@ export default function ResidentNoticesScreen() {
             </Text>
 
             <View style={styles.cardFooter}>
-              <Text style={styles.authorText}>By {notice.author}</Text>
+              <Text style={styles.authorText}>Office • {notice.category}</Text>
               <Text style={styles.readMoreText}>Read Details →</Text>
             </View>
           </TouchableOpacity>
@@ -105,7 +78,7 @@ export default function ResidentNoticesScreen() {
                 </View>
 
                 <Text style={styles.modalTitle}>{selectedNotice.title}</Text>
-                <Text style={styles.modalAuthor}>Issued by: {selectedNotice.author}</Text>
+                <Text style={styles.modalAuthor}>Issued by: Estate Management Office ({selectedNotice.category})</Text>
 
                 <ScrollView style={{ maxHeight: 240, marginVertical: 14 }}>
                   <Text style={styles.modalBody}>{selectedNotice.body}</Text>

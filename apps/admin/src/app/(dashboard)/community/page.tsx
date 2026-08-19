@@ -17,49 +17,6 @@ import { Modal } from "@/components/Modal";
 import { api, CommunityPostAdminItem, CommunityPollAdminItem } from "@/lib/api";
 import { useSociety } from "@/context/SocietyContext";
 
-const SAMPLE_POSTS: CommunityPostAdminItem[] = [
-  {
-    id: "p-1",
-    author_name: "Pooja Verma",
-    unit_number: "Villa-42",
-    title: "Ganesh Chaturthi Cultural Night Organizing Committee",
-    content: "We are forming a resident volunteer group for stage setup, kids dance rehearsals, and prasad distribution for the upcoming festival.",
-    category: "events",
-    likes_count: 14,
-    is_pinned: true,
-    created_at: "2026-08-19T08:00:00Z",
-  },
-  {
-    id: "p-2",
-    author_name: "Dr. Ananya Roy",
-    unit_number: "B-204",
-    title: "Recommended Pediatrician near Main Gate",
-    content: "Can anyone recommend a good child clinic or pediatrician within 2-3 kms of our society north gate?",
-    category: "recommendations",
-    likes_count: 6,
-    is_pinned: false,
-    created_at: "2026-08-18T16:00:00Z",
-  },
-];
-
-const SAMPLE_POLLS: CommunityPollAdminItem[] = [
-  {
-    id: "pl-1",
-    author_name: "Society Committee",
-    question: "Should we install 4 additional dedicated EV Fast-Charging points in Tower A & B Basement?",
-    description: "Estimated capital cost shared via sinking fund with pay-per-unit metering.",
-    options: ["Yes, approve installation", "No, keep existing 2 points", "Need more technical details"],
-    total_votes: 42,
-    stats: [
-      { index: 0, text: "Yes, approve installation", vote_count: 32, percentage: 76.2 },
-      { index: 1, text: "No, keep existing 2 points", vote_count: 6, percentage: 14.3 },
-      { index: 2, text: "Need more technical details", vote_count: 4, percentage: 9.5 },
-    ],
-    is_active: true,
-    created_at: "2026-08-18T10:00:00Z",
-  },
-];
-
 export default function CommunityAdminPage() {
   const { currentSociety } = useSociety();
   const societyId = currentSociety?.id;
@@ -83,8 +40,8 @@ export default function CommunityAdminPage() {
         api.getCommunityPosts(societyId).catch(() => []),
         api.getCommunityPolls(societyId).catch(() => []),
       ]);
-      setPosts(pList.length > 0 ? pList : SAMPLE_POSTS);
-      setPolls(plList.length > 0 ? plList : SAMPLE_POLLS);
+      setPosts(pList);
+      setPolls(plList);
     } catch (err) {
       console.warn("Failed to load community data:", err);
     }

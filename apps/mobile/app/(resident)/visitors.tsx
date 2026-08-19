@@ -9,19 +9,14 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Colors } from "../../src/theme/colors";
-
-const SAMPLE_PASSES = [
-  { id: "p1", name: "Ananya Roy", type: "Guest", vehicle: "KA01AB1234", time: "Today, 7:00 PM", status: "APPROVED", qr: "NBR-TOKEN-ANANYA" },
-  { id: "p2", name: "Amazon Delivery", type: "Delivery", vehicle: "—", time: "Today, 10:30 AM", status: "CHECKED_IN", qr: "NBR-TOKEN-AMAZON" },
-  { id: "p3", name: "Suresh (Plumber)", type: "Service", vehicle: "KA05CD5678", time: "Yesterday, 09:00 AM", status: "CHECKED_OUT", qr: "NBR-TOKEN-PLUMBER" },
-  { id: "p4", name: "Uber Cab", type: "Cab", vehicle: "KA03EF9012", time: "16-Aug, 09:45 AM", status: "EXPIRED", qr: "NBR-TOKEN-UBER" },
-];
+import { usePasses, VisitorPassItem } from "../../src/hooks/usePasses";
 
 export default function ResidentVisitorsScreen() {
   const router = useRouter();
+  const { passes, isLoading } = usePasses();
   const [activeFilter, setActiveFilter] = useState<"ALL" | "ACTIVE" | "PAST">("ALL");
 
-  const filteredPasses = SAMPLE_PASSES.filter((p) => {
+  const filteredPasses = passes.filter((p: VisitorPassItem) => {
     if (activeFilter === "ACTIVE") return p.status === "APPROVED" || p.status === "CHECKED_IN";
     if (activeFilter === "PAST") return p.status === "CHECKED_OUT" || p.status === "EXPIRED";
     return true;
@@ -63,9 +58,9 @@ export default function ResidentVisitorsScreen() {
           <View key={pass.id} style={styles.card}>
             <View style={styles.cardHeader}>
               <View>
-                <Text style={styles.visitorName}>{pass.name}</Text>
+                <Text style={styles.visitorName}>{pass.visitor_name}</Text>
                 <Text style={styles.visitorMeta}>
-                  {pass.type} • {pass.time}
+                  {pass.pass_type} • {pass.valid_from}
                 </Text>
               </View>
 
@@ -91,8 +86,8 @@ export default function ResidentVisitorsScreen() {
             </View>
 
             <View style={styles.cardFooter}>
-              <Text style={styles.vehicleText}>Vehicle: {pass.vehicle}</Text>
-              <Text style={styles.qrCodeText}>Code: {pass.qr}</Text>
+              <Text style={styles.vehicleText}>Vehicle: {pass.vehicle_number || "None"}</Text>
+              <Text style={styles.qrCodeText}>Code: {pass.qr_token}</Text>
             </View>
           </View>
         ))}
