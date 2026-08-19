@@ -1,0 +1,1871 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Neighbr E2E Platform Test Report</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0b0f19;
+      --card: #111827;
+      --card-border: #1f2937;
+      --text: #f3f4f6;
+      --text-muted: #9ca3af;
+      --emerald: #10b981;
+      --emerald-bg: rgba(16, 185, 129, 0.12);
+      --red: #ef4444;
+      --red-bg: rgba(239, 68, 68, 0.12);
+      --sky: #0ea5e9;
+      --sky-bg: rgba(14, 165, 233, 0.12);
+      --purple: #a855f7;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      padding: 32px 24px;
+      line-height: 1.5;
+    }
+    .container { max-width: 1200px; margin: 0 auto; }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 32px;
+      padding-bottom: 24px;
+      border-bottom: 1px solid var(--card-border);
+    }
+    .brand { display: flex; align-items: center; gap: 14px; }
+    .brand-logo {
+      width: 44px; height: 44px; border-radius: 14px;
+      background: linear-gradient(135deg, #0ea5e9, #6366f1);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px; font-weight: 900; color: #fff;
+    }
+    .brand-title { font-size: 24px; font-weight: 900; letter-spacing: -0.5px; }
+    .brand-sub { font-size: 13px; color: var(--text-muted); }
+    
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 32px;
+    }
+    .kpi-card {
+      background: var(--card);
+      border: 1px solid var(--card-border);
+      border-radius: 18px;
+      padding: 20px;
+    }
+    .kpi-val { font-size: 32px; font-weight: 900; margin-top: 4px; }
+    .kpi-label { font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+    .passed-text { color: var(--emerald); }
+    .failed-text { color: var(--red); }
+    .latency-text { color: var(--sky); }
+
+    .roles-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+      margin-bottom: 32px;
+    }
+    .role-badge-card {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--card-border);
+      border-radius: 14px;
+      padding: 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .role-name { font-size: 13px; font-weight: 700; }
+    .role-stats { font-size: 11px; color: var(--text-muted); }
+
+    .steps-section { margin-top: 24px; }
+    .section-title { font-size: 18px; font-weight: 800; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+    .step-card {
+      background: var(--card);
+      border: 1px solid var(--card-border);
+      border-radius: 14px;
+      margin-bottom: 12px;
+      overflow: hidden;
+      transition: all 0.2s ease;
+    }
+    .step-header {
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      user-select: none;
+    }
+    .step-header:hover { background: rgba(255,255,255,0.02); }
+    .step-left { display: flex; align-items: center; gap: 12px; min-width: 0; }
+    .status-dot {
+      width: 10px; height: 10px; border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .dot-pass { background: var(--emerald); box-shadow: 0 0 10px var(--emerald); }
+    .dot-fail { background: var(--red); box-shadow: 0 0 10px var(--red); }
+    .step-name { font-size: 14px; font-weight: 700; }
+    .method-badge {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px; font-weight: 700;
+      padding: 3px 8px; border-radius: 6px;
+      background: rgba(255,255,255,0.06);
+    }
+    .role-pill {
+      font-size: 11px; font-weight: 700;
+      padding: 3px 10px; border-radius: 20px;
+      background: var(--sky-bg); color: var(--sky);
+    }
+    .step-latency {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px; color: var(--text-muted);
+    }
+    .step-body {
+      padding: 0 20px 20px 20px;
+      border-top: 1px solid rgba(255,255,255,0.05);
+      display: none;
+    }
+    .step-body.open { display: block; }
+    .code-block {
+      background: #080c14;
+      border: 1px solid #1a2234;
+      border-radius: 10px;
+      padding: 14px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      margin-top: 10px;
+      overflow-x: auto;
+      max-height: 240px;
+    }
+    .code-label { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-top: 14px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="brand">
+        <div class="brand-logo">N</div>
+        <div>
+          <div class="brand-title">Neighbr Platform E2E Test Suite</div>
+          <div class="brand-sub">Execution Timestamp: 2026-08-19 16:26:38 UTC • Duration: 1.88s</div>
+        </div>
+      </div>
+      <div>
+        <span class="role-pill" style="font-size: 13px; padding: 6px 16px;">FastAPI + Postgres + Redis + WebSockets + SQLite</span>
+      </div>
+    </div>
+
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-label">Pass Rate</div>
+        <div class="kpi-val passed-text">100.0%</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Total Steps Executed</div>
+        <div class="kpi-val">34</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Passed / Failed</div>
+        <div class="kpi-val"><span class="passed-text">34</span> / <span class="failed-text">0</span></div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Average API Latency</div>
+        <div class="kpi-val latency-text">50.59 ms</div>
+      </div>
+    </div>
+
+    <div class="section-title">👥 Persona Coverage & Role Assertions</div>
+    <div class="roles-grid">
+
+      <div class="role-badge-card">
+        <div>
+          <div class="role-name">Super Admin</div>
+          <div class="role-stats">1/1 Passed</div>
+        </div>
+        <div class="status-dot dot-pass"></div>
+      </div>
+
+      <div class="role-badge-card">
+        <div>
+          <div class="role-name">Society Admin</div>
+          <div class="role-stats">10/10 Passed</div>
+        </div>
+        <div class="status-dot dot-pass"></div>
+      </div>
+
+      <div class="role-badge-card">
+        <div>
+          <div class="role-name">Resident</div>
+          <div class="role-stats">12/12 Passed</div>
+        </div>
+        <div class="status-dot dot-pass"></div>
+      </div>
+
+      <div class="role-badge-card">
+        <div>
+          <div class="role-name">Gate Guard</div>
+          <div class="role-stats">4/4 Passed</div>
+        </div>
+        <div class="status-dot dot-pass"></div>
+      </div>
+
+      <div class="role-badge-card">
+        <div>
+          <div class="role-name">Security Supervisor</div>
+          <div class="role-stats">4/4 Passed</div>
+        </div>
+        <div class="status-dot dot-pass"></div>
+      </div>
+
+      <div class="role-badge-card">
+        <div>
+          <div class="role-name">Management Committee</div>
+          <div class="role-stats">1/1 Passed</div>
+        </div>
+        <div class="status-dot dot-pass"></div>
+      </div>
+
+      <div class="role-badge-card">
+        <div>
+          <div class="role-name">Accountant</div>
+          <div class="role-stats">2/2 Passed</div>
+        </div>
+        <div class="status-dot dot-pass"></div>
+      </div>
+
+    </div>
+
+    <div class="steps-section">
+      <div class="section-title">🧪 Detailed Step-by-Step Test Log</div>
+
+      <div class="step-card">
+        <div class="step-header" onclick="toggleStep(0)">
+          <div class="step-left">
+            <div class="status-dot dot-pass"></div>
+            <span class="method-badge">POST</span>
+            <span class="step-name">Super Admin: Onboard New Gated Community</span>
+            <span class="role-pill">Super Admin</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 16px;">
+            <span class="step-latency">29.19 ms</span>
+            <span style="font-size: 12px; color: var(--text-muted);">&#9662;</span>
+          </div>
+        </div>
+        <div class="step-body" id="step-body-0">
+          <div style="margin-top: 12px; font-size: 13px;"><strong>Endpoint:</strong> <code style="font-family: monospace; color: var(--sky);">/societies</code> • <strong>HTTP Status:</strong> <code>201</code></div>
+          <div class="code-label">Request Payload</div>
+          <pre class="code-block">{
+  "name": "Greenwood Palms Heights",
+  "slug": "palms-2358ac",
+  "city": "Bengaluru",
+  "state": "Karnataka",
+  "pincode": "560066",
+  "address": "42 Varthur Road, Whitefield",
+  "settings": {
+    "auto_approve_delivery": true,
+    "strict_gate_mode": true
+  }
+}</pre>
+          <div class="code-label">Response Payload / Frame</div>
+          <pre class="code-block">{
+  "id": "c18ec76a-aeb8-42ba-a817-674b7c1f4bf2",
+  "name": "Greenwood Palms Heights",
+  "slug": "palms-2358ac",
+  "address_line1": null,
+  "address_line2": null,
+  "city": "Bengaluru",
+  "state": "Karnataka",
+  "pincode": "560066",
+  "country": "IN",
+  "logo_url": null,
+  "cover_image_url": null,
+  "total_units": 0,
+  "is_active": true,
+  "created_at": "2026-08-19T16:26:37.259916Z",
+  "updated_at": "2026-08-19T16:26:37.259922Z"
+}</pre>
+        </div>
+      </div>
+
+      <div class="step-card">
+        <div class="step-header" onclick="toggleStep(1)">
+          <div class="step-left">
+            <div class="status-dot dot-pass"></div>
+            <span class="method-badge">POST</span>
+            <span class="step-name">Society Admin: Create Tower A Building Structure</span>
+            <span class="role-pill">Society Admin</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 16px;">
+            <span class="step-latency">36.64 ms</span>
+            <span style="font-size: 12px; color: var(--text-muted);">&#9662;</span>
+          </div>
+        </div>
+        <div class="step-body" id="step-body-1">
+          <div style="margin-top: 12px; font-size: 13px;"><strong>Endpoint:</strong> <code style="font-family: monospace; color: var(--sky);">/societies/c18ec76a-aeb8-42ba-a817-674b7c1f4bf2/buildings</code> • <strong>HTTP Status:</strong> <code>201</code></div>
+          <div class="code-label">Request Payload</div>
+          <pre class="code-block">{
+  "name": "Tower A",
+  "code": "TOW-A",
+  "total_floors": 12
+}</pre>
+          <div class="code-label">Response Payload / Frame</div>
+          <pre class="code-block">{
+  "id": "29068e55-f960-46b2-a9e4-1bb662a9427c",
+  "society_id": "c18ec76a-aeb8-42ba-a817-674b7c1f4bf2",
+  "name": "Tower A",
+  "code": "TOW-A",
+  "total_floors": 12,
+  "total_units": 0,
+  "sort_order": 0,
+  "is_active": true,
+  "created_at": "2026-08-19T16:26:37.307392Z"
+}</pre>
+        </div>
+      </div>
+
+      <div class="step-card">
+        <div class="step-header" onclick="toggleStep(2)">
+          <div class="step-left">
+            <div class="status-dot dot-pass"></div>
+            <span class="method-badge">POST</span>
+            <span class="step-name">Society Admin: Create Ground Floor Level</span>
+            <span class="role-pill">Society Admin</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 16px;">
+            <span class="step-latency">22.8 ms</span>
+            <span style="font-size: 12px; color: var(--text-muted);">&#9662;</span>
+          </div>
+        </div>
+        <div class="step-body" id="step-body-2">
+          <div style="margin-top: 12px; font-size: 13px;"><strong>Endpoint:</strong> <code style="font-family: monospace; color: var(--sky);">/societies/c18ec76a-aeb8-42ba-a817-674b7c1f4bf2/buildings/29068e55-f960-46b2-a9e4-1bb662a9427c/floors</code> • <strong>HTTP Status:</strong> <code>201</code></div>
+          <div class="code-label">Request Payload</div>
+          <pre class="code-block">{
+  "name": "Ground Floor",
+  "floor_number": 0
+}</pre>
+          <div class="code-label">Response Payload / Frame</div>
+          <pre class="code-block">{
+  "id": "db28ac24-7738-4ea2-b4e0-f8aecb4c28e0",
+  "building_id": "29068e55-f960-46b2-a9e4-1bb662a9427c",
+  "society_id": "c18ec76a-aeb8-42ba-a817-674b7c1f4bf2",
+  "name": "Ground Floor",
+  "floor_number": 0,
+  "sort_order": 0,
+  "created_at": "2026-08-19T16:26:37.330490Z"
+}</pre>
+        </div>
+      </div>
+
+      <div class="step-card">
+        <div class="step-header" onclick="toggleStep(3)">
+          <div class="step-left">
+            <div class="status-dot dot-pass"></div>
+            <span class="method-badge">POST</span>
+            <span class="step-name">Society Admin: Create Villa-42 Unit Inventory</span>
+            <span class="role-pill">Society Admin</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 16px;">
+            <span class="step-latency">35.16 ms</span>
+            <span style="font-size: 12px; color: var(--text-muted);">&#9662;</span>
+          </div>
+        </div>
+        <div class="step-body" id="step-body-3">
+          <div style="margin-top: 12px; font-size: 13px;"><strong>Endpoint:</strong> <code style="font-family: monospace; color: var(--sky);">/societies/c18ec76a-aeb8-42ba-a817-674b7c1f4bf2/units</code> • <strong>HTTP Status:</strong> <code>201</code></div>
+          <div class="code-label">Request Payload</div>
+          <pre class="code-block">{
+  "building_id": "29068e55-f960-46b2-a9e4-1bb662a9427c",
+  "floor_id": "db28ac24-7738-4ea2-b4e0-f8aecb4c28e0",
+  "unit_number": "Villa-42",
+  "unit_type": "villa"
+}</pre>
+          <div class="code-label">Response Payload / Frame</div>
+          <pre class="code-block">{
+  "id": "3f475782-ab06-484b-9641-292fbc51c1e9",
+  "society_id": "c18ec76a-aeb8-42ba-a817-674b7c1f4bf2",
+  "building_id": "29068e55-f960-46b2-a9e4-1bb662a9427c",
+  "floor_id": "db28ac24-7738-4ea2-b4e0-f8aecb4c28e0",
+  "unit_number": "VILLA-42",
+  "unit_type": "villa",
+  "area_sqft": null,
+  "is_occupied": false,
+  "is_active": true,
+  "created_at": "2026-08-19T16:26:37.365612Z"
+}</pre>
+        </div>
+      </div>
+
+      <div class="step-card">
+        <div class="step-header" onclick="toggleStep(4)">
+          <div class="step-left">
+            <div class="status-dot dot-pass"></div>
+            <span class="method-badge">POST</span>
+            <span class="step-name">Society Admin: Provision Main North Gate Terminal</span>
+            <span class="role-pill">Society Admin</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 16px;">
+            <span class="step-latency">25.23 ms</span>
+            <span style="font-size: 12px; color: var(--text-muted);">&#9662;</span>
+          </div>
+        </div>
+        <div class="step-body" id="step-body-4">
+          <div style="margin-top: 12px; font-size: 13px;"><strong>Endpoint:</strong> <code style="font-family: monospace; color: var(--sky);">/societies/c18ec76a-aeb8-42ba-a817-674b7c1f4bf2/gates</code> • <strong>HTTP Status:</strong> <code>201</code></div>
+          <div class="code-label">Request Payload</div>
+          <pre class="code-block">{
+  "name": "Main North Gate",
+  "gate_code": "GATE-01",
+  "gate_type": "both",
+  "terminal_device_id": "GATE-TERM-01",
+  "is_active": true
+}</pre>
+          <div class="code-label">Response Payload / Frame</div>
+          <pre class="code-block">{
+  "id": "dd43881a-80b2-44d9-99fd-501c9b3e379e",
+  "society_id": "c18ec76a-aeb8-42ba-a817-674b7c1f4bf2",
+  "name": "Main North Gate",
+  "code": null,
+  "gate_type": "both",
+  "is_active": true,
+  "is_online": true,
+  "last_heartbeat_at": null,
+  "location": null,
+  "created_at": "2026-08-19T16:26:37.391822Z"
+}</pre>
+        </div>
+      </div>
+
+      <div class="step-card">
+        <div class="step-header" onclick="toggleStep(5)">
+          <div class="step-left">
+            <div class="status-dot dot-pass"></div>
+            <span class="method-badge">POST</span>
+            <span class="step-name">Society Admin: Provision Clubhouse Tennis Court</span>
+            <span class="role-pill">Society Admin</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 16px;">
+            <span class="step-latency">25.46 ms</span>
+            <span style="font-size: 12px; color: var(--text-muted);">&#9662;</span>
+          </div>
+        </div>
+        <div class="step-body" id="step-body-5">
+          <div style="margin-top: 12px; font-size: 13px;"><strong>Endpoint:</strong> <code style="font-family: monospace; color: var(--sky);">/societies/c18ec76a-aeb8-42ba-a817-674b7c1f4bf2/amenities</code> • <strong>HTTP Status:</strong> <code>201</code></div>
+          <div class="code-label">Request Payload</div>
+          <pre class="code-block">{
+  "name": "Clubhouse Tennis Court",
+  "code": "AMN-TENNIS-01",
+  "category": "sports",
+  "description": "Synthetic floodlit court with international turf",
+  "capacity_per_slot": 4,
+  "slot_duration_minutes": 60,
+  "open_time": "06:00",
+  "close_time": "22:00",
+  "is_paid": false
+}</pre>
+          <div class="code-label">Response Payload / Frame</div>
+          <pre class="code-block">{
+  "id": "e81d1ef7-bcf4-408b-8ad3-a6b7c0828cbd",
+  "society_id": "c18ec76a-aeb8-42ba-a817-674b7c1f4bf2",
+  "name": "Clubhouse Tennis Court",
+  "code": "AMN-TENNIS-01",
+  "category": "sports",
+  "description": "Synthetic floodlit court with international turf",
+  "image_url": null,
+  "capacity_per_slot": 4,
+  "slot_duration_minutes": 60,
+  "open_time": "06:00",
+  "close_time": "22:00",
+  "rules": [],
+  "is_paid": false,
+  "price_per_slot": 0.0,
+  "is_active": true,
+  "created_at": "2026-08-19T16:26:37.417181Z"
+}</pre>
+        </div>
+      </div>
+
+      <div class="step-card">
+        <div class="step-header" onclick="toggleStep(6)">
+          <div class="step-left">
+            <div class="status-dot dot-pass"></div>
+            <span class="method-badge">POST</span>
+            <span class="step-name">Resident: Issue Pre-Approved QR Guest Pass</span>
+            <span class="role-pill">Resident</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 16px;">
+            <span class="step-latency">34.56 ms</span>
+            <span style="font-size: 12px; color: var(--text-muted);">&#9662;</span>
+          </div>
+        </div>
+        <div class="step-body" id="step-body-6">
+          <div style="margin-top: 12px; font-size: 13px;"><strong>Endpoint:</strong> <code style="font-family: monospace; color: var(--sky);">/societies/c18ec76a-aeb8-42ba-a817-674b7c1f4bf2/visitors/passes</code> • <strong>HTTP Status:</strong> <code>201</code></div>
+          <div class="code-label">Request Payload</div>
+          <pre class="code-block">{
+  "unit_id": "3f475782-ab06-484b-9641-292fbc51c1e9",
+  "visitor_name": "Rohan Deshmukh",
+  "visitor_phone": "+919876599901",
+  "pass_type": "guest",
+  "valid_from": "2026-08-19T16:26:37.425567+00:00",
+  "valid_until": "2026-08-19T22:26:37.425567+00:00",
+  "vehicle_number": "KA-01-MJ-8899",
+  "purpose": "Weekend Family Dinner"
+}</pre>
+          <div class="code-label">Response Payload / Frame</div>
+          <pre class="code-block">{
+  "id": "dfdc6054-a09d-456e-b89d-163218b24a36",
+  "society_id": "c18ec76a-aeb8-42ba-a817-674b7c1f4bf2",
+  "unit_id": "3f475782-ab06-484b-9641-292fbc51c1e9",
+  "visitor_id": "1f312d5e-8d94-4d53-8b0a-a0a480fc57f4",
+  "issued_by": "35f84c33-268a-4073-b52e-f0b780785d7b",
+  "pass_type": "guest",
+  "visitor_name": "Rohan Deshmukh",
+  "visitor_phone": "+919876599901",
+  "visitor_company": null,
+  "purpose": "Weekend Family Dinner",
+  "vehicle_number": "KA-01-MJ-8899",
+  "qr_token": "NBR-5uFoOt2QYSZL8hnp8eHpUA-b01fe1667c8f",
+  "valid_from": "2026-08-19T16:26:37.425567Z",
+  "valid_until": "2026-08-19T22:26:37.425567Z",
+  "status": "APPROVED",
+  "notes": null,
+  "created_at": "2026-08-19T16:26:37.443004Z",
+  "unit": {
+    "id": "3f475782-ab06-484b-9641-292fbc51c1e9",
+    "society_id": "c18ec76a-aeb8-42ba-a817-674b7c1f4bf2",
+    "building_id": "29068e55-f960-46b2-a9e4-1bb662a9427c",
+    "floor_id": "db28ac24-7738-4ea2-b4e0-f8aecb4c28e0",
+    "unit_number": "VILLA-42",
+    "unit_type": "villa",
+    "area_sqft": null,
+    "is_occupied": false,
+    "is_active": true,
+    "created_at": "2026-08-19T16:26:37.365612Z"
+  },
+  "issuer": {
+    "id": "35f84c33-268a-4073-b52e-f0b780785d7b",
+    "phone": "+919876530002",
+    "phone_verified": true,
+    "email": null,
+    "full_name": "Siddharth Verma",
+    "avatar_url": null,
+    "is_active": true,
+    "is_platform_admin": false,
+    "created_at": "2026-08-18T19:53:18.244517Z",
+    "updated_at": "2026-08-18T19:53:18.244520Z"
+  }
+}</pre>
+        </div>
+      </div>
+
+      <div class="step-card">
+        <div class="step-header" onclick="toggleStep(7)">
+          <div class="step-left">
+            <div class="status-dot dot-pass"></div>
+            <span class="method-badge">POST</span>
+            <span class="step-name">Gate Guard: Scan & Verify Visitor Pass at Terminal</span>
+            <span class="role-pill">Gate Guard</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 16px;">
+            <span class="step-latency">32.78 ms</span>
+            <span style="font-size: 12px; color: var(--text-muted);">&#9662;</span>
+          </div>
+        </div>
+        <div class="step-body" id="step-body-7">
+          <div style="margin-top: 12px; font-size: 13px;"><strong>Endpoint:</strong> <code style="font-family: monospace; color: var(--sky);">/societies/c18ec76a-aeb8-42ba-a817-674b7c1f4bf2/gates/dd43881a-80b2-44d9-99fd-501c9b3e379e/scan</code> • <strong>HTTP Status:</strong> <code>200</code></div>
+          <div class="code-label">Request Payload</div>
+          <pre class="code-block">{
+  "qr_token": "NBR-5uFoOt2QYSZL8hnp8eHpUA-b01fe1667c8f",
+  "gate_id": "dd43881a-80b2-44d9-99fd-501c9b3e379e",
+  "guard_notes": "Verified photo ID at gate checkpoint"
+}</pre>
+          <div class="code-label">Response Payload / Frame</div>
+          <pre class="code-block">{
+  "id": "dfdc6054-a09d-456e-b89d-163218b24a36",
+  "society_id": "c18ec76a-aeb8-42ba-a817-674b7c1f4bf2",
+  "unit_id": "3f475782-ab06-484b-9641-292fbc51c1e9",
+  "visitor_id": "1f312d5e-8d94-4d53-8b0a-a0a480fc57f4",
+  "issued_by": "35f84c33-268a-4073-b52e-f0b780785d7b",
+  "pass_type": "guest",
+  "visitor_name": "Rohan Deshmukh",
+  "visitor_phone": "+919876599901",
+  "visitor_company": null,
+  "purpose": "Weekend Family Dinner",
+  "vehicle_number": "KA-01-MJ-8899",
+  "qr_token": "NBR-5uFoOt2QYSZL8hnp8eHpUA-b01fe1667c8f",
+  "valid_from": "2026-08-19T16:26:37.425567Z",
+  "valid_until": "2026-08-19T22:26:37.425567Z",
+  "status": "APPROVED",
+  "notes": null,
+  "created_at": "2026-08-19T16:26:37.443004Z",
+  "unit": {
+    "id": "3f475782-ab06-484b-9641-292fbc51c1e9",
+    "society_id": "c18ec76a-aeb8-42ba-a817-674b7c1f4bf2",
+    "building_id": "29068e55-f960-46b2-a9e4-1bb662a9427c",
+    "floor_id": "db28ac24-7738-4ea2-b4e0-f8aecb4c28e0",
+    "unit_number": "VILLA-42",
+    "unit_type": "villa",
+    "area_sqft": null,
+    "is_occupied": false,
+    "is_active": true,
+    "created_at": "2026-08-19T16:26:37.365612Z"
+  },
+  "issuer": {
+    "id": "35f84c33-268a-4073-b52e-f0b780785d7b",
+    "phone": "+919876530002",
+    "phone_verified": true,
+    "email": null,
+    "full_name": "Siddharth Verma",
+    "avatar_url": null,
+    "is_active": true,
+    "is_platform_admin": false,
+    "created_at": "2026-08-18T19:53:18.244517Z",
+    "updated_at": "2026-08-18T19:53:18.244520Z"
+  }
+}</pre>
+        </div>
+      </div>
+
+      <div class="step-card">
+        <div class="step-header" onclick="toggleStep(8)">
+          <div class="step-left">
+            <div class="status-dot dot-pass"></div>
+            <span class="method-badge">POST</span>
+            <span class="step-name">Gate Guard: Record Checked-In Entry Egress</span>
+            <span class="role-pill">Gate Guard</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 16px;">
+            <span class="step-latency">72.6 ms</span>
+            <span style="font-size: 12px; color: var(--text-muted);">&#9662;</span>
+          </div>
+        </div>
+        <div class="step-body" id="step-body-8">
+          <div style="margin-top: 12px; font-size: 13px;"><strong>Endpoint:</strong> <code style="font-family: monospace; color: var(--sky);">/societies/c18ec76a-aeb8-42ba-a817-674b7c1f4bf2/gates/dd43881a-80b2-44d9-99fd-501c9b3e379e/check-in</code> • <strong>HTTP Status:</strong> <code>200</code></div>
+          <div class="code-label">Request Payload</div>
+          <pre class="code-block">{
+  "pass_id": "dfdc6054-a09d-456e-b89d-163218b24a36",
+  "idempotency_key": "5af5e2a6-2361-414e-ad2e-0c7268083668",
+  "visitor_photo_url": "https://minio.local/media/visitor-99901.jpg"
+}</pre>
+          <div class="code-label">Response Payload / Frame</div>
+          <pre class="code-block">{
+  "id": "cda6adc9-bddb-45b7-b6c4-0435fe522107",
+  "society_id": "c18ec76a-aeb8-42ba-a817-674b7c1f4bf2",
+  "pass_id": "dfdc6054-a09d-456e-b89d-163218b24a36",
+  "visitor_id": null,
+  "unit_id": "3f475782-ab06-484b-9641-292fbc51c1e9",
+  "gate_id": "dd43881a-80b2-44d9-99fd-501c9b3e379e",
+  "guard_id": null,
+  "event_type": "CHECKED_IN",
+  "visitor_name": "Rohan Deshmukh",
+  "visitor_phone": "+919876599901",
+  "visitor_photo_url": "https://minio.local/media/visitor-99901.jpg",
+  "vehicle_number": "KA-01-MJ-8899",
+  "entry_method": "manual",
+  "is_offline": false,
+  "occurred_at": "2026-08-19T16:26:37.540894Z",
+  "created_at": "2026-08-19T16:26:37.540900Z"
+}</pre>
+        </div>
+      </div>
+
+      <div class="step-card">
+        <div class="step-header" onclick="toggleStep(9)">
+          <div class="step-left">
+            <div class="status-dot dot-pass"></div>
+            <span class="method-badge">POST</span>
+            <span class="step-name">Gate Guard: Check-Out Visitor at Gate</span>
+            <span class="role-pill">Gate Guard</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 16px;">
+            <span class="step-latency">57.68 ms</span>
+            <span style="font-size: 12px; color: var(--text-muted);">&#9662;</span>
+          </div>
+        </div>
+        <div class="step-body" id="step-body-9">
+          <div style="margin-top: 12px; font-size: 13px;"><strong>Endpoint:</strong> <code style="font-family: monospace; color: var(--sky);">/societies/c18ec76a-aeb8-42ba-a817-674b7c1f4bf2/gates/dd43881a-80b2-44d9-99fd-501c9b3e379e/check-out</code> • <strong>HTTP Status:</strong> <code>200</code></div>
+          <div class="code-label">Request Payload</div>
+          <pre class="code-block">{
+  "pass_id": "dfdc6054-a09d-456e-b89d-163218b24a36",
+  "event_id": "cda6adc9-bddb-45b7-b6c4-0435fe522107",
+  "idempotency_key": "984d0f96-cb4e-41f6-90a7-cbd2e195bd8a"
+}</pre>
+          <div class="code-label">Response Payload / Frame</div>
+          <pre class="code-block">{
+  "id": "88adc6a4-b7f7-42b4-9a45-f3660d751a82",
+  "society_id": "c18ec76a-aeb8-42ba-a817-674b7c1f4bf2",
+  "pass_id": "dfdc6054-a09d-456e-b89d-163218b24a36",
+  "visitor_id": null,
+  "unit_id": null,
+  "gate_id": "dd43881a-80b2-44d9-99fd-501c9b3e379e",
+  "guard_id": null,
+  "event_type": "CHECKED_OUT",
+  "visitor_name": "Rohan Deshmukh",
+  "visitor_phone": null,
+  "visitor_photo_url": null,
+  "vehicle_number": null,
+  "entry_method": "qr",
+  "is_offline": false,
+  "occurred_at": "2026-08-19T16:26:37.611850Z",
+  "created_at": "2026-08-19T16:26:37.611856Z"
+}</pre>
+        </div>
+      </div>
+
+      <div class="step-card">
+        <div class="step-header" onclick="toggleStep(10)">
+          <div class="step-left">
+            <div class="status-dot dot-pass"></div>
+            <span class="method-badge">POST</span>
+            <span class="step-name">Security Supervisor: Add Vehicle to Estate Blacklist</span>
+            <span class="role-pill">Security Supervisor</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 16px;">
+            <span class="step-latency">30.49 ms</span>
+            <span style="font-size: 12px; color: var(--text-muted);">&#9662;</span>
+          </div>
+        </div>
+        <div class="step-body" id="step-body-10">
+          <div style="margin-top: 12px; font-size: 13px;"><strong>Endpoint:</strong> <code style="font-family: monospace; color: var(--sky);">/societies/c18ec76a-aeb8-42ba-a817-674b7c1f4bf2/visitors/blacklist</code> • <strong>HTTP Status:</strong> <code>201</code></div>
+          <div class="code-label">Request Payload</div>
+          <pre class="code-block">{
+  "entity_type": "vehicle",
+  "entity_value": "DL-01-STOLEN-99",
+  "reason": "Vehicle flagged by law enforcement for suspicious perimeter reconnaissance",
+  "is_active": true
+}</pre>
+          <div class="code-label">Response Payload / Frame</div>
+          <pre class="code-block">{
+  "id": "00d4e8d8-026e-4074-9cd6-bb2eaf0f626b",
+  "society_id": "c18ec76a-aeb8-42ba-a817-674b7c1f4bf2",
+  "entity_type": "vehicle",
+  "entity_value": "DL-01-STOLEN-99",
+  "reason": "Vehicle flagged by law enforcement for suspicious perimeter reconnaissance",
+  "is_active": true,
+  "created_at": "2026-08-19T16:26:37.645702Z"
+}</pre>
+        </div>
+      </div>
+
+      <div class="step-card">
+        <div class="step-header" onclick="toggleStep(11)">
+          <div class="step-left">
+            <div class="status-dot dot-pass"></div>
+            <span class="method-badge">POST</span>
+            <span class="step-name">Resident: Trigger Urgent Medical SOS Alarm</span>
+            <span class="role-pill">Resident</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 16px;">
+            <span class="step-latency">79.83 ms</span>
+            <span style="font-size: 12px; color: var(--text-muted);">&#9662;</span>
+          </div>
+        </div>
+        <div class="step-body" id="step-body-11">
+          <div style="margin-top: 12px; font-size: 13px;"><strong>Endpoint:</strong> <code style="font-family: monospace; color: var(--sky);">/societies/c18ec76a-aeb8-42ba-a817-674b7c1f4bf2/sos</code> • <strong>HTTP Status:</strong> <code>201</code></div>
+          <div class="code-label">Request Payload</div>
+          <pre class="code-block">{
+  "unit_id": "3f475782-ab06-484b-9641-292fbc51c1e9",
+  "sos_type": "medical",
+  "message": "Elderly resident medical assistance needed immediately at Villa-42",
+  "location": {
+    "building": "Tower A",
+    "unit": "Villa-42",
+    "floor": "Ground"
+  }
+}</pre>
+          <div class="code-label">Response Payload / Frame</div>
+          <pre class="code-block">{
+  "id": "deff8560-50e3-4b78-b227-cefba47402d5",
+  "society_id": "c18ec76a-aeb8-42ba-a817-674b7c1f4bf2",
+  "triggered_by": "35f84c33-268a-4073-b52e-f0b780785d7b",
+  "unit_id": "3f475782-ab06-484b-9641-292fbc51c1e9",
+  "sos_type": "medical",
+  "message": "Elderly resident medical assistance needed immediately at Villa-42",
+  "status": "active",
+  "created_at": "2026-08-19T16:26:37.683261Z",
+  "user": {
+    "id": "35f84c33-268a-4073-b52e-f0b780785d7b",
+    "phone": "+919876530002",
+    "phone_verified": true,
+    "email": null,
+    "full_name": "Siddharth Verma",
+    "avatar_url": null,
+    "is_active": true,
+    "is_platform_admin": false,
+    "created_at": "2026-08-18T19:53:18.244517Z",
+    "updated_at": "2026-08-18T19:53:18.244520Z"
+  }
+}</pre>
+        </div>
+      </div>
+
+      <div class="step-card">
+        <div class="step-header" onclick="toggleStep(12)">
+          <div class="step-left">
+            <div class="status-dot dot-pass"></div>
+            <span class="method-badge">POST</span>
+            <span class="step-name">Society Admin: Resolve SOS Incident with Audit Log</span>
+            <span class="role-pill">Society Admin</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 16px;">
+            <span class="step-latency">55.93 ms</span>
+            <span style="font-size: 12px; color: var(--text-muted);">&#9662;</span>
+          </div>
+        </div>
+        <div class="step-body" id="step-body-12">
+          <div style="margin-top: 12px; font-size: 13px;"><strong>Endpoint:</strong> <code style="font-family: monospace; color: var(--sky);">/societies/c18ec76a-aeb8-42ba-a817-674b7c1f4bf2/sos/deff8560-50e3-4b78-b227-cefba47402d5/resolve</code> • <strong>HTTP Status:</strong> <code>200</code></div>
+          <div class="code-label">Request Payload</div>
+          <pre class="code-block">{
+  "status": "resolved",
+  "resolution_notes": "First-aid medical team dispatched and resident assisted safely."
+}</pre>
+          <div class="code-label">Response Payload / Frame</div>
+          <pre class="code-block">{
+  "id": "deff8560-50e3-4b78-b227-cefba47402d5",
+  "society_id": "c18ec76a-aeb8-42ba-a817-674b7c1f4bf2",
+  "triggered_by": "35f84c33-268a-4073-b52e-f0b780785d7b",
+  "unit_id": "3f475782-ab06-484b-9641-292fbc51c1e9",
+  "sos_type": "medical",
+  "message": "Elderly resident medical assistance needed immediately at Villa-42",
+  "status": "resolved",
+  "created_at": "2026-08-19T16:26:37.683261Z",
+  "user": {
+    "id": "35f84c33-268a-4073-b52e-f0b780785d7b",
+    "phone": "+919876530002",
+    "phone_verified": true,
+    "email": null,
+    "full_name": "Siddharth Verma",
+    "avatar_url": null,
+    "is_active": true,
+    "is_platform_admin": false,
+    "created_at": "2026-08-18T19:53:18.244517Z",
+    "updated_at": "2026-08-18T19:53:18.244520Z"
+  }
+}</pre>
+        </div>
+      </div>
+
+      <div class="step-card">
+        <div class="step-header" onclick="toggleStep(13)">
+          <div class="step-left">
+            <div class="status-dot dot-pass"></div>
+            <span class="method-badge">POST</span>
+            <span class="step-name">Society Admin: Broadcast AI-Assisted Society Alert</span>
+            <span class="role-pill">Society Admin</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 16px;">
+            <span class="step-latency">75.47 ms</span>
+            <span style="font-size: 12px; color: var(--text-muted);">&#9662;</span>
+          </div>
+        </div>
+        <div class="step-body" id="step-body-13">
+          <div style="margin-top: 12px; font-size: 13px;"><strong>Endpoint:</strong> <code style="font-family: monospace; color: var(--sky);">/societies/c18ec76a-aeb8-42ba-a817-674b7c1f4bf2/notices</code> • <strong>HTTP Status:</strong> <code>201</code></div>
+          <div class="code-label">Request Payload</div>
+          <pre class="code-block">{
+  "title": "\ud83d\udea8 EMERGENCY NOTICE: Severe Rain Advisory",
+  "body": "Heavy monsoon rains forecasted. Residents advised to park vehicles on Upper Level.",
+  "category": "emergency",
+  "priority": "urgent",
+  "send_push": true
+}</pre>
+          <div class="code-label">Response Payload / Frame</div>
+          <pre class="code-block">{
+  "id": "091cc92d-a1fc-4b77-8163-b7a6d28f48d7",
+  "society_id": "c18ec76a-aeb8-42ba-a817-674b7c1f4bf2",
+  "title": "\ud83d\udea8 EMERGENCY NOTICE: Severe Rain Advisory",
+  "body": "Heavy monsoon rains forecasted. Residents advised to park vehicles on Upper Level.",
+  "category": "emergency",
+  "priority": "urgent",
+  "image_url": null,
+  "document_url": null,
+  "target_type": "all",
+  "published_at": "2026-08-19T16:26:37.825256Z",
+  "expires_at": null,
+  "send_push": true,
+  "created_at": "2026-08-19T16:26:37.825264Z",
+  "author": {
+    "id": "35f84c33-268a-4073-b52e-f0b780785d7b",
+    "phone": "+919876530002",
+    "phone_verified": true,
+    "email": null,
+    "full_name": "Siddharth Verma",
+    "avatar_url": null,
+    "is_active": true,
+    "is_platform_admin": false,
+    "created_at": "2026-08-18T19:53:18.244517Z",
+    "updated_at": "2026-08-18T19:53:18.244520Z"
+  }
+}</pre>
+        </div>
+      </div>
+
+      <div class="step-card">
+        <div class="step-header" onclick="toggleStep(14)">
+          <div class="step-left">
+            <div class="status-dot dot-pass"></div>
+            <span class="method-badge">POST</span>
+            <span class="step-name">Gate Guard: Reconcile Offline SQLite Mutations via /sync/batch</span>
+            <span class="role-pill">Gate Guard</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 16px;">
+            <span class="step-latency">71.25 ms</span>
+            <span style="font-size: 12px; color: var(--text-muted);">&#9662;</span>
+          </div>
+        </div>
+        <div class="step-body" id="step-body-14">
+          <div style="margin-top: 12px; font-size: 13px;"><strong>Endpoint:</strong> <code style="font-family: monospace; color: var(--sky);">/sync/batch</code> • <strong>HTTP Status:</strong> <code>200</code></div>
+          <div class="code-label">Request Payload</div>
+          <pre class="code-block">{
+  "society_id": "c18ec76a-aeb8-42ba-a817-674b7c1f4bf2",
+  "device_id": "GATE-TERM-01",
+  "gate_id": "dd43881a-80b2-44d9-99fd-501c9b3e379e",
+  "operations": [
+    {
+      "operation_id": "549de8cf-a115-4ac6-b125-33115b82be6e",
+      "operation_type": "walk_in",
+      "entity_type": "visitor",
+      "idempotency_key": "29d96d73-7df0-4ba6-8d92-d92dcbebf9e9",
+      "local_created_at": "2026-08-19T16:26:37.872963+00:00",
+      "payload": {
+        "visitor_name": "Zomato Delivery Executive",
+        "visitor_phone": "+919876544401",
+        "unit_id": "3f475782-ab06-484b-9641-292fbc51c1e9"
+      }
+    },
+    {
+      "operation_id": "ede6db17-d279-4e2d-a30e-6f8363e68414",
+      "operation_type": "walk_in",
+      "entity_type": "visitor",
+      "idempotency_key": "0f795a9c-69f4-486f-baf4-35f23fa1462f",
+      "local_created_at": "2026-08-19T16:26:37.872999+00:00",
+      "payload": {
+        "visitor_name": "Uber Driver (KA03HA1290)",
+        "visitor_phone": "+919876544402",
+        "unit_id": "3f475782-ab06-484b-9641-292fbc51c1e9"
+      }
+    }
+  ]
+}</pre>
+          <div class="code-label">Response Payload / Frame</div>
+          <pre class="code-block">{
+  "results": [
+    {
+      "operation_id": "549de8cf-a115-4ac6-b125-33115b82be6e",
+      "idempotency_key": "29d96d73-7df0-4ba6-8d92-d92dcbebf9e9",
+      "status": "SYNCED",
+      "error": null,
+      "entity_id": "7381114c-85ad-4cc9-a761-5a40f8495361"
+    },
+    {
+      "operation_id": "ede6db17-d279-4e2d-a30e-6f8363e68414",
+      "idempotency_key": "0f795a9c-69f4-486f-baf4-35f23fa1462f",
+      "status": "SYNCED",
+      "error": null,
+      "entity_id": "845c4b28-a8f1-4954-bb32-c752acd5cd52"
+    }
+  ],
+  "server_time": "2026-08-19T16:26:37.942973Z",
+  "synced_count": 2,
+  "failed_count": 0
+}</pre>
+        </div>
+      </div>
+
+      <div class="step-card">
+        <div class="step-header" onclick="toggleStep(15)">
+          <div class="step-left">
+            <div class="status-dot dot-pass"></div>
+            <span class="method-badge">POST</span>
+            <span class="step-name">Resident: Book Clubhouse Tennis Court 6PM Slot</span>
+            <span class="role-pill">Resident</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 16px;">
+            <span class="step-latency">61.91 ms</span>
+            <span style="font-size: 12px; color: var(--text-muted);">&#9662;</span>
+          </div>
+        </div>
+        <div class="step-body" id="step-body-15">
+          <div style="margin-top: 12px; font-size: 13px;"><strong>Endpoint:</strong> <code style="font-family: monospace; color: var(--sky);">/societies/c18ec76a-aeb8-42ba-a817-674b7c1f4bf2/amenities/e81d1ef7-bcf4-408b-8ad3-a6b7c0828cbd/book</code> • <strong>HTTP Status:</strong> <code>201</code></div>
+          <div class="code-label">Request Payload</div>
+          <pre class="code-block">{
+  "booking_date": "2026-08-20",
+  "start_time": "18:00",
+  "end_time": "19:00",
+  "guest_count": 2,
+  "unit_id": "3f475782-ab06-484b-9641-292fbc51c1e9"
+}</pre>
+          <div class="code-label">Response Payload / Frame</div>
+          <pre class="code-block">{
+  "id": "03cec800-86a3-441f-bd3e-f8f313af0181",
+  "society_id": "c18ec76a-aeb8-42ba-a817-674b7c1f4bf2",
+  "amenity_id": "e81d1ef7-bcf4-408b-8ad3-a6b7c0828cbd",
+  "amenity_name": "Clubhouse Tennis Court",
+  "unit_id": "3f475782-ab06-484b-9641-292fbc51c1e9",
+  "unit_number": "VILLA-42",
+  "booked_by": "35f84c33-268a-4073-b52e-f0b780785d7b",
+  "user_name": "Siddharth Verma",
+  "booking_date": "2026-08-20",
+  "start_time": "18:00",
+  "end_time": "19:00",
+  "guest_count": 2,
+  "total_amount": 0.0,
+  "status": "CONFIRMED",
+  "qr_pass": "AMN-AMN-TENNIS-01-595CFBA4",
+  "cancellation_reason": null,
+  "created_at": "2026-08-19T16:26:37.977249Z"
+}</pre>
+        </div>
+      </div>
+
+      <div class="step-card">
+        <div class="step-header" onclick="toggleStep(16)">
+          <div class="step-left">
+            <div class="status-dot dot-pass"></div>
+            <span class="method-badge">POST</span>
+            <span class="step-name">Concurrency Guard: Verify Capacity Exceeded Conflict Rejection</span>
+            <span class="role-pill">Resident</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 16px;">
+            <span class="step-latency">39.08 ms</span>
+            <span style="font-size: 12px; color: var(--text-muted);">&#9662;</span>
+          </div>
+        </div>
+        <div class="step-body" id="step-body-16">
+          <div style="margin-top: 12px; font-size: 13px;"><strong>Endpoint:</strong> <code style="font-family: monospace; color: var(--sky);">/societies/c18ec76a-aeb8-42ba-a817-674b7c1f4bf2/amenities/e81d1ef7-bcf4-408b-8ad3-a6b7c0828cbd/book</code> • <strong>HTTP Status:</strong> <code>400</code></div>
+          <div class="code-label">Request Payload</div>
+          <pre class="code-block">{
+  "booking_date": "2026-08-20",
+  "start_time": "18:00",
+  "end_time": "19:00",
+  "guest_count": 10,
+  "unit_id": "3f475782-ab06-484b-9641-292fbc51c1e9"
+}</pre>
+          <div class="code-label">Response Payload / Frame</div>
+          <pre class="code-block">{
+  "error": {
+    "code": "CAPACITY_EXCEEDED",
+    "message": "Slot is fully booked. Only 2 spot(s) remaining.",
+    "details": {},
+    "field_errors": []
+  },
+  "request_id": "9faa7f11-779b-4339-b6a0-fe269f2feaf1"
+}</pre>
+        </div>
+      </div>
+
+      <div class="step-card">
+        <div class="step-header" onclick="toggleStep(17)">
+          <div class="step-left">
+            <div class="status-dot dot-pass"></div>
+            <span class="method-badge">POST</span>
+            <span class="step-name">Resident: Raise High-Priority Lift Maintenance Ticket</span>
+            <span class="role-pill">Resident</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 16px;">
+            <span class="step-latency">52.0 ms</span>
+            <span style="font-size: 12px; color: var(--text-muted);">&#9662;</span>
+          </div>
+        </div>
+        <div class="step-body" id="step-body-17">
+          <div style="margin-top: 12px; font-size: 13px;"><strong>Endpoint:</strong> <code style="font-family: monospace; color: var(--sky);">/societies/c18ec76a-aeb8-42ba-a817-674b7c1f4bf2/helpdesk/tickets</code> • <strong>HTTP Status:</strong> <code>201</code></div>
+          <div class="code-label">Request Payload</div>
+          <pre class="code-block">{
+  "unit_id": "3f475782-ab06-484b-9641-292fbc51c1e9",
+  "category": "lift",
+  "priority": "high",
+  "title": "Tower A Passenger Lift jerky stops on 4th floor",
+  "description": "Passenger lift vibrates severely and makes metallic screeching noise between 3rd and 4th floors.",
+  "images": [
+    "https://minio.local/media/lift-issue-01.jpg"
+  ]
+}</pre>
+          <div class="code-label">Response Payload / Frame</div>
+          <pre class="code-block">{
+  "id": "db367895-5772-4f3b-9f53-7f83c931e553",
+  "society_id": "c18ec76a-aeb8-42ba-a817-674b7c1f4bf2",
+  "unit_id": "3f475782-ab06-484b-9641-292fbc51c1e9",
+  "unit_number": "VILLA-42",
+  "created_by": "35f84c33-268a-4073-b52e-f0b780785d7b",
+  "creator_name": "Siddharth Verma",
+  "assigned_to": null,
+  "assignee_name": null,
+  "category": "lift",
+  "priority": "high",
+  "title": "Tower A Passenger Lift jerky stops on 4th floor",
+  "description": "Passenger lift vibrates severely and makes metallic screeching noise between 3rd and 4th floors.",
+  "images": [
+    "https://minio.local/media/lift-issue-01.jpg"
+  ],
+  "status": "OPEN",
+  "resolution_notes": null,
+  "rating": null,
+  "feedback": null,
+  "sla_due_at": "2026-08-20T04:26:38.065599Z",
+  "resolved_at": null,
+  "closed_at": null,
+  "created_at": "2026-08-19T16:26:38.066566Z",
+  "updated_at": "2026-08-19T16:26:38.066572Z",
+  "comments": []
+}</pre>
+        </div>
+      </div>
+
+      <div class="step-card">
+        <div class="step-header" onclick="toggleStep(18)">
+          <div class="step-left">
+            <div class="status-dot dot-pass"></div>
+            <span class="method-badge">PATCH</span>
+            <span class="step-name">Society Admin: Transition Ticket to IN_PROGRESS</span>
+            <span class="role-pill">Society Admin</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 16px;">
+            <span class="step-latency">69.25 ms</span>
+            <span style="font-size: 12px; color: var(--text-muted);">&#9662;</span>
+          </div>
+        </div>
+        <div class="step-body" id="step-body-18">
+          <div style="margin-top: 12px; font-size: 13px;"><strong>Endpoint:</strong> <code style="font-family: monospace; color: var(--sky);">/societies/c18ec76a-aeb8-42ba-a817-674b7c1f4bf2/helpdesk/tickets/db367895-5772-4f3b-9f53-7f83c931e553/status</code> • <strong>HTTP Status:</strong> <code>200</code></div>
+          <div class="code-label">Request Payload</div>
+          <pre class="code-block">{
+  "status": "in_progress",
+  "resolution_notes": "Otis Elevator technician on-site inspecting traction motor cables."
+}</pre>
+          <div class="code-label">Response Payload / Frame</div>
+          <pre class="code-block">{
+  "id": "db367895-5772-4f3b-9f53-7f83c931e553",
+  "society_id": "c18ec76a-aeb8-42ba-a817-674b7c1f4bf2",
+  "unit_id": "3f475782-ab06-484b-9641-292fbc51c1e9",
+  "unit_number": "VILLA-42",
+  "created_by": "35f84c33-268a-4073-b52e-f0b780785d7b",
+  "creator_name": "Siddharth Verma",
+  "assigned_to": null,
+  "assignee_name": null,
+  "category": "lift",
+  "priority": "high",
+  "title": "Tower A Passenger Lift jerky stops on 4th floor",
+  "description": "Passenger lift vibrates severely and makes metallic screeching noise between 3rd and 4th floors.",
+  "images": [
+    "https://minio.local/media/lift-issue-01.jpg"
+  ],
+  "status": "IN_PROGRESS",
+  "resolution_notes": "Otis Elevator technician on-site inspecting traction motor cables.",
+  "rating": null,
+  "feedback": null,
+  "sla_due_at": "2026-08-20T04:26:38.065599Z",
+  "resolved_at": null,
+  "closed_at": null,
+  "created_at": "2026-08-19T16:26:38.066566Z",
+  "updated_at": "2026-08-19T16:26:38.149387Z",
+  "comments": []
+}</pre>
+        </div>
+      </div>
+
+      <div class="step-card">
+        <div class="step-header" onclick="toggleStep(19)">
+          <div class="step-left">
+            <div class="status-dot dot-pass"></div>
+            <span class="method-badge">POST</span>
+            <span class="step-name">Technician: Post Public Maintenance Resolution Update</span>
+            <span class="role-pill">Society Admin</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 16px;">
+            <span class="step-latency">71.36 ms</span>
+            <span style="font-size: 12px; color: var(--text-muted);">&#9662;</span>
+          </div>
+        </div>
+        <div class="step-body" id="step-body-19">
+          <div style="margin-top: 12px; font-size: 13px;"><strong>Endpoint:</strong> <code style="font-family: monospace; color: var(--sky);">/societies/c18ec76a-aeb8-42ba-a817-674b7c1f4bf2/helpdesk/tickets/db367895-5772-4f3b-9f53-7f83c931e553/comments</code> • <strong>HTTP Status:</strong> <code>201</code></div>
+          <div class="code-label">Request Payload</div>
+          <pre class="code-block">{
+  "message": "Replaced guide shoe bearings on car frame. Test run completed with 100% smooth leveling.",
+  "is_internal": false
+}</pre>
+          <div class="code-label">Response Payload / Frame</div>
+          <pre class="code-block">{
+  "id": "d49ad8df-2e47-4b9a-8429-6907ee7d94a9",
+  "ticket_id": "db367895-5772-4f3b-9f53-7f83c931e553",
+  "author_id": "35f84c33-268a-4073-b52e-f0b780785d7b",
+  "author_name": "Siddharth Verma",
+  "message": "Replaced guide shoe bearings on car frame. Test run completed with 100% smooth leveling.",
+  "is_internal": false,
+  "created_at": "2026-08-19T16:26:38.230577Z"
+}</pre>
+        </div>
+      </div>
+
+      <div class="step-card">
+        <div class="step-header" onclick="toggleStep(20)">
+          <div class="step-left">
+            <div class="status-dot dot-pass"></div>
+            <span class="method-badge">PATCH</span>
+            <span class="step-name">Society Admin: Mark Ticket RESOLVED</span>
+            <span class="role-pill">Society Admin</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 16px;">
+            <span class="step-latency">97.14 ms</span>
+            <span style="font-size: 12px; color: var(--text-muted);">&#9662;</span>
+          </div>
+        </div>
+        <div class="step-body" id="step-body-20">
+          <div style="margin-top: 12px; font-size: 13px;"><strong>Endpoint:</strong> <code style="font-family: monospace; color: var(--sky);">/societies/c18ec76a-aeb8-42ba-a817-674b7c1f4bf2/helpdesk/tickets/db367895-5772-4f3b-9f53-7f83c931e553/status</code> • <strong>HTTP Status:</strong> <code>200</code></div>
+          <div class="code-label">Request Payload</div>
+          <pre class="code-block">{
+  "status": "resolved",
+  "resolution_notes": "Repairs verified and elevator restored to full service."
+}</pre>
+          <div class="code-label">Response Payload / Frame</div>
+          <pre class="code-block">{
+  "id": "db367895-5772-4f3b-9f53-7f83c931e553",
+  "society_id": "c18ec76a-aeb8-42ba-a817-674b7c1f4bf2",
+  "unit_id": "3f475782-ab06-484b-9641-292fbc51c1e9",
+  "unit_number": "VILLA-42",
+  "created_by": "35f84c33-268a-4073-b52e-f0b780785d7b",
+  "creator_name": "Siddharth Verma",
+  "assigned_to": null,
+  "assignee_name": null,
+  "category": "lift",
+  "priority": "high",
+  "title": "Tower A Passenger Lift jerky stops on 4th floor",
+  "description": "Passenger lift vibrates severely and makes metallic screeching noise between 3rd and 4th floors.",
+  "images": [
+    "https://minio.local/media/lift-issue-01.jpg"
+  ],
+  "status": "RESOLVED",
+  "resolution_notes": "Repairs verified and elevator restored to full service.",
+  "rating": null,
+  "feedback": null,
+  "sla_due_at": "2026-08-20T04:26:38.065599Z",
+  "resolved_at": "2026-08-19T16:26:38.309277Z",
+  "closed_at": null,
+  "created_at": "2026-08-19T16:26:38.066566Z",
+  "updated_at": "2026-08-19T16:26:38.311860Z",
+  "comments": [
+    {
+      "id": "d49ad8df-2e47-4b9a-8429-6907ee7d94a9",
+      "ticket_id": "db367895-5772-4f3b-9f53-7f83c931e553",
+      "author_id": "35f84c33-268a-4073-b52e-f0b780785d7b",
+      "author_name": "Siddharth Verma",
+      "message": "Replaced guide shoe bearings on car frame. Test run completed with 100% smooth leveling.",
+      "is_internal": false,
+      "created_at": "2026-08-19T16:26:38.230577Z"
+    }
+  ]
+}</pre>
+        </div>
+      </div>
+
+      <div class="step-card">
+        <div class="step-header" onclick="toggleStep(21)">
+          <div class="step-left">
+            <div class="status-dot dot-pass"></div>
+            <span class="method-badge">POST</span>
+            <span class="step-name">Resident: Submit 5-Star Feedback & Rating</span>
+            <span class="role-pill">Resident</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 16px;">
+            <span class="step-latency">68.15 ms</span>
+            <span style="font-size: 12px; color: var(--text-muted);">&#9662;</span>
+          </div>
+        </div>
+        <div class="step-body" id="step-body-21">
+          <div style="margin-top: 12px; font-size: 13px;"><strong>Endpoint:</strong> <code style="font-family: monospace; color: var(--sky);">/societies/c18ec76a-aeb8-42ba-a817-674b7c1f4bf2/helpdesk/tickets/db367895-5772-4f3b-9f53-7f83c931e553/rate</code> • <strong>HTTP Status:</strong> <code>200</code></div>
+          <div class="code-label">Request Payload</div>
+          <pre class="code-block">{
+  "rating": 5,
+  "feedback": "Prompt and professional technician service. Elevator running silently now!"
+}</pre>
+          <div class="code-label">Response Payload / Frame</div>
+          <pre class="code-block">{
+  "id": "db367895-5772-4f3b-9f53-7f83c931e553",
+  "society_id": "c18ec76a-aeb8-42ba-a817-674b7c1f4bf2",
+  "unit_id": "3f475782-ab06-484b-9641-292fbc51c1e9",
+  "unit_number": "VILLA-42",
+  "created_by": "35f84c33-268a-4073-b52e-f0b780785d7b",
+  "creator_name": "Siddharth Verma",
+  "assigned_to": null,
+  "assignee_name": null,
+  "category": "lift",
+  "priority": "high",
+  "title": "Tower A Passenger Lift jerky stops on 4th floor",
+  "description": "Passenger lift vibrates severely and makes metallic screeching noise between 3rd and 4th floors.",
+  "images": [
+    "https://minio.local/media/lift-issue-01.jpg"
+  ],
+  "status": "CLOSED",
+  "resolution_notes": "Repairs verified and elevator restored to full service.",
+  "rating": 5,
+  "feedback": "Prompt and professional technician service. Elevator running silently now!",
+  "sla_due_at": "2026-08-20T04:26:38.065599Z",
+  "resolved_at": "2026-08-19T16:26:38.309277Z",
+  "closed_at": "2026-08-19T16:26:38.386159Z",
+  "created_at": "2026-08-19T16:26:38.066566Z",
+  "updated_at": "2026-08-19T16:26:38.388014Z",
+  "comments": [
+    {
+      "id": "d49ad8df-2e47-4b9a-8429-6907ee7d94a9",
+      "ticket_id": "db367895-5772-4f3b-9f53-7f83c931e553",
+      "author_id": "35f84c33-268a-4073-b52e-f0b780785d7b",
+      "author_name": "Siddharth Verma",
+      "message": "Replaced guide shoe bearings on car frame. Test run completed with 100% smooth leveling.",
+      "is_internal": false,
+      "created_at": "2026-08-19T16:26:38.230577Z"
+    }
+  ]
+}</pre>
+        </div>
+      </div>
+
+      <div class="step-card">
+        <div class="step-header" onclick="toggleStep(22)">
+          <div class="step-left">
+            <div class="status-dot dot-pass"></div>
+            <span class="method-badge">POST</span>
+            <span class="step-name">Resident: Create Community Discussion Thread</span>
+            <span class="role-pill">Resident</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 16px;">
+            <span class="step-latency">52.16 ms</span>
+            <span style="font-size: 12px; color: var(--text-muted);">&#9662;</span>
+          </div>
+        </div>
+        <div class="step-body" id="step-body-22">
+          <div style="margin-top: 12px; font-size: 13px;"><strong>Endpoint:</strong> <code style="font-family: monospace; color: var(--sky);">/societies/c18ec76a-aeb8-42ba-a817-674b7c1f4bf2/community/posts</code> • <strong>HTTP Status:</strong> <code>201</code></div>
+          <div class="code-label">Request Payload</div>
+          <pre class="code-block">{
+  "title": "Weekend Estate Tree Plantation & Greenery Drive",
+  "content": "Let's assemble this Saturday 8 AM at Central Park to plant 50 native saplings!",
+  "category": "events"
+}</pre>
+          <div class="code-label">Response Payload / Frame</div>
+          <pre class="code-block">{
+  "id": "22efe204-bd2e-465e-9802-c63019d8e200",
+  "society_id": "c18ec76a-aeb8-42ba-a817-674b7c1f4bf2",
+  "author_id": "35f84c33-268a-4073-b52e-f0b780785d7b",
+  "author_name": "Siddharth Verma",
+  "unit_id": null,
+  "unit_number": null,
+  "title": "Weekend Estate Tree Plantation & Greenery Drive",
+  "content": "Let's assemble this Saturday 8 AM at Central Park to plant 50 native saplings!",
+  "category": "events",
+  "images": [],
+  "likes_count": 0,
+  "is_pinned": false,
+  "created_at": "2026-08-19T16:26:38.438797Z",
+  "comments": []
+}</pre>
+        </div>
+      </div>
+
+      <div class="step-card">
+        <div class="step-header" onclick="toggleStep(23)">
+          <div class="step-left">
+            <div class="status-dot dot-pass"></div>
+            <span class="method-badge">POST</span>
+            <span class="step-name">Resident: Upvote Community Discussion</span>
+            <span class="role-pill">Resident</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 16px;">
+            <span class="step-latency">39.82 ms</span>
+            <span style="font-size: 12px; color: var(--text-muted);">&#9662;</span>
+          </div>
+        </div>
+        <div class="step-body" id="step-body-23">
+          <div style="margin-top: 12px; font-size: 13px;"><strong>Endpoint:</strong> <code style="font-family: monospace; color: var(--sky);">/societies/c18ec76a-aeb8-42ba-a817-674b7c1f4bf2/community/posts/22efe204-bd2e-465e-9802-c63019d8e200/like</code> • <strong>HTTP Status:</strong> <code>200</code></div>
+          <div class="code-label">Request Payload</div>
+          <pre class="code-block">None (GET/No Body)</pre>
+          <div class="code-label">Response Payload / Frame</div>
+          <pre class="code-block">{
+  "likes_count": 1
+}</pre>
+        </div>
+      </div>
+
+      <div class="step-card">
+        <div class="step-header" onclick="toggleStep(24)">
+          <div class="step-left">
+            <div class="status-dot dot-pass"></div>
+            <span class="method-badge">POST</span>
+            <span class="step-name">Committee Member: Create Rooftop Solar Decision Poll</span>
+            <span class="role-pill">Management Committee</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 16px;">
+            <span class="step-latency">50.72 ms</span>
+            <span style="font-size: 12px; color: var(--text-muted);">&#9662;</span>
+          </div>
+        </div>
+        <div class="step-body" id="step-body-24">
+          <div style="margin-top: 12px; font-size: 13px;"><strong>Endpoint:</strong> <code style="font-family: monospace; color: var(--sky);">/societies/c18ec76a-aeb8-42ba-a817-674b7c1f4bf2/community/polls</code> • <strong>HTTP Status:</strong> <code>201</code></div>
+          <div class="code-label">Request Payload</div>
+          <pre class="code-block">{
+  "question": "Should the society install rooftop solar panels for common area electricity?",
+  "options": [
+    "Yes, approve immediately",
+    "Need detailed cost-benefit presentation",
+    "No, postpone to next AGM"
+  ]
+}</pre>
+          <div class="code-label">Response Payload / Frame</div>
+          <pre class="code-block">{
+  "id": "df5af044-3e8d-4361-b5cb-69d1ba7d5766",
+  "society_id": "c18ec76a-aeb8-42ba-a817-674b7c1f4bf2",
+  "created_by": "35f84c33-268a-4073-b52e-f0b780785d7b",
+  "author_name": "Siddharth Verma",
+  "question": "Should the society install rooftop solar panels for common area electricity?",
+  "description": null,
+  "options": [
+    "Yes, approve immediately",
+    "Need detailed cost-benefit presentation",
+    "No, postpone to next AGM"
+  ],
+  "total_votes": 0,
+  "stats": [
+    {
+      "index": 0,
+      "text": "Yes, approve immediately",
+      "vote_count": 0,
+      "percentage": 0.0
+    },
+    {
+      "index": 1,
+      "text": "Need detailed cost-benefit presentation",
+      "vote_count": 0,
+      "percentage": 0.0
+    },
+    {
+      "index": 2,
+      "text": "No, postpone to next AGM",
+      "vote_count": 0,
+      "percentage": 0.0
+    }
+  ],
+  "user_voted_option": null,
+  "is_active": true,
+  "created_at": "2026-08-19T16:26:38.528499Z"
+}</pre>
+        </div>
+      </div>
+
+      <div class="step-card">
+        <div class="step-header" onclick="toggleStep(25)">
+          <div class="step-left">
+            <div class="status-dot dot-pass"></div>
+            <span class="method-badge">POST</span>
+            <span class="step-name">Resident: Cast Vote on Solar Decision Poll</span>
+            <span class="role-pill">Resident</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 16px;">
+            <span class="step-latency">52.21 ms</span>
+            <span style="font-size: 12px; color: var(--text-muted);">&#9662;</span>
+          </div>
+        </div>
+        <div class="step-body" id="step-body-25">
+          <div style="margin-top: 12px; font-size: 13px;"><strong>Endpoint:</strong> <code style="font-family: monospace; color: var(--sky);">/societies/c18ec76a-aeb8-42ba-a817-674b7c1f4bf2/community/polls/df5af044-3e8d-4361-b5cb-69d1ba7d5766/vote</code> • <strong>HTTP Status:</strong> <code>200</code></div>
+          <div class="code-label">Request Payload</div>
+          <pre class="code-block">{
+  "option_index": 0
+}</pre>
+          <div class="code-label">Response Payload / Frame</div>
+          <pre class="code-block">[
+  {
+    "id": "df5af044-3e8d-4361-b5cb-69d1ba7d5766",
+    "society_id": "c18ec76a-aeb8-42ba-a817-674b7c1f4bf2",
+    "created_by": "35f84c33-268a-4073-b52e-f0b780785d7b",
+    "author_name": "Siddharth Verma",
+    "question": "Should the society install rooftop solar panels for common area electricity?",
+    "description": null,
+    "options": [
+      "Yes, approve immediately",
+      "Need detailed cost-benefit presentation",
+      "No, postpone to next AGM"
+    ],
+    "total_votes": 1,
+    "stats": [
+      {
+        "index": 0,
+        "text": "Yes, approve immediately",
+        "vote_count": 1,
+        "percentage": 100.0
+      },
+      {
+        "index": 1,
+        "text": "Need detailed cost-benefit presentation",
+        "vote_count": 0,
+        "percentage": 0.0
+      },
+      {
+        "index": 2,
+        "text": "No, postpone to next AGM",
+        "vote_count": 0,
+        "percentage": 0.0
+      }
+    ],
+    "user_voted_option": 0,
+    "is_active": true,
+    "created_at": "2026-08-19T16:26:38.528499Z"
+  }
+]</pre>
+        </div>
+      </div>
+
+      <div class="step-card">
+        <div class="step-header" onclick="toggleStep(26)">
+          <div class="step-left">
+            <div class="status-dot dot-pass"></div>
+            <span class="method-badge">POST</span>
+            <span class="step-name">Resident: Post Classified Listing on Marketplace</span>
+            <span class="role-pill">Resident</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 16px;">
+            <span class="step-latency">51.05 ms</span>
+            <span style="font-size: 12px; color: var(--text-muted);">&#9662;</span>
+          </div>
+        </div>
+        <div class="step-body" id="step-body-26">
+          <div style="margin-top: 12px; font-size: 13px;"><strong>Endpoint:</strong> <code style="font-family: monospace; color: var(--sky);">/societies/c18ec76a-aeb8-42ba-a817-674b7c1f4bf2/marketplace/listings</code> • <strong>HTTP Status:</strong> <code>201</code></div>
+          <div class="code-label">Request Payload</div>
+          <pre class="code-block">{
+  "title": "Trek Marlin 7 Mountain Bike (Like New)",
+  "description": "29-inch hydraulic disc brake mountain bike. Serviced regularly, excellent condition.",
+  "price": 28000.0,
+  "category": "sports",
+  "images": [
+    "https://minio.local/media/bike-01.jpg"
+  ]
+}</pre>
+          <div class="code-label">Response Payload / Frame</div>
+          <pre class="code-block">{
+  "id": "2b8ede4d-df9e-4317-9412-bddb7810e872",
+  "society_id": "c18ec76a-aeb8-42ba-a817-674b7c1f4bf2",
+  "seller_id": "35f84c33-268a-4073-b52e-f0b780785d7b",
+  "seller_name": "Siddharth Verma",
+  "seller_phone": "+919876530002",
+  "unit_number": null,
+  "title": "Trek Marlin 7 Mountain Bike (Like New)",
+  "description": "29-inch hydraulic disc brake mountain bike. Serviced regularly, excellent condition.",
+  "category": "sports",
+  "price": 28000.0,
+  "is_free": false,
+  "images": [
+    "https://minio.local/media/bike-01.jpg"
+  ],
+  "status": "ACTIVE",
+  "created_at": "2026-08-19T16:26:38.633611Z"
+}</pre>
+        </div>
+      </div>
+
+      <div class="step-card">
+        <div class="step-header" onclick="toggleStep(27)">
+          <div class="step-left">
+            <div class="status-dot dot-pass"></div>
+            <span class="method-badge">POST</span>
+            <span class="step-name">Accountant: Generate Monthly Maintenance Invoicing Batch Run</span>
+            <span class="role-pill">Accountant</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 16px;">
+            <span class="step-latency">72.64 ms</span>
+            <span style="font-size: 12px; color: var(--text-muted);">&#9662;</span>
+          </div>
+        </div>
+        <div class="step-body" id="step-body-27">
+          <div style="margin-top: 12px; font-size: 13px;"><strong>Endpoint:</strong> <code style="font-family: monospace; color: var(--sky);">/societies/c18ec76a-aeb8-42ba-a817-674b7c1f4bf2/billing/invoices/generate-batch</code> • <strong>HTTP Status:</strong> <code>201</code></div>
+          <div class="code-label">Request Payload</div>
+          <pre class="code-block">{
+  "billing_period": "AUG-2026",
+  "due_date": "2026-08-31",
+  "base_maintenance": 3500.0,
+  "sinking_fund": 500.0,
+  "water_charges": 500.0
+}</pre>
+          <div class="code-label">Response Payload / Frame</div>
+          <pre class="code-block">[
+  {
+    "id": "078b9971-e94d-4efa-94fb-8a774e135aa7",
+    "society_id": "c18ec76a-aeb8-42ba-a817-674b7c1f4bf2",
+    "unit_id": "3f475782-ab06-484b-9641-292fbc51c1e9",
+    "unit_number": "VILLA-42",
+    "invoice_number": "INV-202608-VILLA-42-181D",
+    "billing_period": "AUG-2026",
+    "due_date": "2026-08-31",
+    "subtotal": 4500.0,
+    "tax_amount": 225.0,
+    "penalty_amount": 0.0,
+    "total_amount": 4725.0,
+    "paid_amount": 0.0,
+    "status": "UNPAID",
+    "line_items": [
+      {
+        "title": "Monthly Society Maintenance",
+        "amount": 3500.0,
+        "category": "maintenance"
+      },
+      {
+        "title": "Sinking & Asset Reserve Fund",
+        "amount": 500.0,
+        "category": "reserve"
+      },
+      {
+        "title": "Water & Sewage Utility Charges",
+        "amount": 500.0,
+        "category": "utility"
+      },
+      {
+        "title": "GST (5% Tax)",
+        "amount": 225.0,
+        "category": "tax"
+      }
+    ],
+    "created_at": "2026-08-19T16:26:38.705324Z",
+    "paid_at": null,
+    "transactions": []
+  }
+]</pre>
+        </div>
+      </div>
+
+      <div class="step-card">
+        <div class="step-header" onclick="toggleStep(28)">
+          <div class="step-left">
+            <div class="status-dot dot-pass"></div>
+            <span class="method-badge">GET</span>
+            <span class="step-name">Resident: Fetch Personal Household Maintenance Invoices</span>
+            <span class="role-pill">Resident</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 16px;">
+            <span class="step-latency">42.1 ms</span>
+            <span style="font-size: 12px; color: var(--text-muted);">&#9662;</span>
+          </div>
+        </div>
+        <div class="step-body" id="step-body-28">
+          <div style="margin-top: 12px; font-size: 13px;"><strong>Endpoint:</strong> <code style="font-family: monospace; color: var(--sky);">/societies/c18ec76a-aeb8-42ba-a817-674b7c1f4bf2/billing/invoices</code> • <strong>HTTP Status:</strong> <code>200</code></div>
+          <div class="code-label">Request Payload</div>
+          <pre class="code-block">None (GET/No Body)</pre>
+          <div class="code-label">Response Payload / Frame</div>
+          <pre class="code-block">[
+  {
+    "id": "078b9971-e94d-4efa-94fb-8a774e135aa7",
+    "society_id": "c18ec76a-aeb8-42ba-a817-674b7c1f4bf2",
+    "unit_id": "3f475782-ab06-484b-9641-292fbc51c1e9",
+    "unit_number": "VILLA-42",
+    "invoice_number": "INV-202608-VILLA-42-181D",
+    "billing_period": "AUG-2026",
+    "due_date": "2026-08-31",
+    "subtotal": 4500.0,
+    "tax_amount": 225.0,
+    "penalty_amount": 0.0,
+    "total_amount": 4725.0,
+    "paid_amount": 0.0,
+    "status": "UNPAID",
+    "line_items": [
+      {
+        "title": "Monthly Society Maintenance",
+        "amount": 3500.0,
+        "category": "maintenance"
+      },
+      {
+        "title": "Sinking & Asset Reserve Fund",
+        "amount": 500.0,
+        "category": "reserve"
+      },
+      {
+        "title": "Water & Sewage Utility Charges",
+        "amount": 500.0,
+        "category": "utility"
+      },
+      {
+        "title": "GST (5% Tax)",
+        "amount": 225.0,
+        "category": "tax"
+      }
+    ],
+    "created_at": "2026-08-19T16:26:38.705324Z",
+    "paid_at": null,
+    "transactions": []
+  }
+]</pre>
+        </div>
+      </div>
+
+      <div class="step-card">
+        <div class="step-header" onclick="toggleStep(29)">
+          <div class="step-left">
+            <div class="status-dot dot-pass"></div>
+            <span class="method-badge">POST</span>
+            <span class="step-name">Resident: Settle Maintenance Invoice via Instant Payment Gateway</span>
+            <span class="role-pill">Resident</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 16px;">
+            <span class="step-latency">58.26 ms</span>
+            <span style="font-size: 12px; color: var(--text-muted);">&#9662;</span>
+          </div>
+        </div>
+        <div class="step-body" id="step-body-29">
+          <div style="margin-top: 12px; font-size: 13px;"><strong>Endpoint:</strong> <code style="font-family: monospace; color: var(--sky);">/societies/c18ec76a-aeb8-42ba-a817-674b7c1f4bf2/billing/invoices/078b9971-e94d-4efa-94fb-8a774e135aa7/pay</code> • <strong>HTTP Status:</strong> <code>201</code></div>
+          <div class="code-label">Request Payload</div>
+          <pre class="code-block">{
+  "payment_method": "UPI",
+  "amount": 4500.0
+}</pre>
+          <div class="code-label">Response Payload / Frame</div>
+          <pre class="code-block">{
+  "id": "06ff6211-f04b-4f51-87e5-d704a4cff6b8",
+  "society_id": "c18ec76a-aeb8-42ba-a817-674b7c1f4bf2",
+  "invoice_id": "078b9971-e94d-4efa-94fb-8a774e135aa7",
+  "unit_id": "3f475782-ab06-484b-9641-292fbc51c1e9",
+  "user_id": "35f84c33-268a-4073-b52e-f0b780785d7b",
+  "user_name": "Siddharth Verma",
+  "transaction_ref": "TXN-UPI-92BA0C41",
+  "receipt_number": "REC-619E7B",
+  "payment_method": "UPI",
+  "amount": 4500.0,
+  "status": "SUCCESS",
+  "paid_at": "2026-08-19T16:26:38.818050Z"
+}</pre>
+        </div>
+      </div>
+
+      <div class="step-card">
+        <div class="step-header" onclick="toggleStep(30)">
+          <div class="step-left">
+            <div class="status-dot dot-pass"></div>
+            <span class="method-badge">GET</span>
+            <span class="step-name">Accountant: Audit Society Financial Ledger Summary</span>
+            <span class="role-pill">Accountant</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 16px;">
+            <span class="step-latency">41.86 ms</span>
+            <span style="font-size: 12px; color: var(--text-muted);">&#9662;</span>
+          </div>
+        </div>
+        <div class="step-body" id="step-body-30">
+          <div style="margin-top: 12px; font-size: 13px;"><strong>Endpoint:</strong> <code style="font-family: monospace; color: var(--sky);">/societies/c18ec76a-aeb8-42ba-a817-674b7c1f4bf2/billing/ledger</code> • <strong>HTTP Status:</strong> <code>200</code></div>
+          <div class="code-label">Request Payload</div>
+          <pre class="code-block">None (GET/No Body)</pre>
+          <div class="code-label">Response Payload / Frame</div>
+          <pre class="code-block">{
+  "total_billed": 4725.0,
+  "total_collected": 4500.0,
+  "total_outstanding": 225.0,
+  "collection_rate_pct": 95.2,
+  "total_invoices": 1,
+  "paid_invoices": 0,
+  "overdue_invoices": 0
+}</pre>
+        </div>
+      </div>
+
+      <div class="step-card">
+        <div class="step-header" onclick="toggleStep(31)">
+          <div class="step-left">
+            <div class="status-dot dot-pass"></div>
+            <span class="method-badge">POST</span>
+            <span class="step-name">Security Supervisor: Register Gate Boom Barrier IoT Hardware</span>
+            <span class="role-pill">Security Supervisor</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 16px;">
+            <span class="step-latency">37.46 ms</span>
+            <span style="font-size: 12px; color: var(--text-muted);">&#9662;</span>
+          </div>
+        </div>
+        <div class="step-body" id="step-body-31">
+          <div style="margin-top: 12px; font-size: 13px;"><strong>Endpoint:</strong> <code style="font-family: monospace; color: var(--sky);">/societies/c18ec76a-aeb8-42ba-a817-674b7c1f4bf2/iot/devices</code> • <strong>HTTP Status:</strong> <code>201</code></div>
+          <div class="code-label">Request Payload</div>
+          <pre class="code-block">{
+  "gate_id": "dd43881a-80b2-44d9-99fd-501c9b3e379e",
+  "name": "Main North Gate Boom Barrier Controller",
+  "device_type": "BOOM_BARRIER",
+  "ip_address": "192.168.1.201",
+  "mac_address": "00:1A:2B:3C:4D:5E",
+  "firmware_version": "v2.4.1"
+}</pre>
+          <div class="code-label">Response Payload / Frame</div>
+          <pre class="code-block">{
+  "id": "2499de07-c6a0-4f0f-87c7-02e5e0fbe16b",
+  "society_id": "c18ec76a-aeb8-42ba-a817-674b7c1f4bf2",
+  "gate_id": "dd43881a-80b2-44d9-99fd-501c9b3e379e",
+  "name": "Main North Gate Boom Barrier Controller",
+  "device_type": "BOOM_BARRIER",
+  "ip_address": "192.168.1.201",
+  "mac_address": "00:1A:2B:3C:4D:5E",
+  "status": "ONLINE",
+  "firmware_version": "v2.4.1",
+  "last_heartbeat_at": "2026-08-19T16:26:38.899798Z",
+  "created_at": "2026-08-19T16:26:38.899805Z",
+  "commands": []
+}</pre>
+        </div>
+      </div>
+
+      <div class="step-card">
+        <div class="step-header" onclick="toggleStep(32)">
+          <div class="step-left">
+            <div class="status-dot dot-pass"></div>
+            <span class="method-badge">POST</span>
+            <span class="step-name">Security Supervisor: Dispatch Remote Barrier Pulse Command</span>
+            <span class="role-pill">Security Supervisor</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 16px;">
+            <span class="step-latency">51.46 ms</span>
+            <span style="font-size: 12px; color: var(--text-muted);">&#9662;</span>
+          </div>
+        </div>
+        <div class="step-body" id="step-body-32">
+          <div style="margin-top: 12px; font-size: 13px;"><strong>Endpoint:</strong> <code style="font-family: monospace; color: var(--sky);">/societies/c18ec76a-aeb8-42ba-a817-674b7c1f4bf2/iot/devices/2499de07-c6a0-4f0f-87c7-02e5e0fbe16b/command</code> • <strong>HTTP Status:</strong> <code>200</code></div>
+          <div class="code-label">Request Payload</div>
+          <pre class="code-block">{
+  "command": "OPEN_BARRIER",
+  "triggered_by": "SECURITY_SUPERVISOR_CONSOLE"
+}</pre>
+          <div class="code-label">Response Payload / Frame</div>
+          <pre class="code-block">{
+  "id": "0a85a471-77aa-40d3-8fd6-540fb8c92b44",
+  "device_id": "2499de07-c6a0-4f0f-87c7-02e5e0fbe16b",
+  "command": "OPEN_BARRIER",
+  "triggered_by": "SECURITY_SUPERVISOR_CONSOLE",
+  "status": "EXECUTED",
+  "executed_at": "2026-08-19T16:26:38.952242Z"
+}</pre>
+        </div>
+      </div>
+
+      <div class="step-card">
+        <div class="step-header" onclick="toggleStep(33)">
+          <div class="step-left">
+            <div class="status-dot dot-pass"></div>
+            <span class="method-badge">GET</span>
+            <span class="step-name">Security Supervisor: Audit Security Hardware & Egress Logs</span>
+            <span class="role-pill">Security Supervisor</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 16px;">
+            <span class="step-latency">26.19 ms</span>
+            <span style="font-size: 12px; color: var(--text-muted);">&#9662;</span>
+          </div>
+        </div>
+        <div class="step-body" id="step-body-33">
+          <div style="margin-top: 12px; font-size: 13px;"><strong>Endpoint:</strong> <code style="font-family: monospace; color: var(--sky);">/societies/c18ec76a-aeb8-42ba-a817-674b7c1f4bf2/audit/events</code> • <strong>HTTP Status:</strong> <code>200</code></div>
+          <div class="code-label">Request Payload</div>
+          <pre class="code-block">None (GET/No Body)</pre>
+          <div class="code-label">Response Payload / Frame</div>
+          <pre class="code-block">None</pre>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    function toggleStep(idx) {
+      const el = document.getElementById('step-body-' + idx);
+      if (el.classList.contains('open')) {
+        el.classList.remove('open');
+      } else {
+        el.classList.add('open');
+      }
+    }
+  </script>
+</body>
+</html>
