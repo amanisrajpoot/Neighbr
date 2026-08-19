@@ -13,6 +13,7 @@ import { useRouter } from "expo-router";
 import { Colors } from "../../src/theme/colors";
 import { syncEngine } from "../../src/sync/syncEngine";
 import { OfflineBanner } from "../../src/components/OfflineBanner";
+import { SearchablePicker } from "../../src/components/SearchablePicker";
 
 const CATEGORIES = ["Delivery", "Guest", "Cab", "Service / Repair", "Other"];
 
@@ -100,13 +101,21 @@ export default function GuardWalkInScreen() {
           </View>
 
           <View>
-            <Text style={styles.label}>Destination Flat / Villa *</Text>
-            <TextInput
-              placeholder="e.g. A-302 or Villa-42"
-              value={destinationUnit}
-              onChangeText={setDestinationUnit}
-              style={styles.input}
-              placeholderTextColor="#64748b"
+            <Text style={styles.label}>Destination Unit / Flat *</Text>
+            <SearchablePicker
+              title="Select Destination Unit"
+              placeholder="Search by Flat Number or Resident Name..."
+              searchPlaceholder="Type flat number (e.g. 42) or name..."
+              selectedId={destinationUnit}
+              onSelect={(item) => setDestinationUnit(item.id)}
+              items={[
+                { id: "Villa-42", label: "Villa-42 (Tower A)", subLabel: "Siddharth Verma • Owner", badge: "Villa", icon: "🏡" },
+                { id: "A-101", label: "Flat A-101 (Tower A, 1st Floor)", subLabel: "Aman Sharma • Resident", badge: "Apartment", icon: "🏢" },
+                { id: "A-102", label: "Flat A-102 (Tower A, 1st Floor)", subLabel: "Pooja Reddy • Resident", badge: "Apartment", icon: "🏢" },
+                { id: "A-302", label: "Flat A-302 (Tower A, 3rd Floor)", subLabel: "Vikram Sethi • Resident", badge: "Apartment", icon: "🏢" },
+                { id: "B-204", label: "Flat B-204 (Tower B, 2nd Floor)", subLabel: "Rahul Dravid • Resident", badge: "Apartment", icon: "🏢" },
+                { id: "Clubhouse", label: "Clubhouse Administration Office", subLabel: "Estate Facility Manager", badge: "Common", icon: "🏊" },
+              ]}
             />
           </View>
 

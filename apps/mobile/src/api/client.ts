@@ -99,3 +99,33 @@ export async function apiClient<T>(
 
   return response.json();
 }
+
+export const visitorApi = {
+  scanPass: async (societyId: string, gateId: string, qrToken: string) => {
+    return apiClient<any>(`/societies/${societyId}/gates/${gateId}/scan`, {
+      method: "POST",
+      body: JSON.stringify({ qr_token: qrToken }),
+    });
+  },
+  gateCheckIn: async (societyId: string, gateId: string, payload: any) => {
+    return apiClient<any>(`/societies/${societyId}/gates/${gateId}/check-in`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+  gateCheckOut: async (societyId: string, gateId: string, payload: any) => {
+    return apiClient<any>(`/societies/${societyId}/gates/${gateId}/check-out`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+  createPass: async (societyId: string, payload: any) => {
+    return apiClient<any>(`/societies/${societyId}/visitors/passes`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+  listPasses: async (societyId: string) => {
+    return apiClient<any[]>(`/societies/${societyId}/visitors/passes`);
+  },
+};

@@ -8,59 +8,65 @@ import {
   StatusBar,
   Alert,
   Platform,
+  Modal,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Colors } from "../../src/theme/colors";
 import { useAuthStore } from "../../src/store/authStore";
 import { useNotices } from "../../src/hooks/useNotices";
+import { usePasses } from "../../src/hooks/usePasses";
+import { OfflineBanner } from "../../src/components/OfflineBanner";
 
 export default function ResidentHomeScreen() {
   const router = useRouter();
   const user = useAuthStore((state) => state.user);
   const { triggerSOS } = useNotices();
+  const { passes } = usePasses();
 
-  // Mock interactive visitor waiting alert
-  const [waitingVisitor, setWaitingVisitor] = useState<{
-    id: string;
-    name: string;
-    type: string;
-    vehicle?: string;
-    gate: string;
-  } | null>({
-    id: "v-wait-01",
-    name: "Swiggy Delivery Partner",
-    type: "Delivery",
-    vehicle: "KA01EZ4321",
-    gate: "Main North Gate",
-  });
+  // Persistent dismissed IDs to prevent ghost re-appearance
+  const [dismissedVisitorIds, setDismissedVisitorIds] = useState<string[]>([]);
+  const [viewAllVisible, setViewAllVisible] = useState(false);
 
-  const handleApprove = () => {
+  // Incoming visitor alert (e.g. Swiggy delivery or guest waiting at gate)
+  const activeWaitingVisitor = dismissedVisitorIds.includes("v-wait-01")
+    ? null
+    : {
+        id: "v-wait-01",
+        name: "Swiggy Delivery Executive",
+        type: "Delivery",
+        vehicle: "KA01EZ4321",
+        gate: "Main North Gate",
+      };
+
+  const handleApprove = (id: string) => {
+    setDismissedVisitorIds((prev) => [...prev, id]);
     if (Platform.OS === "web" && typeof window !== "undefined") {
-      window.alert("✅ Approved: Gate pass issued! The guard will let the delivery partner in.");
+      window.alert("✅ Approved: Gate pass issued! Guard has been signaled to grant entry.");
     } else {
-      Alert.alert("Approved", "Gate pass issued! The guard will let the delivery partner in.");
+      Alert.alert("Approved", "Gate pass issued! Guard has been signaled to grant entry.");
     }
-    setWaitingVisitor(null);
   };
 
-  const handleReject = () => {
+  const handleReject = (id: string) => {
+    setDismissedVisitorIds((prev) => [...prev, id]);
     if (Platform.OS === "web" && typeof window !== "undefined") {
-      window.alert("❌ Declined: Entry request declined. Guard has been notified.");
+      window.alert("❌ Declined: Entry request declined. Guard notified.");
     } else {
-      Alert.alert("Declined", "Entry request declined. Guard has been notified.");
+      Alert.alert("Declined", "Entry request declined. Guard notified.");
     }
-    setWaitingVisitor(null);
   };
 
   const handleSOS = async () => {
     if (Platform.OS === "web" && typeof window !== "undefined") {
-      const ok = window.confirm("🚨 EMERGENCY SOS TRIGGER\n\nAre you sure you want to broadcast an emergency alarm to security guards and community admins?");
+      const ok = window.confirm(
+        "🚨 EMERGENCY SOS TRIGGER\n\nAre you sure you want to broadcast an emergency alarm to security guards and community admins?"
+      );
       if (ok) {
         try {
           await triggerSOS({
             sos_type: "security",
-            message: `Emergency SOS triggered by ${user?.name || "Resident"} in ${user?.unitNumber || "Estate"}`,
+            message: `Emergency SOS triggered by ${user?.name || "Resident"} in ${user?.unitNumber || "Villa-42"}`,
           });
         } catch (e) {
           console.log("SOS backend dispatch:", e);
@@ -80,7 +86,7 @@ export default function ResidentHomeScreen() {
               try {
                 await triggerSOS({
                   sos_type: "security",
-                  message: `Emergency SOS triggered by ${user?.name || "Resident"} in ${user?.unitNumber || "Estate"}`,
+                  message: `Emergency SOS triggered by ${user?.name || "Resident"} in ${user?.unitNumber || "Villa-42"}`,
                 });
               } catch (e) {
                 console.log("SOS backend dispatch:", e);
@@ -93,18 +99,40 @@ export default function ResidentHomeScreen() {
     }
   };
 
+  // 6 Primary Quick Actions (3x2 Grid)
+  const primaryActions = [
+    { id: "guest", label: "Guest Pass", icon: "⚡", color: "#38bdf8", route: "/(resident)/create-pass?type=guest" },
+    { id: "delivery", label: "Delivery Entry", icon: "📦", color: "#fb923c", route: "/(resident)/create-pass?type=delivery" },
+    { id: "cab", label: "Cab / Taxi", icon: "🚖", color: "#facc15", route: "/(resident)/create-pass?type=cab" },
+    { id: "helpdesk", label: "Service & Repairs", icon: "🛠️", color: "#a855f7", route: "/(resident)/helpdesk" },
+    { id: "staff", label: "Daily Help", icon: "🧹", color: "#ec4899", route: "/(resident)/staff" },
+    { id: "amenities", label: "Clubhouse", icon: "🏊", color: "#10b981", route: "/(resident)/amenities" },
+  ];
+
+  // Full 12 Operational Services for View All Modal
+  const allServices = [
+    ...primaryActions,
+    { id: "notices", label: "Society Notices", icon: "📜", color: "#6366f1", route: "/(resident)/notices" },
+    { id: "community", label: "Community Forum", icon: "💬", color: "#0ea5e9", route: "/(resident)/community" },
+    { id: "marketplace", label: "Marketplace", icon: "🛍️", color: "#14b8a6", route: "/(resident)/marketplace" },
+    { id: "vehicles", label: "My Vehicles", icon: "🚗", color: "#8b5cf6", route: "/(resident)/vehicles" },
+    { id: "billing", label: "Flat Dues & Dues", icon: "💳", color: "#059669", route: "/(resident)/billing" },
+    { id: "assistant", label: "AI Copilot", icon: "🤖", color: "#f43f5e", route: "/(resident)/assistant" },
+  ];
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
+      <OfflineBanner />
 
-      {/* Header */}
+      {/* Top Header */}
       <View style={styles.header}>
         <View>
-          <Text style={styles.societyName}>{user?.societyName || "Greenwood Palms"}</Text>
+          <Text style={styles.societyName}>{user?.societyName || "Greenwood Palms Heights"}</Text>
           <Text style={styles.unitBadge}>📍 Flat {user?.unitNumber || "Villa-42"}</Text>
         </View>
 
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
           <TouchableOpacity
             onPress={() => {
               useAuthStore.getState().logout();
@@ -121,174 +149,169 @@ export default function ResidentHomeScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* Waiting Visitor Alert Card */}
-        {waitingVisitor && (
+        {/* 1. Critical Live Alert: Waiting at Gate */}
+        {activeWaitingVisitor && (
           <View style={styles.waitingCard}>
-            <View style={styles.waitingCardHeader}>
-              <View style={styles.pulseDot} />
-              <Text style={styles.waitingCardTitle}>Visitor Waiting at Gate</Text>
+            <View style={styles.waitingBadge}>
+              <Text style={styles.waitingBadgeText}>🔔 WAITING AT GATE</Text>
             </View>
 
-            <View style={styles.waitingDetails}>
-              <Text style={styles.visitorName}>{waitingVisitor.name}</Text>
-              <Text style={styles.visitorMeta}>
-                {waitingVisitor.type} • {waitingVisitor.gate}
+            <View style={styles.waitingInfo}>
+              <Text style={styles.waitingTitle}>{activeWaitingVisitor.name}</Text>
+              <Text style={styles.waitingSub}>
+                {activeWaitingVisitor.type} • Vehicle: {activeWaitingVisitor.vehicle} • {activeWaitingVisitor.gate}
               </Text>
-              {waitingVisitor.vehicle && (
-                <Text style={styles.visitorVehicle}>Vehicle: {waitingVisitor.vehicle}</Text>
-              )}
             </View>
 
-            <View style={styles.waitingActions}>
-              <TouchableOpacity onPress={handleReject} style={styles.rejectBtn}>
-                <Text style={styles.rejectBtnText}>Decline</Text>
+            <View style={styles.actionButtonsRow}>
+              <TouchableOpacity
+                onPress={() => handleReject(activeWaitingVisitor.id)}
+                style={styles.rejectButton}
+              >
+                <Text style={styles.rejectButtonText}>✕ Decline</Text>
               </TouchableOpacity>
-              <TouchableOpacity onPress={handleApprove} style={styles.approveBtn}>
-                <Text style={styles.approveBtnText}>Approve Entry</Text>
+              <TouchableOpacity
+                onPress={() => handleApprove(activeWaitingVisitor.id)}
+                style={styles.approveButton}
+              >
+                <Text style={styles.approveButtonText}>✓ Allow Entry</Text>
               </TouchableOpacity>
             </View>
           </View>
         )}
 
-        {/* Quick Actions Grid */}
-        <Text style={styles.sectionTitle}>Quick Gate Actions</Text>
-        <View style={styles.grid}>
-          <TouchableOpacity
-            style={styles.gridTile}
-            onPress={() => router.push("/(resident)/create-pass")}
-          >
-            <Text style={styles.tileEmoji}>🎟️</Text>
-            <Text style={styles.tileTitle}>Invite Guest</Text>
-            <Text style={styles.tileDesc}>Pre-approve pass</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.gridTile}
-            onPress={() => router.push("/(resident)/create-pass")}
-          >
-            <Text style={styles.tileEmoji}>📦</Text>
-            <Text style={styles.tileTitle}>Delivery Pass</Text>
-            <Text style={styles.tileDesc}>Leave at gate</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.gridTile}
-            onPress={() => router.push("/(resident)/create-pass")}
-          >
-            <Text style={styles.tileEmoji}>🚖</Text>
-            <Text style={styles.tileTitle}>Cab / Taxi</Text>
-            <Text style={styles.tileDesc}>Quick cab entry</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.gridTile}
-            onPress={() => router.push("/(resident)/staff")}
-          >
-            <Text style={styles.tileEmoji}>🧹</Text>
-            <Text style={styles.tileTitle}>Daily Help</Text>
-            <Text style={styles.tileDesc}>Maid & Cook status</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.gridTile}
-            onPress={() => router.push("/(resident)/vehicles")}
-          >
-            <Text style={styles.tileEmoji}>🚗</Text>
-            <Text style={styles.tileTitle}>My Vehicles</Text>
-            <Text style={styles.tileDesc}>Parking & RFID tag</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.gridTile}
-            onPress={() => router.push("/(resident)/helpdesk")}
-          >
-            <Text style={styles.tileEmoji}>🛠️</Text>
-            <Text style={styles.tileTitle}>Helpdesk</Text>
-            <Text style={styles.tileDesc}>Repairs & Service</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.gridTile}
-            onPress={() => router.push("/(resident)/amenities")}
-          >
-            <Text style={styles.tileEmoji}>🎾</Text>
-            <Text style={styles.tileTitle}>Clubhouse</Text>
-            <Text style={styles.tileDesc}>Pool, Court & Slots</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.gridTile}
-            onPress={() => router.push("/(resident)/billing")}
-          >
-            <Text style={styles.tileEmoji}>💳</Text>
-            <Text style={styles.tileTitle}>Maintenance</Text>
-            <Text style={styles.tileDesc}>Pay Dues & Receipts</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.gridTile}
-            onPress={() => router.push("/(resident)/community")}
-          >
-            <Text style={styles.tileEmoji}>💬</Text>
-            <Text style={styles.tileTitle}>Community</Text>
-            <Text style={styles.tileDesc}>Forum & Live Polls</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.gridTile}
-            onPress={() => router.push("/(resident)/marketplace")}
-          >
-            <Text style={styles.tileEmoji}>🛍️</Text>
-            <Text style={styles.tileTitle}>Bazaar & Services</Text>
-            <Text style={styles.tileDesc}>Buy, Sell & Book</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.gridTile}
-            onPress={() => router.push("/(resident)/assistant")}
-          >
-            <Text style={styles.tileEmoji}>✨</Text>
-            <Text style={styles.tileTitle}>AI Assistant</Text>
-            <Text style={styles.tileDesc}>Instant Copilot</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Expected Today List */}
+        {/* 2. Quick Gate Actions Header + View All Button */}
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Expected Visitors Today</Text>
-          <TouchableOpacity onPress={() => router.push("/(resident)/visitors")}>
-            <Text style={styles.seeAllText}>View All</Text>
+          <Text style={styles.sectionTitle}>Quick Gate Actions</Text>
+          <TouchableOpacity onPress={() => setViewAllVisible(true)} style={styles.viewAllBtn}>
+            <Text style={styles.viewAllBtnText}>View All (12) →</Text>
           </TouchableOpacity>
         </View>
 
-        <View style={styles.visitorCard}>
-          <View style={styles.visitorCardRow}>
-            <View>
-              <Text style={styles.visitorCardName}>Ananya Roy</Text>
-              <Text style={styles.visitorCardTime}>Expected at 7:00 PM • Guest</Text>
+        {/* 3. 6 Primary Actions (3x2 Grid) */}
+        <View style={styles.quickGrid}>
+          {primaryActions.map((action) => (
+            <TouchableOpacity
+              key={action.id}
+              onPress={() => router.push(action.route as any)}
+              style={styles.actionCard}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.actionIconCircle, { backgroundColor: action.color + "18" }]}>
+                <Text style={styles.actionIcon}>{action.icon}</Text>
+              </View>
+              <Text style={styles.actionLabel}>{action.label}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {/* 4. Today's Domestic Staff Status */}
+        <View style={styles.cardSection}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Daily Domestic Help</Text>
+            <TouchableOpacity onPress={() => router.push("/(resident)/staff")}>
+              <Text style={styles.linkText}>Manage Staff</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.staffCard}>
+            <View style={styles.staffLeft}>
+              <Text style={styles.staffAvatar}>👩‍🍳</Text>
+              <View>
+                <Text style={styles.staffName}>Laxmi Bai</Text>
+                <Text style={styles.staffRole}>House Maid & Cook • Inside Flat</Text>
+              </View>
             </View>
-            <View style={styles.statusBadge}>
-              <Text style={styles.statusBadgeText}>APPROVED</Text>
+            <View style={styles.checkedInBadge}>
+              <Text style={styles.checkedInText}>In: 07:32 AM</Text>
             </View>
           </View>
         </View>
 
-        {/* Recent Community Notice */}
-        <Text style={styles.sectionTitle}>Community Notice</Text>
-        <TouchableOpacity
-          style={styles.noticeCard}
-          onPress={() => router.push("/(resident)/notices")}
-        >
-          <View style={styles.noticeHeader}>
-            <Text style={styles.noticeTag}>HIGH PRIORITY</Text>
-            <Text style={styles.noticeTime}>Today</Text>
+        {/* 5. Upcoming Amenity Bookings */}
+        <View style={styles.cardSection}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Upcoming Bookings</Text>
+            <TouchableOpacity onPress={() => router.push("/(resident)/amenities")}>
+              <Text style={styles.linkText}>Book Slot</Text>
+            </TouchableOpacity>
           </View>
-          <Text style={styles.noticeTitle}>Quarterly Water Tank Cleaning & Supply Interruption</Text>
-          <Text style={styles.noticeSnippet} numberOfLines={2}>
-            Water supply across all towers will be briefly paused between 2:00 PM and 5:00 PM this coming Sunday.
-          </Text>
-        </TouchableOpacity>
+
+          <View style={styles.amenityCard}>
+            <View style={styles.amenityLeft}>
+              <Text style={styles.amenityIcon}>🎾</Text>
+              <View>
+                <Text style={styles.amenityTitle}>Clubhouse Tennis Court</Text>
+                <Text style={styles.amenityTime}>Tomorrow, 06:00 PM – 07:00 PM</Text>
+              </View>
+            </View>
+            <View style={styles.confirmedBadge}>
+              <Text style={styles.confirmedText}>Confirmed</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* 6. Society Notice Broadcast Carousel */}
+        <View style={styles.cardSection}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Society Notices & News</Text>
+            <TouchableOpacity onPress={() => router.push("/(resident)/notices")}>
+              <Text style={styles.linkText}>View Board</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.noticeCard}>
+            <View style={styles.noticeTag}>
+              <Text style={styles.noticeTagText}>📢 OFFICIAL BROADCAST</Text>
+            </View>
+            <Text style={styles.noticeTitle}>Rooftop Solar Installation & Maintenance Drive</Text>
+            <Text style={styles.noticeBody} numberOfLines={2}>
+              Common area solar panel maintenance will be conducted this Saturday between 10:00 AM and 02:00 PM.
+            </Text>
+          </View>
+        </View>
+
+        <View style={{ height: 40 }} />
       </ScrollView>
+
+      {/* View All Services Full Modal */}
+      <Modal
+        visible={viewAllVisible}
+        animationType="slide"
+        transparent={false}
+        onRequestClose={() => setViewAllVisible(false)}
+      >
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <View>
+              <Text style={styles.modalTitle}>All Estate Services & Hub</Text>
+              <Text style={styles.modalSubtitle}>12 integrated community lifestyle modules</Text>
+            </View>
+            <TouchableOpacity onPress={() => setViewAllVisible(false)} style={styles.modalCloseBtn}>
+              <Text style={styles.modalCloseText}>✕</Text>
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView contentContainerStyle={styles.allServicesGrid}>
+            {allServices.map((service) => (
+              <TouchableOpacity
+                key={service.id}
+                onPress={() => {
+                  setViewAllVisible(false);
+                  router.push(service.route as any);
+                }}
+                style={styles.fullServiceCard}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.fullServiceIconCircle, { backgroundColor: service.color + "18" }]}>
+                  <Text style={styles.fullServiceIcon}>{service.icon}</Text>
+                </View>
+                <Text style={styles.fullServiceLabel}>{service.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -296,7 +319,7 @@ export default function ResidentHomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: "#f8fafc",
   },
   header: {
     flexDirection: "row",
@@ -306,248 +329,358 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     backgroundColor: "#ffffff",
     borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    borderBottomColor: "#e2e8f0",
   },
   societyName: {
-    fontSize: 16,
-    fontWeight: "700",
+    fontSize: 17,
+    fontWeight: "900",
     color: Colors.text,
+    letterSpacing: -0.3,
   },
   unitBadge: {
     fontSize: 12,
-    fontWeight: "600",
-    color: Colors.primaryDark,
+    fontWeight: "700",
+    color: Colors.primary,
     marginTop: 2,
   },
+  logoutButton: {
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    backgroundColor: "#f1f5f9",
+  },
+  logoutButtonText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: Colors.textMuted,
+  },
   sosButton: {
-    backgroundColor: Colors.danger,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 12,
-    shadowColor: Colors.danger,
+    backgroundColor: "#ef4444",
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    shadowColor: "#ef4444",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: 4,
-    elevation: 3,
   },
   sosButtonText: {
     color: "#ffffff",
-    fontSize: 12,
     fontWeight: "900",
-  },
-  logoutButton: {
-    backgroundColor: Colors.secondaryLight,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  logoutButtonText: {
-    color: Colors.textMuted,
-    fontSize: 11,
-    fontWeight: "700",
+    fontSize: 13,
   },
   scrollContent: {
-    padding: 20,
-    gap: 18,
+    padding: 18,
   },
   waitingCard: {
     backgroundColor: "#ffffff",
-    borderRadius: 18,
-    padding: 16,
     borderWidth: 2,
-    borderColor: Colors.warning,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 2,
+    borderColor: "#f59e0b",
+    borderRadius: 20,
+    padding: 16,
+    marginBottom: 20,
+    shadowColor: "#f59e0b",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
   },
-  waitingCardHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
+  waitingBadge: {
+    alignSelf: "flex-start",
+    backgroundColor: "#fef3c7",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 6,
     marginBottom: 8,
   },
-  pulseDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: Colors.warning,
+  waitingBadgeText: {
+    fontSize: 11,
+    fontWeight: "900",
+    color: "#b45309",
   },
-  waitingCardTitle: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: Colors.warning,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-  },
-  waitingDetails: {
+  waitingInfo: {
     marginBottom: 14,
   },
-  visitorName: {
+  waitingTitle: {
     fontSize: 18,
-    fontWeight: "700",
+    fontWeight: "900",
     color: Colors.text,
   },
-  visitorMeta: {
+  waitingSub: {
     fontSize: 13,
     color: Colors.textMuted,
-    marginTop: 2,
+    marginTop: 3,
+    fontWeight: "500",
   },
-  visitorVehicle: {
-    fontSize: 12,
-    color: Colors.primaryDark,
-    fontWeight: "600",
-    marginTop: 2,
-  },
-  waitingActions: {
+  actionButtonsRow: {
     flexDirection: "row",
     gap: 10,
   },
-  rejectBtn: {
+  rejectButton: {
     flex: 1,
-    paddingVertical: 10,
+    backgroundColor: "#fee2e2",
+    paddingVertical: 12,
     borderRadius: 12,
-    backgroundColor: Colors.secondaryLight,
-    borderWidth: 1,
-    borderColor: Colors.border,
     alignItems: "center",
   },
-  rejectBtnText: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: Colors.textMuted,
+  rejectButtonText: {
+    color: "#b91c1c",
+    fontWeight: "800",
+    fontSize: 14,
   },
-  approveBtn: {
-    flex: 1,
-    paddingVertical: 10,
+  approveButton: {
+    flex: 1.5,
+    backgroundColor: "#10b981",
+    paddingVertical: 12,
     borderRadius: 12,
-    backgroundColor: Colors.success,
     alignItems: "center",
   },
-  approveBtnText: {
-    fontSize: 13,
-    fontWeight: "700",
+  approveButtonText: {
     color: "#ffffff",
+    fontWeight: "900",
+    fontSize: 14,
   },
   sectionHeader: {
     flexDirection: "row",
-    alignItems: "center",
     justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
   },
   sectionTitle: {
-    fontSize: 14,
-    fontWeight: "700",
+    fontSize: 16,
+    fontWeight: "800",
     color: Colors.text,
   },
-  seeAllText: {
-    fontSize: 12,
-    fontWeight: "600",
+  viewAllBtn: {
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+  },
+  viewAllBtnText: {
+    fontSize: 13,
+    fontWeight: "800",
     color: Colors.primary,
   },
-  grid: {
+  linkText: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: Colors.primary,
+  },
+  quickGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 12,
+    marginBottom: 24,
   },
-  gridTile: {
-    width: "48%",
+  actionCard: {
+    width: "31%",
     backgroundColor: "#ffffff",
-    borderRadius: 16,
-    padding: 14,
+    borderRadius: 18,
+    paddingVertical: 16,
+    paddingHorizontal: 8,
+    alignItems: "center",
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: "#e2e8f0",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.03,
-    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
   },
-  tileEmoji: {
+  actionIconCircle: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 8,
+  },
+  actionIcon: {
     fontSize: 24,
-    marginBottom: 6,
   },
-  tileTitle: {
-    fontSize: 13,
-    fontWeight: "700",
+  actionLabel: {
+    fontSize: 12,
+    fontWeight: "800",
     color: Colors.text,
+    textAlign: "center",
   },
-  tileDesc: {
-    fontSize: 11,
-    color: Colors.textMuted,
-    marginTop: 2,
+  cardSection: {
+    marginBottom: 20,
   },
-  visitorCard: {
+  staffCard: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     backgroundColor: "#ffffff",
     borderRadius: 16,
     padding: 14,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: "#e2e8f0",
   },
-  visitorCardRow: {
+  staffLeft: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    gap: 12,
   },
-  visitorCardName: {
-    fontSize: 14,
-    fontWeight: "700",
+  staffAvatar: {
+    fontSize: 28,
+  },
+  staffName: {
+    fontSize: 15,
+    fontWeight: "800",
     color: Colors.text,
   },
-  visitorCardTime: {
+  staffRole: {
     fontSize: 12,
     color: Colors.textMuted,
     marginTop: 2,
   },
-  statusBadge: {
-    backgroundColor: Colors.successLight,
+  checkedInBadge: {
+    backgroundColor: "#dcfce7",
     paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: Colors.success,
+    paddingVertical: 4,
+    borderRadius: 6,
   },
-  statusBadgeText: {
-    fontSize: 10,
+  checkedInText: {
+    fontSize: 11,
     fontWeight: "800",
-    color: Colors.success,
+    color: "#15803d",
+  },
+  amenityCard: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    backgroundColor: "#ffffff",
+    borderRadius: 16,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+  },
+  amenityLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  amenityIcon: {
+    fontSize: 28,
+  },
+  amenityTitle: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: Colors.text,
+  },
+  amenityTime: {
+    fontSize: 12,
+    color: Colors.textMuted,
+    marginTop: 2,
+  },
+  confirmedBadge: {
+    backgroundColor: "#e0f2fe",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  confirmedText: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: "#0369a1",
   },
   noticeCard: {
     backgroundColor: "#ffffff",
     borderRadius: 16,
-    padding: 14,
+    padding: 16,
     borderWidth: 1,
-    borderColor: Colors.border,
-    gap: 4,
-  },
-  noticeHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+    borderColor: "#e2e8f0",
   },
   noticeTag: {
-    fontSize: 10,
-    fontWeight: "800",
-    color: Colors.danger,
-    backgroundColor: Colors.dangerLight,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
+    alignSelf: "flex-start",
+    backgroundColor: "#ede9fe",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
     borderRadius: 6,
+    marginBottom: 8,
   },
-  noticeTime: {
-    fontSize: 11,
-    color: Colors.textMuted,
+  noticeTagText: {
+    fontSize: 10,
+    fontWeight: "900",
+    color: "#6d28d9",
   },
   noticeTitle: {
-    fontSize: 13,
-    fontWeight: "700",
+    fontSize: 15,
+    fontWeight: "800",
     color: Colors.text,
-    marginTop: 4,
+    marginBottom: 4,
   },
-  noticeSnippet: {
+  noticeBody: {
+    fontSize: 13,
+    color: Colors.textMuted,
+    lineHeight: 18,
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: "#ffffff",
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingVertical: 18,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f1f5f9",
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "900",
+    color: Colors.text,
+  },
+  modalSubtitle: {
     fontSize: 12,
     color: Colors.textMuted,
-    lineHeight: 16,
+    fontWeight: "600",
+    marginTop: 2,
+  },
+  modalCloseBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#f1f5f9",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalCloseText: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: Colors.text,
+  },
+  allServicesGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    padding: 20,
+    gap: 16,
+  },
+  fullServiceCard: {
+    width: "30%",
+    backgroundColor: "#f8fafc",
+    borderRadius: 16,
+    paddingVertical: 18,
+    paddingHorizontal: 8,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+  },
+  fullServiceIconCircle: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 8,
+  },
+  fullServiceIcon: {
+    fontSize: 24,
+  },
+  fullServiceLabel: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: Colors.text,
+    textAlign: "center",
   },
 });

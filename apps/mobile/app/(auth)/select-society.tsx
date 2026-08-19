@@ -1,19 +1,29 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
   TouchableOpacity,
   StyleSheet,
+  ScrollView,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Colors } from "../../src/theme/colors";
 import { useAuthStore } from "../../src/store/authStore";
+import { SearchablePicker } from "../../src/components/SearchablePicker";
+
+const AVAILABLE_SOCIETIES = [
+  { id: "34090e70-34f9-4cdd-9522-e2098982a5ed", label: "Greenwood Palms Heights", subLabel: "42 Varthur Road, Whitefield, Bengaluru", badge: "Primary", icon: "🏢" },
+  { id: "soc-002", label: "Prestige Silver Oak Residency", subLabel: "Marathahalli-Sarjapur Outer Ring Rd, Bengaluru", badge: "Active", icon: "🏡" },
+  { id: "soc-003", label: "Sobha Dream Acres", subLabel: "Balagere, Panathur, Bengaluru", badge: "Active", icon: "🌴" },
+  { id: "soc-004", label: "Godrej United Luxury Towers", subLabel: "Hoodi Main Road, Mahadevapura, Bengaluru", badge: "Active", icon: "🏰" },
+];
 
 export default function SelectSocietyScreen() {
   const router = useRouter();
   const user = useAuthStore((state) => state.user);
   const login = useAuthStore((state) => state.login);
+  const [selectedSociety, setSelectedSociety] = useState(AVAILABLE_SOCIETIES[0]);
 
   const selectResidentRole = () => {
     login("mock-access-token", {
@@ -21,8 +31,8 @@ export default function SelectSocietyScreen() {
       phone: "+919876530002",
       name: "Siddharth Verma",
       role: "resident",
-      societyId: "34090e70-34f9-4cdd-9522-e2098982a5ed",
-      societyName: "Greenwood Palms Heights",
+      societyId: selectedSociety.id,
+      societyName: selectedSociety.label,
       unitNumber: "Villa-42",
     });
     router.replace("/(resident)");
@@ -34,8 +44,8 @@ export default function SelectSocietyScreen() {
       phone: "+919876530003",
       name: "Jagdish R. (Guard)",
       role: "guard",
-      societyId: "34090e70-34f9-4cdd-9522-e2098982a5ed",
-      societyName: "Greenwood Palms Heights",
+      societyId: selectedSociety.id,
+      societyName: selectedSociety.label,
       unitNumber: undefined,
     });
     router.replace("/(guard)");
@@ -43,10 +53,23 @@ export default function SelectSocietyScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
+      <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.header}>
-          <Text style={styles.greeting}>Welcome, {user?.name || "User"}</Text>
-          <Text style={styles.subtitle}>Select your society role and terminal to continue</Text>
+          <Text style={styles.greeting}>Welcome, {user?.name || "Siddharth"}</Text>
+          <Text style={styles.subtitle}>Select your society property and active terminal</Text>
+        </View>
+
+        {/* Searchable Society Property Selector */}
+        <View style={styles.pickerSection}>
+          <Text style={styles.sectionLabel}>Select Gated Community Property</Text>
+          <SearchablePicker
+            title="Select Gated Community"
+            placeholder="Search society name or location..."
+            searchPlaceholder="Type society name (e.g. Greenwood, Sobha, Prestige)..."
+            selectedId={selectedSociety.id}
+            onSelect={(item) => setSelectedSociety(item as any)}
+            items={AVAILABLE_SOCIETIES}
+          />
         </View>
 
         <View style={styles.cardList}>
@@ -59,7 +82,7 @@ export default function SelectSocietyScreen() {
               </View>
             </View>
 
-            <Text style={styles.societyTitle}>Greenwood Palms Heights</Text>
+            <Text style={styles.societyTitle}>{selectedSociety.label}</Text>
             <Text style={styles.roleMeta}>Unit: Villa-42 • Owner Membership</Text>
             <Text style={styles.actionPrompt}>Open Resident Gate Pass & Approvals →</Text>
           </TouchableOpacity>
@@ -73,12 +96,12 @@ export default function SelectSocietyScreen() {
               </View>
             </View>
 
-            <Text style={styles.societyTitle}>Greenwood Palms Heights</Text>
+            <Text style={styles.societyTitle}>{selectedSociety.label}</Text>
             <Text style={styles.roleMeta}>Terminal: Main North Gate (GATE-01) • Morning Shift</Text>
             <Text style={styles.actionPrompt}>Open Guard QR Scanner & Gate Console →</Text>
           </TouchableOpacity>
         </View>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -104,6 +127,14 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: Colors.textMuted,
     marginTop: 4,
+  },
+  pickerSection: {
+    gap: 8,
+  },
+  sectionLabel: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: Colors.text,
   },
   cardList: {
     gap: 16,
