@@ -28,75 +28,81 @@ export default function ResidentLayout() {
         options={{
           title: "Home",
           tabBarLabel: "Home",
+          tabBarIcon: ({ color }) => <Text style={{ fontSize: 18 }}>🏠</Text>,
         }}
       />
       <Tabs.Screen
         name="visitors"
         options={{
-          title: "Visitors",
-          tabBarLabel: "Visitors",
-        }}
-      />
-      <Tabs.Screen
-        name="notices"
-        options={{
-          title: "Notices",
-          tabBarLabel: "Notices",
-        }}
-      />
-      <Tabs.Screen
-        name="staff"
-        options={{
-          title: "Daily Help",
-          tabBarLabel: "Daily Help",
-        }}
-      />
-      <Tabs.Screen
-        name="create-pass"
-        options={{
-          href: null, // Hidden from tab bar, accessed via quick action
-        }}
-      />
-      <Tabs.Screen
-        name="vehicles"
-        options={{
-          href: null, // Hidden from tab bar, accessed via quick action
-        }}
-      />
-      <Tabs.Screen
-        name="helpdesk"
-        options={{
-          href: null, // Hidden from tab bar, accessed via quick action
-        }}
-      />
-      <Tabs.Screen
-        name="amenities"
-        options={{
-          href: null, // Hidden from tab bar, accessed via quick action
-        }}
-      />
-      <Tabs.Screen
-        name="billing"
-        options={{
-          href: null, // Hidden from tab bar, accessed via quick action
+          title: "My Gate",
+          tabBarLabel: "My Gate",
+          tabBarIcon: ({ color }) => <Text style={{ fontSize: 18 }}>🛡️</Text>,
         }}
       />
       <Tabs.Screen
         name="community"
         options={{
-          href: null, // Hidden from tab bar, accessed via quick action
+          title: "Community",
+          tabBarLabel: "Community",
+          tabBarIcon: ({ color }) => <Text style={{ fontSize: 18 }}>💬</Text>,
+        }}
+      />
+      <Tabs.Screen
+        name="amenities"
+        options={{
+          title: "Services",
+          tabBarLabel: "Services",
+          tabBarIcon: ({ color }) => <Text style={{ fontSize: 18 }}>🏊</Text>,
+        }}
+      />
+      <Tabs.Screen
+        name="billing"
+        options={{
+          title: "My Flat",
+          tabBarLabel: "My Flat",
+          tabBarIcon: ({ color }) => <Text style={{ fontSize: 18 }}>🏢</Text>,
+        }}
+      />
+      <Tabs.Screen
+        name="notices"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="staff"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="create-pass"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="vehicles"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="helpdesk"
+        options={{
+          href: null,
         }}
       />
       <Tabs.Screen
         name="marketplace"
         options={{
-          href: null, // Hidden from tab bar, accessed via quick action
+          href: null,
         }}
       />
       <Tabs.Screen
         name="assistant"
         options={{
-          href: null, // Hidden from tab bar, accessed via quick action
+          href: null,
         }}
       />
     </Tabs>

@@ -37,11 +37,14 @@ async def list_passes(
     society_id: uuid.UUID,
     unit_id: uuid.UUID | None = None,
     user: User = Depends(get_current_user),
-    _mem = Depends(require_society_membership),
+    mem = Depends(require_society_membership),
     db: AsyncSession = Depends(get_db),
 ):
     service = VisitorService(db)
-    return await service.list_passes(society_id, unit_id=unit_id, user_id=user.id)
+    # If platform admin or guard or society_admin, allow viewing all passes across the society
+    is_staff = user.is_platform_admin or (mem and mem.role and mem.role.code in ("society_admin", "guard", "security_supervisor", "committee"))
+    user_filter = None if is_staff else user.id
+    return await service.list_passes(society_id, unit_id=unit_id, user_id=user_filter)
 
 # Gatekeeping & Scanning
 @router.post("/societies/{society_id}/gates/{gate_id}/scan", response_model=VisitorPassOut)

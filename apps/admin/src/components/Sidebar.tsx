@@ -30,20 +30,20 @@ export function Sidebar() {
   const currentRoleObj = availableRoles.find((r) => r.id === activeRole) || availableRoles[0];
 
   const allNavigation = [
-    { name: "Command Dashboard", href: "/", icon: LayoutDashboard, roles: ["society_admin", "committee"] },
-    { name: "Towers & Units", href: "/units", icon: Building2, roles: ["society_admin"] },
-    { name: "Resident Directory", href: "/residents", icon: Users, roles: ["society_admin", "resident", "committee"] },
-    { name: "Guards & Gates", href: "/guards", icon: ShieldCheck, roles: ["society_admin", "guard"] },
-    { name: "Visitor Logs & Security", href: "/visitors", icon: UserCheck, roles: ["society_admin", "resident", "guard", "committee"] },
-    { name: "Maintenance & Invoices", href: "/billing", icon: Receipt, roles: ["society_admin", "resident", "committee"] },
-    { name: "Helpdesk & Service", href: "/helpdesk", icon: Wrench, roles: ["society_admin", "resident", "committee"] },
-    { name: "Clubhouse Amenities", href: "/amenities", icon: Trophy, roles: ["society_admin", "resident", "committee"] },
-    { name: "Community & Polls", href: "/community", icon: MessageSquare, roles: ["society_admin", "resident", "committee"] },
-    { name: "Marketplace & Vendors", href: "/marketplace", icon: ShoppingBag, roles: ["society_admin", "resident", "committee"] },
-    { name: "IoT Devices & Rules", href: "/devices", icon: Cpu, roles: ["society_admin", "committee"] },
+    { name: "Command Dashboard", href: "/", icon: LayoutDashboard, roles: ["society_admin", "security_supervisor", "accountant", "committee"] },
+    { name: "Towers & Units", href: "/units", icon: Building2, roles: ["society_admin", "committee"] },
+    { name: "Resident Directory", href: "/residents", icon: Users, roles: ["society_admin", "committee", "security_supervisor"] },
+    { name: "Guards & Gates", href: "/guards", icon: ShieldCheck, roles: ["society_admin", "security_supervisor", "guard"] },
+    { name: "Visitor Logs & Security", href: "/visitors", icon: UserCheck, roles: ["society_admin", "security_supervisor", "guard", "committee"] },
+    { name: "Maintenance & Invoices", href: "/billing", icon: Receipt, roles: ["society_admin", "accountant", "committee"] },
+    { name: "Helpdesk & Service", href: "/helpdesk", icon: Wrench, roles: ["society_admin", "committee", "resident"] },
+    { name: "Clubhouse Amenities", href: "/amenities", icon: Trophy, roles: ["society_admin", "committee", "resident"] },
+    { name: "Community & Polls", href: "/community", icon: MessageSquare, roles: ["society_admin", "committee", "resident"] },
+    { name: "Marketplace & Vendors", href: "/marketplace", icon: ShoppingBag, roles: ["society_admin", "committee", "resident"] },
+    { name: "IoT Devices & Rules", href: "/devices", icon: Cpu, roles: ["society_admin", "security_supervisor"] },
     { name: "AI Copilot & Ops", href: "/ai", icon: Sparkles, roles: ["society_admin", "committee"] },
-    { name: "Notice Board", href: "/notices", icon: Bell, roles: ["society_admin", "resident", "guard", "committee"] },
-    { name: "Security Audit Log", href: "/audit", icon: Lock, roles: ["society_admin", "committee"] },
+    { name: "Notice Board", href: "/notices", icon: Bell, roles: ["society_admin", "committee", "security_supervisor", "accountant", "resident", "guard"] },
+    { name: "Security Audit Log", href: "/audit", icon: Lock, roles: ["society_admin", "security_supervisor", "committee"] },
     { name: "Onboarding Wizard", href: "/onboarding", icon: Wand2, roles: ["society_admin"] },
   ];
 

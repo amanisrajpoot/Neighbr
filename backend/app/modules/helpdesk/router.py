@@ -75,11 +75,14 @@ async def list_tickets(
     unit_id: uuid.UUID | None = None,
     user_id: uuid.UUID | None = None,
     status_filter: str | None = None,
-    _mem = Depends(require_society_membership),
+    user: User = Depends(get_current_user),
+    mem = Depends(require_society_membership),
     db: AsyncSession = Depends(get_db),
 ):
     service = HelpdeskService(db)
-    tickets = await service.list_tickets(society_id, unit_id=unit_id, user_id=user_id, status_filter=status_filter)
+    is_staff = user.is_platform_admin or (mem and mem.role and mem.role.code in ("society_admin", "staff", "committee", "facility_manager"))
+    user_filter = user_id if is_staff else user.id
+    tickets = await service.list_tickets(society_id, unit_id=unit_id, user_id=user_filter, status_filter=status_filter)
     return [_format_ticket(t) for t in tickets]
 
 @router.get("/tickets/{ticket_id}", response_model=TicketOut)

@@ -14,7 +14,7 @@ export interface UserProfile {
   role?: string;
 }
 
-export type RoleType = "society_admin" | "resident" | "guard" | "committee";
+export type RoleType = "society_admin" | "security_supervisor" | "accountant" | "committee" | "resident" | "guard";
 
 export interface RoleOption {
   id: RoleType;
@@ -33,6 +33,27 @@ export const ALL_ROLES: RoleOption[] = [
     badge: "Admin Access",
   },
   {
+    id: "security_supervisor",
+    label: "Security Head / Supervisor",
+    description: "Gate barrier IoT telemetry, guard shift assignments & incident audit logs",
+    icon: "🛡️",
+    badge: "Security Ops",
+  },
+  {
+    id: "accountant",
+    label: "Society Treasurer & Accountant",
+    description: "Maintenance invoices, offline payment reconciliation & billing ledgers",
+    icon: "💰",
+    badge: "Finance & Accounts",
+  },
+  {
+    id: "committee",
+    label: "Management Committee Member",
+    description: "Notices broadcast, resident directory governance & amenity oversight",
+    icon: "📜",
+    badge: "Committee",
+  },
+  {
     id: "resident",
     label: "Resident Flat Owner (Villa-42)",
     description: "Manage household members, issue guest gate passes & view notice board",
@@ -43,15 +64,8 @@ export const ALL_ROLES: RoleOption[] = [
     id: "guard",
     label: "Gate Security Guard (Gate-01)",
     description: "Live camera scanner, visitor check-in/out & security blacklist",
-    icon: "🛡️",
+    icon: "👮",
     badge: "Guard Station",
-  },
-  {
-    id: "committee",
-    label: "Management Committee Member",
-    description: "Notices broadcast, resident directory governance & telemetry audit",
-    icon: "📜",
-    badge: "Committee",
   },
 ];
 
