@@ -119,6 +119,33 @@ class VisitorService:
             selectinload(VisitorPass.unit), selectinload(VisitorPass.issuer)
         )
 
+        if qr_token and qr_token.strip().startswith("AMN-"):
+            from app.modules.amenities.models import AmenityBooking
+            ab_res = await self.db.execute(
+                select(AmenityBooking)
+                .where(AmenityBooking.society_id == society_id, AmenityBooking.qr_pass == qr_token.strip())
+                .options(selectinload(AmenityBooking.amenity), selectinload(AmenityBooking.unit), selectinload(AmenityBooking.user))
+            )
+            ab = ab_res.scalar_one_or_none()
+            if not ab:
+                raise AppException(code="AMENITY_PASS_NOT_FOUND", message="Clubhouse Amenity pass not found", status_code=404)
+            if ab.status == "CANCELLED":
+                raise AppException(code="PASS_CANCELLED", message="Clubhouse booking was cancelled", status_code=400)
+            return VisitorPass(
+                id=ab.id,
+                society_id=ab.society_id,
+                unit_id=ab.unit_id,
+                pass_type="clubhouse",
+                visitor_name=f"{ab.user.full_name if ab.user else 'Resident'} ({ab.amenity.name if ab.amenity else 'Amenity'})",
+                visitor_phone=ab.user.phone if ab.user else "",
+                qr_token=ab.qr_pass,
+                valid_from=datetime.combine(ab.booking_date, datetime.min.time(), tzinfo=timezone.utc),
+                valid_until=datetime.combine(ab.booking_date, datetime.max.time(), tzinfo=timezone.utc),
+                status=ab.status,
+                unit=ab.unit,
+                issuer=ab.user,
+            )
+
         if qr_token:
             query = query.where(VisitorPass.qr_token == qr_token.strip())
         elif pin_code:

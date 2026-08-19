@@ -16,28 +16,35 @@ import { Colors } from "../../src/theme/colors";
 import { useAuthStore } from "../../src/store/authStore";
 import { useNotices } from "../../src/hooks/useNotices";
 import { usePasses } from "../../src/hooks/usePasses";
+import { useStaff } from "../../src/hooks/useStaff";
+import { useAmenities } from "../../src/hooks/useAmenities";
 import { OfflineBanner } from "../../src/components/OfflineBanner";
 
 export default function ResidentHomeScreen() {
   const router = useRouter();
   const user = useAuthStore((state) => state.user);
-  const { triggerSOS } = useNotices();
+  const { notices, triggerSOS } = useNotices();
   const { passes } = usePasses();
+  const { unitStaff } = useStaff();
+  const { myBookings } = useAmenities();
 
-  // Persistent dismissed IDs to prevent ghost re-appearance
   const [dismissedVisitorIds, setDismissedVisitorIds] = useState<string[]>([]);
   const [viewAllVisible, setViewAllVisible] = useState(false);
 
-  // Incoming visitor alert (e.g. Swiggy delivery or guest waiting at gate)
-  const activeWaitingVisitor = dismissedVisitorIds.includes("v-wait-01")
-    ? null
-    : {
-        id: "v-wait-01",
-        name: "Swiggy Delivery Executive",
-        type: "Delivery",
-        vehicle: "KA01EZ4321",
-        gate: "Main North Gate",
-      };
+  // Live waiting visitor (waiting approval) from real passes query
+  const pendingPass = passes.find(
+    (p) => p.status === "WAITING_APPROVAL" && !dismissedVisitorIds.includes(p.id)
+  );
+
+  const activeWaitingVisitor = pendingPass
+    ? {
+        id: pendingPass.id,
+        name: pendingPass.visitor_name || "Visitor at Gate",
+        type: pendingPass.pass_type || "Guest",
+        vehicle: pendingPass.vehicle_number || "Pedestrian",
+        gate: "Main Security Gate",
+      }
+    : null;
 
   const handleApprove = (id: string) => {
     setDismissedVisitorIds((prev) => [...prev, id]);
@@ -210,22 +217,34 @@ export default function ResidentHomeScreen() {
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Daily Domestic Help</Text>
             <TouchableOpacity onPress={() => router.push("/(resident)/staff")}>
-              <Text style={styles.linkText}>Manage Staff</Text>
+              <Text style={styles.linkText}>Manage Staff ({unitStaff.length})</Text>
             </TouchableOpacity>
           </View>
 
-          <View style={styles.staffCard}>
-            <View style={styles.staffLeft}>
-              <Text style={styles.staffAvatar}>👩‍🍳</Text>
-              <View>
-                <Text style={styles.staffName}>Laxmi Bai</Text>
-                <Text style={styles.staffRole}>House Maid & Cook • Inside Flat</Text>
+          {unitStaff.length > 0 ? (
+            unitStaff.slice(0, 2).map((item, idx) => (
+              <View key={item.id || idx} style={styles.staffCard}>
+                <View style={styles.staffLeft}>
+                  <Text style={styles.staffAvatar}>👩‍🍳</Text>
+                  <View>
+                    <Text style={styles.staffName}>{item.staff?.name || "Domestic Help"}</Text>
+                    <Text style={styles.staffRole}>{item.role || item.staff?.role || "House Help"} • {item.staff?.status === "INSIDE" ? "Inside Society" : "On Duty"}</Text>
+                  </View>
+                </View>
+                <View style={styles.checkedInBadge}>
+                  <Text style={styles.checkedInText}>{item.staff?.last_entry || "Linked"}</Text>
+                </View>
               </View>
-            </View>
-            <View style={styles.checkedInBadge}>
-              <Text style={styles.checkedInText}>In: 07:32 AM</Text>
-            </View>
-          </View>
+            ))
+          ) : (
+            <TouchableOpacity onPress={() => router.push("/(resident)/staff")} style={styles.emptyCard}>
+              <Text style={styles.emptyCardIcon}>🧹</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.emptyCardTitle}>No Domestic Help Linked</Text>
+                <Text style={styles.emptyCardSub}>Tap to browse society directory and link your maid, cook, or driver.</Text>
+              </View>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* 5. Upcoming Amenity Bookings */}
@@ -237,18 +256,30 @@ export default function ResidentHomeScreen() {
             </TouchableOpacity>
           </View>
 
-          <View style={styles.amenityCard}>
-            <View style={styles.amenityLeft}>
-              <Text style={styles.amenityIcon}>🎾</Text>
-              <View>
-                <Text style={styles.amenityTitle}>Clubhouse Tennis Court</Text>
-                <Text style={styles.amenityTime}>Tomorrow, 06:00 PM – 07:00 PM</Text>
+          {myBookings.length > 0 ? (
+            myBookings.slice(0, 2).map((b) => (
+              <TouchableOpacity key={b.id} onPress={() => router.push("/(resident)/amenities")} style={styles.amenityCard}>
+                <View style={styles.amenityLeft}>
+                  <Text style={styles.amenityIcon}>🏊</Text>
+                  <View>
+                    <Text style={styles.amenityTitle}>{b.amenity_name || "Clubhouse Facility"}</Text>
+                    <Text style={styles.amenityTime}>{b.booking_date} • {b.start_time} - {b.end_time}</Text>
+                  </View>
+                </View>
+                <View style={styles.confirmedBadge}>
+                  <Text style={styles.confirmedText}>● {b.status}</Text>
+                </View>
+              </TouchableOpacity>
+            ))
+          ) : (
+            <TouchableOpacity onPress={() => router.push("/(resident)/amenities")} style={styles.emptyCard}>
+              <Text style={styles.emptyCardIcon}>🎾</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.emptyCardTitle}>No Active Reservations</Text>
+                <Text style={styles.emptyCardSub}>Tap to book swimming pool, tennis court, or party hall.</Text>
               </View>
-            </View>
-            <View style={styles.confirmedBadge}>
-              <Text style={styles.confirmedText}>Confirmed</Text>
-            </View>
-          </View>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* 6. Society Notice Broadcast Carousel */}
@@ -260,15 +291,25 @@ export default function ResidentHomeScreen() {
             </TouchableOpacity>
           </View>
 
-          <View style={styles.noticeCard}>
-            <View style={styles.noticeTag}>
-              <Text style={styles.noticeTagText}>📢 OFFICIAL BROADCAST</Text>
+          {notices.length > 0 ? (
+            <TouchableOpacity onPress={() => router.push("/(resident)/notices")} style={styles.noticeCard}>
+              <View style={styles.noticeTag}>
+                <Text style={styles.noticeTagText}>📢 OFFICIAL BROADCAST • {notices[0].priority.toUpperCase()}</Text>
+              </View>
+              <Text style={styles.noticeTitle}>{notices[0].title}</Text>
+              <Text style={styles.noticeBody} numberOfLines={2}>
+                {notices[0].body}
+              </Text>
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.emptyCard}>
+              <Text style={styles.emptyCardIcon}>📜</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.emptyCardTitle}>All Clear</Text>
+                <Text style={styles.emptyCardSub}>No active urgent notices published.</Text>
+              </View>
             </View>
-            <Text style={styles.noticeTitle}>Rooftop Solar Installation & Maintenance Drive</Text>
-            <Text style={styles.noticeBody} numberOfLines={2}>
-              Common area solar panel maintenance will be conducted this Saturday between 10:00 AM and 02:00 PM.
-            </Text>
-          </View>
+          )}
         </View>
 
         <View style={{ height: 40 }} />
@@ -682,5 +723,29 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     color: Colors.text,
     textAlign: "center",
+  },
+  emptyCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#ffffff",
+    borderRadius: 16,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    gap: 12,
+  },
+  emptyCardIcon: {
+    fontSize: 24,
+  },
+  emptyCardTitle: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: Colors.text,
+  },
+  emptyCardSub: {
+    fontSize: 11,
+    color: Colors.textMuted,
+    marginTop: 2,
+    lineHeight: 16,
   },
 });

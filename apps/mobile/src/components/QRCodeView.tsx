@@ -1,74 +1,8 @@
 import React from "react";
 import { View, Text, StyleSheet, TouchableOpacity, Share, Platform } from "react-native";
-import Svg, { Rect, Path } from "react-native-svg";
+import Svg, { Rect } from "react-native-svg";
 import { Colors } from "../theme/colors";
-
-/**
- * QR Code Generator & Renderer for React Native & Web
- * Generates a valid standard QR matrix and renders sharp vector SVG elements.
- */
-
-// Simple robust 21x21 - 25x25 QR Matrix Generator
-function generateQrMatrix(text: string): boolean[][] {
-  const size = 25;
-  const matrix: boolean[][] = Array(size).fill(false).map(() => Array(size).fill(false));
-  const isFunction: boolean[][] = Array(size).fill(false).map(() => Array(size).fill(false));
-
-  // 1. Finder patterns (top-left, top-right, bottom-left)
-  function setFinder(row: number, col: number) {
-    for (let r = -1; r <= 7; r++) {
-      for (let c = -1; c <= 7; c++) {
-        const tr = row + r;
-        const tc = col + c;
-        if (tr >= 0 && tr < size && tc >= 0 && tc < size) {
-          isFunction[tr][tc] = true;
-          if (
-            (r >= 0 && r <= 6 && (c === 0 || c === 6)) ||
-            (c >= 0 && c <= 6 && (r === 0 || r === 6)) ||
-            (r >= 2 && r <= 4 && c >= 2 && c <= 4)
-          ) {
-            matrix[tr][tc] = true;
-          } else {
-            matrix[tr][tc] = false;
-          }
-        }
-      }
-    }
-  }
-
-  setFinder(0, 0);
-  setFinder(0, size - 7);
-  setFinder(size - 7, 0);
-
-  // 2. Timing patterns
-  for (let i = 8; i < size - 8; i++) {
-    isFunction[6][i] = true;
-    matrix[6][i] = i % 2 === 0;
-    isFunction[i][6] = true;
-    matrix[i][6] = i % 2 === 0;
-  }
-
-  // 3. Populate deterministic data from payload
-  let hash = 0;
-  for (let i = 0; i < text.length; i++) {
-    hash = (hash << 5) - hash + text.charCodeAt(i);
-    hash |= 0;
-  }
-
-  let bitIdx = 0;
-  for (let r = 0; r < size; r++) {
-    for (let c = 0; c < size; c++) {
-      if (!isFunction[r][c]) {
-        const charCode = text.charCodeAt((bitIdx + r + c) % text.length) || 42;
-        const bit = ((hash ^ (charCode * (r + 1) * (c + 1))) >> (bitIdx % 16)) & 1;
-        matrix[r][c] = bit === 1;
-        bitIdx++;
-      }
-    }
-  }
-
-  return matrix;
-}
+import { generateStandardQrMatrix } from "../utils/qrGenerator";
 
 interface QRCodeViewProps {
   value: string;
@@ -91,7 +25,8 @@ export function QRCodeView({
   size = 220,
   showShareButton = true,
 }: QRCodeViewProps) {
-  const matrix = React.useMemo(() => generateQrMatrix(value), [value]);
+  // Generate 100% compliant ISO standard QR Matrix
+  const matrix = React.useMemo(() => generateStandardQrMatrix(value), [value]);
   const matrixSize = matrix.length;
   const cellSize = size / matrixSize;
 
@@ -100,15 +35,25 @@ export function QRCodeView({
     : pinCode;
 
   const handleShare = async () => {
-    const shareMessage = `🎟️ Neighbr Gate Pass for ${visitorName}\n\n📍 Destination: Flat ${unitNumber}\n🔑 Entry PIN: ${pinCode}\n⏳ Valid Until: ${validUntil}\n\nPresent this QR code or 6-digit PIN at the society security gate.`;
+    const shareMessage = `━━━━━━━━━━━━━━━━━━━━━
+🎟️ NEIGHBR DIGITAL GATE PASS
+━━━━━━━━━━━━━━━━━━━━━
+👤 Visitor: ${visitorName}
+📍 Destination: Flat ${unitNumber}
+🔑 6-Digit Gate PIN: ${formattedPin}
+⏳ Valid Until: ${validUntil}
+🔖 Pass Token: ${value}
+
+👉 Present this pass or tell the 6-digit PIN to security guards at the society gate.`;
+
     if (Platform.OS === "web") {
-      if (navigator.share) {
+      if (typeof navigator !== "undefined" && navigator.share) {
         try {
           await navigator.share({ title: "Neighbr Gate Pass", text: shareMessage });
         } catch {}
-      } else {
+      } else if (typeof navigator !== "undefined" && navigator.clipboard) {
         await navigator.clipboard.writeText(shareMessage);
-        window.alert("Pass details copied to clipboard!");
+        window.alert("🎟️ Digital Pass details copied to clipboard!");
       }
     } else {
       await Share.share({ message: shareMessage });
@@ -143,8 +88,8 @@ export function QRCodeView({
                   key={`${r}-${c}`}
                   x={c * cellSize}
                   y={r * cellSize}
-                  width={cellSize + 0.3}
-                  height={cellSize + 0.3}
+                  width={cellSize + 0.15}
+                  height={cellSize + 0.15}
                   fill={isExpired ? "#94a3b8" : "#0f172a"}
                 />
               ) : null
@@ -159,23 +104,26 @@ export function QRCodeView({
         )}
       </View>
 
-      {/* 6-Digit PIN Code Fallback Box */}
+      {/* Fallback 6-Digit PIN Code Box */}
       <View style={styles.pinBox}>
-        <Text style={styles.pinLabel}>6-DIGIT GATE ENTRY PIN</Text>
-        <Text style={styles.pinCode}>{formattedPin}</Text>
-        <Text style={styles.pinHelp}>Share this PIN if visitor cannot show screen</Text>
+        <Text style={styles.pinLabel}>GUARD ENTRY PIN (CAMERA FALLBACK)</Text>
+        <Text style={styles.pinText}>{formattedPin}</Text>
       </View>
 
-      {/* Validity & Expiry Countdown */}
-      <View style={styles.validityRow}>
-        <Text style={styles.validityLabel}>Valid Until:</Text>
-        <Text style={styles.validityValue}>{validUntil}</Text>
+      {/* Expiration Meta */}
+      <View style={styles.metaRow}>
+        <Text style={styles.metaLabel}>Valid Until</Text>
+        <Text style={styles.metaValue}>{validUntil}</Text>
       </View>
 
-      {/* Share Action */}
+      {/* Share / Save Actions */}
       {showShareButton && (
-        <TouchableOpacity onPress={handleShare} style={styles.shareBtn} activeOpacity={0.8}>
-          <Text style={styles.shareBtnText}>📤 Share Pass (WhatsApp / SMS)</Text>
+        <TouchableOpacity
+          style={styles.shareButton}
+          onPress={handleShare}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.shareText}>📤 Share Pass on WhatsApp / SMS</Text>
         </TouchableOpacity>
       )}
     </View>
@@ -187,26 +135,30 @@ const styles = StyleSheet.create({
     backgroundColor: "#ffffff",
     borderRadius: 24,
     padding: 20,
-    alignItems: "center",
     borderWidth: 1.5,
     borderColor: "#e2e8f0",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.08,
-    shadowRadius: 12,
+    shadowRadius: 16,
     elevation: 4,
+    alignItems: "center",
     width: "100%",
+    maxWidth: 360,
   },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "flex-start",
+    alignItems: "center",
     width: "100%",
     marginBottom: 16,
+    paddingBottom: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f1f5f9",
   },
   visitorName: {
     fontSize: 18,
-    fontWeight: "900",
+    fontWeight: "800",
     color: Colors.text,
   },
   unitText: {
@@ -217,114 +169,112 @@ const styles = StyleSheet.create({
   },
   statusBadge: {
     paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingVertical: 5,
     borderRadius: 8,
   },
   badgeApproved: {
-    backgroundColor: "#dcfce7",
+    backgroundColor: "#ecfdf5",
   },
   badgeExpired: {
-    backgroundColor: "#fee2e2",
+    backgroundColor: "#fef2f2",
   },
   statusText: {
     fontSize: 11,
-    fontWeight: "900",
+    fontWeight: "800",
   },
   textApproved: {
-    color: "#15803d",
+    color: "#059669",
   },
   textExpired: {
-    color: "#b91c1c",
+    color: "#dc2626",
   },
   qrContainer: {
     padding: 12,
     backgroundColor: "#ffffff",
     borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#f1f5f9",
+    borderWidth: 1.5,
+    borderColor: "#e2e8f0",
+    marginVertical: 12,
     position: "relative",
-    marginBottom: 16,
   },
   qrExpired: {
-    opacity: 0.5,
+    opacity: 0.4,
   },
   expiredOverlay: {
     position: "absolute",
     top: 0,
-    bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: "rgba(239, 68, 68, 0.25)",
+    bottom: 0,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: 16,
+    backgroundColor: "rgba(255,255,255,0.7)",
   },
   expiredOverlayText: {
-    backgroundColor: "#b91c1c",
-    color: "#ffffff",
+    fontSize: 16,
+    fontWeight: "900",
+    color: "#dc2626",
+    letterSpacing: 1.5,
+    backgroundColor: "#fee2e2",
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 6,
-    fontSize: 12,
-    fontWeight: "900",
-    letterSpacing: 1,
+    borderRadius: 8,
   },
   pinBox: {
     width: "100%",
     backgroundColor: "#f8fafc",
-    borderWidth: 1.5,
-    borderColor: "#e2e8f0",
-    borderRadius: 16,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
+    borderRadius: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
     alignItems: "center",
-    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    marginTop: 8,
   },
   pinLabel: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: "800",
     color: "#64748b",
-    letterSpacing: 1,
-    marginBottom: 4,
+    letterSpacing: 0.5,
   },
-  pinCode: {
-    fontSize: 26,
+  pinText: {
+    fontSize: 22,
     fontWeight: "900",
-    color: Colors.primary,
-    letterSpacing: 3,
+    color: Colors.primaryDark,
+    fontFamily: "monospace",
+    marginTop: 2,
+    letterSpacing: 4,
   },
-  pinHelp: {
-    fontSize: 11,
-    color: Colors.textMuted,
-    marginTop: 4,
-  },
-  validityRow: {
+  metaRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     width: "100%",
-    paddingHorizontal: 6,
-    marginBottom: 16,
+    marginTop: 14,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: "#f1f5f9",
   },
-  validityLabel: {
-    fontSize: 13,
+  metaLabel: {
+    fontSize: 12,
     color: Colors.textMuted,
     fontWeight: "600",
   },
-  validityValue: {
-    fontSize: 13,
+  metaValue: {
+    fontSize: 12,
     color: Colors.text,
-    fontWeight: "800",
+    fontWeight: "700",
   },
-  shareBtn: {
+  shareButton: {
     width: "100%",
     backgroundColor: Colors.primary,
-    paddingVertical: 14,
+    paddingVertical: 13,
     borderRadius: 14,
     alignItems: "center",
+    marginTop: 16,
   },
-  shareBtnText: {
+  shareText: {
     color: "#ffffff",
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "800",
   },
 });
