@@ -49,13 +49,24 @@ export default function GuardScanScreen() {
     setIsValidating(true);
     setScanError(null);
     try {
-      // 1. Validate with backend
+      // 1. Validate with backend (handles QR token or 6-digit PIN)
       const res = await visitorApi.scanPass(societyId, gateId, token.trim());
       setScannedPass(res);
     } catch (e: any) {
-      console.log("Scan error:", e);
-      // Fallback for demo tokens
-      if (token.includes("BLACKLIST")) {
+      const msg = e.message || "Invalid pass";
+      console.log("Scan error:", msg);
+      if (msg.toLowerCase().includes("expired")) {
+        setScanError(msg);
+        setScannedPass({
+          id: "expired-pass",
+          visitor_name: "Expired Pass Holder",
+          visitor_phone: "Expired",
+          pass_type: "guest",
+          status: "EXPIRED",
+          unit: { unit_number: "Villa-42" },
+          notes: msg,
+        });
+      } else if (token.includes("BLACKLIST") || msg.toLowerCase().includes("blacklist")) {
         setScannedPass({
           id: "mock-bl",
           visitor_name: "Flagged Suspicious Individual",
@@ -64,19 +75,15 @@ export default function GuardScanScreen() {
           vehicle_number: "KA01ZZ9999",
           status: "BLACKLISTED",
           unit: { unit_number: "A-101" },
+          notes: msg,
         });
       } else {
-        setScannedPass({
-          id: "mock-scanned-pass",
-          qr_token: token,
-          visitor_name: "Rohan Deshmukh",
-          visitor_phone: "+91 98765 99901",
-          pass_type: "guest",
-          vehicle_number: "KA-01-MJ-8899",
-          status: "APPROVED",
-          unit: { unit_number: "Villa-42" },
-          issuer: { full_name: "Siddharth Verma" },
-        });
+        setScanError(msg);
+        if (Platform.OS === "web" && typeof window !== "undefined") {
+          window.alert(`❌ Pass Verification Failed: ${msg}`);
+        } else {
+          Alert.alert("Verification Failed", msg);
+        }
       }
     } finally {
       setIsValidating(false);
@@ -212,10 +219,16 @@ export default function GuardScanScreen() {
                 </View>
               </View>
 
-              {scannedPass.status !== "BLACKLISTED" ? (
+              {scannedPass.status === "APPROVED" || scannedPass.status === "VALID" ? (
                 <TouchableOpacity onPress={handleConfirmCheckIn} style={styles.confirmButton}>
                   <Text style={styles.confirmButtonText}>⚡ Authorize & Open Barrier</Text>
                 </TouchableOpacity>
+              ) : scannedPass.status === "EXPIRED" ? (
+                <View style={styles.blacklistWarning}>
+                  <Text style={styles.blacklistWarningText}>
+                    ⛔ Entry Blocked: This pass has expired. Instruct visitor to request a new gate pass from resident.
+                  </Text>
+                </View>
               ) : (
                 <View style={styles.blacklistWarning}>
                   <Text style={styles.blacklistWarningText}>

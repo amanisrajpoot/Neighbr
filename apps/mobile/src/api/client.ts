@@ -101,10 +101,21 @@ export async function apiClient<T>(
 }
 
 export const visitorApi = {
-  scanPass: async (societyId: string, gateId: string, qrToken: string) => {
+  scanPass: async (societyId: string, gateId: string, query: string | { qr_token?: string; pin_code?: string }) => {
+    let bodyPayload: any = {};
+    if (typeof query === "string") {
+      const trimmed = query.trim();
+      if (/^\d{6}$/.test(trimmed)) {
+        bodyPayload = { pin_code: trimmed };
+      } else {
+        bodyPayload = { qr_token: trimmed };
+      }
+    } else {
+      bodyPayload = query;
+    }
     return apiClient<any>(`/societies/${societyId}/gates/${gateId}/scan`, {
       method: "POST",
-      body: JSON.stringify({ qr_token: qrToken }),
+      body: JSON.stringify(bodyPayload),
     });
   },
   gateCheckIn: async (societyId: string, gateId: string, payload: any) => {

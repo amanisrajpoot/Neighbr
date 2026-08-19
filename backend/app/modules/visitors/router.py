@@ -56,7 +56,7 @@ async def scan_pass(
     db: AsyncSession = Depends(get_db),
 ):
     service = VisitorService(db)
-    return await service.scan_pass(society_id, payload.qr_token, gate_id)
+    return await service.scan_pass(society_id, qr_token=payload.qr_token, pin_code=payload.pin_code, gate_id=gate_id)
 
 @router.post("/societies/{society_id}/gates/{gate_id}/check-in", response_model=VisitorEventOut)
 async def gate_check_in(

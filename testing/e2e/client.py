@@ -153,7 +153,10 @@ class E2EClient:
         except urllib.error.HTTPError as e:
             latency = (time.time() - start_time) * 1000
             err_body = e.read().decode()
-            err_json = json.loads(err_body) if err_body else {}
+            try:
+                err_json = json.loads(err_body) if err_body else {}
+            except Exception:
+                err_json = {"raw_error": err_body}
             status_code = e.code
             
             passed = (status_code == expected_status)

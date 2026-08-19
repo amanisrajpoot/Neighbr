@@ -35,10 +35,11 @@ def run_scenario_visitors(client, context: Dict[str, Any]):
         expected_status=201
     )
     qr_token = v_pass["qr_token"]
+    pass_code = v_pass["pass_code"]
     pass_id = v_pass["id"]
     context["pass_id"] = pass_id
 
-    # 2. Gate Guard: Scan QR Token at North Gate Terminal
+    # 2a. Gate Guard: Scan QR Token at North Gate Terminal
     scan_payload = {
         "qr_token": qr_token,
         "gate_id": gate_id,
@@ -53,6 +54,22 @@ def run_scenario_visitors(client, context: Dict[str, Any]):
         expected_status=200
     )
     assert scan_res["status"] in ("APPROVED", "CREATED", "ACTIVE", "CHECKED_IN")
+
+    # 2b. Gate Guard: Verify 6-Digit PIN Code Fallback at Terminal
+    if pass_code:
+        pin_payload = {
+            "pin_code": pass_code,
+            "gate_id": gate_id,
+        }
+        pin_res = client.http_request(
+            name="Gate Guard: Verify 6-Digit PIN Entry Fallback",
+            role="Gate Guard",
+            method="POST",
+            endpoint=f"/societies/{society_id}/gates/{gate_id}/scan",
+            payload=pin_payload,
+            expected_status=200
+        )
+        assert pin_res["id"] == pass_id
 
     # 3. Gate Guard: Check-In Visitor Entry
     entry_payload = {

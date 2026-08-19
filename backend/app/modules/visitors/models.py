@@ -52,6 +52,7 @@ class VisitorPass(Base):
     purpose: Mapped[str | None] = mapped_column(String(255), nullable=True)
     vehicle_number: Mapped[str | None] = mapped_column(String(20), nullable=True)
     gate_restriction: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("gates.id", ondelete="SET NULL"), nullable=True)
+    pass_code: Mapped[str | None] = mapped_column(String(10), index=True, nullable=True)
     qr_token: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=False)
     qr_token_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     valid_from: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

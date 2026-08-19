@@ -35,6 +35,7 @@ class VisitorService:
         self, society_id: uuid.UUID, payload: CreateVisitorPassRequest, issuer: User
     ) -> VisitorPass:
         pass_id = uuid.uuid4()
+        pass_code = f"{secrets.randbelow(900000) + 100000}"  # Secure 6-digit numeric PIN
         qr_token = _generate_qr_token(pass_id, str(society_id))
 
         visitor_profile = None
@@ -65,6 +66,7 @@ class VisitorService:
             purpose=payload.purpose,
             vehicle_number=payload.vehicle_number,
             gate_restriction=payload.gate_restriction,
+            pass_code=pass_code,
             qr_token=qr_token,
             valid_from=payload.valid_from,
             valid_until=payload.valid_until,
@@ -82,7 +84,7 @@ class VisitorService:
                 event_type="PASS_CREATED",
                 entity_type="visitor_pass",
                 entity_id=str(visitor_pass.id),
-                payload={"visitor_name": payload.visitor_name, "pass_type": payload.pass_type},
+                payload={"visitor_name": payload.visitor_name, "pass_type": payload.pass_type, "pass_code": pass_code},
             )
         )
 
@@ -107,15 +109,29 @@ class VisitorService:
         result = await self.db.execute(query)
         return list(result.scalars().all())
 
-    async def scan_pass(self, society_id: uuid.UUID, qr_token: str, gate_id: uuid.UUID | None = None) -> VisitorPass:
-        result = await self.db.execute(
-            select(VisitorPass)
-            .where(VisitorPass.qr_token == qr_token.strip(), VisitorPass.society_id == society_id)
-            .options(selectinload(VisitorPass.unit), selectinload(VisitorPass.issuer))
+    async def scan_pass(
+        self, society_id: uuid.UUID, qr_token: str | None = None, pin_code: str | None = None, gate_id: uuid.UUID | None = None
+    ) -> VisitorPass:
+        if not qr_token and not pin_code:
+            raise AppException(code="INVALID_PASS_QUERY", message="QR token or 6-digit PIN code required", status_code=400)
+
+        query = select(VisitorPass).where(VisitorPass.society_id == society_id).options(
+            selectinload(VisitorPass.unit), selectinload(VisitorPass.issuer)
         )
+
+        if qr_token:
+            query = query.where(VisitorPass.qr_token == qr_token.strip())
+        elif pin_code:
+            query = query.where(VisitorPass.pass_code == pin_code.strip())
+
+        result = await self.db.execute(query)
         visitor_pass = result.scalar_one_or_none()
         if not visitor_pass:
-            raise AppException(code="PASS_NOT_FOUND", message="Invalid QR pass code", status_code=404)
+            raise AppException(
+                code="PASS_NOT_FOUND",
+                message=f"No active pass found matching {'PIN: ' + pin_code if pin_code else 'QR Token'}",
+                status_code=404
+            )
 
         now = datetime.now(timezone.utc)
         valid_until = _ensure_tz_aware(visitor_pass.valid_until)
@@ -124,15 +140,30 @@ class VisitorService:
         if valid_until < now:
             visitor_pass.status = "EXPIRED"
             await self.db.commit()
-            raise AppException(code="PASS_EXPIRED", message="This visitor pass has expired", status_code=400)
+            raise AppException(
+                code="PASS_EXPIRED",
+                message=f"This visitor pass expired on {valid_until.strftime('%d %b %Y, %I:%M %p')}",
+                status_code=400
+            )
 
         if valid_from > now:
-            raise AppException(code="PASS_NOT_YET_VALID", message="This pass is not valid yet", status_code=400)
+            raise AppException(
+                code="PASS_NOT_YET_VALID",
+                message=f"This pass is not valid yet (valid from {valid_from.strftime('%d %b %Y, %I:%M %p')})",
+                status_code=400
+            )
+
+        if visitor_pass.status in ("CANCELLED", "REJECTED"):
+            raise AppException(
+                code="PASS_REVOKED",
+                message=f"This pass was {visitor_pass.status.lower()} by the resident or estate security",
+                status_code=400
+            )
 
         if visitor_pass.gate_restriction and gate_id and visitor_pass.gate_restriction != gate_id:
-            raise AppException(code="GATE_RESTRICTED", message="This pass is restricted to a different gate", status_code=403)
+            raise AppException(code="GATE_RESTRICTED", message="This pass is restricted to a different gate checkpoint", status_code=403)
 
-        # Check blacklist
+        # Check blacklist for phone
         if visitor_pass.visitor_phone:
             bl_res = await self.db.execute(
                 select(Blacklist).where(
@@ -142,7 +173,19 @@ class VisitorService:
                 )
             )
             if bl_res.scalar_one_or_none():
-                raise AppException(code="VISITOR_BLACKLISTED", message="This visitor phone is on the society blacklist", status_code=403)
+                raise AppException(code="VISITOR_BLACKLISTED", message="This visitor phone is on the security blacklist", status_code=403)
+
+        # Check blacklist for vehicle
+        if visitor_pass.vehicle_number:
+            bl_veh = await self.db.execute(
+                select(Blacklist).where(
+                    Blacklist.society_id == society_id,
+                    Blacklist.entity_value == visitor_pass.vehicle_number.strip().upper(),
+                    Blacklist.is_active.is_(True),
+                )
+            )
+            if bl_veh.scalar_one_or_none():
+                raise AppException(code="VEHICLE_BLACKLISTED", message="This vehicle license plate is on the security blacklist", status_code=403)
 
         return visitor_pass
 

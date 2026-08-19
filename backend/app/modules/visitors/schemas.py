@@ -43,6 +43,7 @@ class VisitorPassOut(BaseModel):
     visitor_company: str | None = None
     purpose: str | None = None
     vehicle_number: str | None = None
+    pass_code: str | None = None
     qr_token: str
     valid_from: datetime
     valid_until: datetime
@@ -53,7 +54,9 @@ class VisitorPassOut(BaseModel):
     issuer: UserOut | None = None
 
 class ScanPassRequest(BaseModel):
-    qr_token: str
+    qr_token: str | None = None
+    pin_code: str | None = None
+    guard_notes: str | None = None
 
 class GateCheckInRequest(BaseModel):
     pass_id: uuid.UUID | None = None

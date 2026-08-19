@@ -1,11 +1,11 @@
 {
-  "timestamp": "2026-08-19 16:55:31 UTC",
-  "duration_sec": 1.71,
-  "total_steps": 34,
-  "passed_steps": 34,
+  "timestamp": "2026-08-19 17:04:33 UTC",
+  "duration_sec": 1.82,
+  "total_steps": 35,
+  "passed_steps": 35,
   "failed_steps": 0,
   "pass_rate": 100.0,
-  "avg_latency_ms": 47.24,
+  "avg_latency_ms": 48.89,
   "roles_summary": {
     "Super Admin": {
       "total": 1,
@@ -23,8 +23,8 @@
       "failed": 0
     },
     "Gate Guard": {
-      "total": 4,
-      "passed": 4,
+      "total": 5,
+      "passed": 5,
       "failed": 0
     },
     "Security Supervisor": {
@@ -47,14 +47,14 @@
     {
       "name": "Super Admin: Onboard New Gated Community",
       "passed": true,
-      "latency_ms": 44.74,
+      "latency_ms": 28.56,
       "role": "Super Admin",
       "endpoint": "/societies",
       "method": "POST",
       "status_code": 201,
       "req_payload": {
         "name": "Greenwood Palms Heights",
-        "slug": "palms-8ecde5",
+        "slug": "palms-3a3c8f",
         "city": "Bengaluru",
         "state": "Karnataka",
         "pincode": "560066",
@@ -65,9 +65,9 @@
         }
       },
       "res_payload": {
-        "id": "04c30cd4-99a1-4630-b0a3-90ff505ae50e",
+        "id": "0f62af59-e83e-4c64-8147-a715b0e4a880",
         "name": "Greenwood Palms Heights",
-        "slug": "palms-8ecde5",
+        "slug": "palms-3a3c8f",
         "address_line1": null,
         "address_line2": null,
         "city": "Bengaluru",
@@ -78,17 +78,17 @@
         "cover_image_url": null,
         "total_units": 0,
         "is_active": true,
-        "created_at": "2026-08-19T16:55:29.972773Z",
-        "updated_at": "2026-08-19T16:55:29.972779Z"
+        "created_at": "2026-08-19T17:04:32.028700Z",
+        "updated_at": "2026-08-19T17:04:32.028707Z"
       },
       "error": null
     },
     {
       "name": "Society Admin: Create Tower A Building Structure",
       "passed": true,
-      "latency_ms": 90.12,
+      "latency_ms": 29.19,
       "role": "Society Admin",
-      "endpoint": "/societies/04c30cd4-99a1-4630-b0a3-90ff505ae50e/buildings",
+      "endpoint": "/societies/0f62af59-e83e-4c64-8147-a715b0e4a880/buildings",
       "method": "POST",
       "status_code": 201,
       "req_payload": {
@@ -97,24 +97,24 @@
         "total_floors": 12
       },
       "res_payload": {
-        "id": "c9c40f06-3fe3-4c13-8d48-15eb27adaafd",
-        "society_id": "04c30cd4-99a1-4630-b0a3-90ff505ae50e",
+        "id": "6c26fe66-1ee3-4c7b-b33e-0b4c07c0acbd",
+        "society_id": "0f62af59-e83e-4c64-8147-a715b0e4a880",
         "name": "Tower A",
         "code": "TOW-A",
         "total_floors": 12,
         "total_units": 0,
         "sort_order": 0,
         "is_active": true,
-        "created_at": "2026-08-19T16:55:30.077400Z"
+        "created_at": "2026-08-19T17:04:32.067682Z"
       },
       "error": null
     },
     {
       "name": "Society Admin: Create Ground Floor Level",
       "passed": true,
-      "latency_ms": 25.81,
+      "latency_ms": 26.81,
       "role": "Society Admin",
-      "endpoint": "/societies/04c30cd4-99a1-4630-b0a3-90ff505ae50e/buildings/c9c40f06-3fe3-4c13-8d48-15eb27adaafd/floors",
+      "endpoint": "/societies/0f62af59-e83e-4c64-8147-a715b0e4a880/buildings/6c26fe66-1ee3-4c7b-b33e-0b4c07c0acbd/floors",
       "method": "POST",
       "status_code": 201,
       "req_payload": {
@@ -122,50 +122,50 @@
         "floor_number": 0
       },
       "res_payload": {
-        "id": "b6bb2476-01df-44aa-874e-c5a4ea08c1a7",
-        "building_id": "c9c40f06-3fe3-4c13-8d48-15eb27adaafd",
-        "society_id": "04c30cd4-99a1-4630-b0a3-90ff505ae50e",
+        "id": "e427198d-3aa2-44f2-9573-e7a38839f528",
+        "building_id": "6c26fe66-1ee3-4c7b-b33e-0b4c07c0acbd",
+        "society_id": "0f62af59-e83e-4c64-8147-a715b0e4a880",
         "name": "Ground Floor",
         "floor_number": 0,
         "sort_order": 0,
-        "created_at": "2026-08-19T16:55:30.103788Z"
+        "created_at": "2026-08-19T17:04:32.094023Z"
       },
       "error": null
     },
     {
       "name": "Society Admin: Create Villa-42 Unit Inventory",
       "passed": true,
-      "latency_ms": 35.98,
+      "latency_ms": 64.08,
       "role": "Society Admin",
-      "endpoint": "/societies/04c30cd4-99a1-4630-b0a3-90ff505ae50e/units",
+      "endpoint": "/societies/0f62af59-e83e-4c64-8147-a715b0e4a880/units",
       "method": "POST",
       "status_code": 201,
       "req_payload": {
-        "building_id": "c9c40f06-3fe3-4c13-8d48-15eb27adaafd",
-        "floor_id": "b6bb2476-01df-44aa-874e-c5a4ea08c1a7",
+        "building_id": "6c26fe66-1ee3-4c7b-b33e-0b4c07c0acbd",
+        "floor_id": "e427198d-3aa2-44f2-9573-e7a38839f528",
         "unit_number": "Villa-42",
         "unit_type": "villa"
       },
       "res_payload": {
-        "id": "24eca18d-2a2f-4a52-8cd3-de6eb71b0778",
-        "society_id": "04c30cd4-99a1-4630-b0a3-90ff505ae50e",
-        "building_id": "c9c40f06-3fe3-4c13-8d48-15eb27adaafd",
-        "floor_id": "b6bb2476-01df-44aa-874e-c5a4ea08c1a7",
+        "id": "55fddd7c-e5b9-40f6-911e-75106bedac93",
+        "society_id": "0f62af59-e83e-4c64-8147-a715b0e4a880",
+        "building_id": "6c26fe66-1ee3-4c7b-b33e-0b4c07c0acbd",
+        "floor_id": "e427198d-3aa2-44f2-9573-e7a38839f528",
         "unit_number": "VILLA-42",
         "unit_type": "villa",
         "area_sqft": null,
         "is_occupied": false,
         "is_active": true,
-        "created_at": "2026-08-19T16:55:30.142225Z"
+        "created_at": "2026-08-19T17:04:32.157613Z"
       },
       "error": null
     },
     {
       "name": "Society Admin: Provision Main North Gate Terminal",
       "passed": true,
-      "latency_ms": 28.27,
+      "latency_ms": 24.8,
       "role": "Society Admin",
-      "endpoint": "/societies/04c30cd4-99a1-4630-b0a3-90ff505ae50e/gates",
+      "endpoint": "/societies/0f62af59-e83e-4c64-8147-a715b0e4a880/gates",
       "method": "POST",
       "status_code": 201,
       "req_payload": {
@@ -176,8 +176,8 @@
         "is_active": true
       },
       "res_payload": {
-        "id": "90e19612-cf56-4a93-96b6-ccec06f7b5d3",
-        "society_id": "04c30cd4-99a1-4630-b0a3-90ff505ae50e",
+        "id": "cc10a897-60de-42cf-bf1c-f5ccff7de14d",
+        "society_id": "0f62af59-e83e-4c64-8147-a715b0e4a880",
         "name": "Main North Gate",
         "code": null,
         "gate_type": "both",
@@ -185,16 +185,16 @@
         "is_online": true,
         "last_heartbeat_at": null,
         "location": null,
-        "created_at": "2026-08-19T16:55:30.169070Z"
+        "created_at": "2026-08-19T17:04:32.184694Z"
       },
       "error": null
     },
     {
       "name": "Society Admin: Provision Clubhouse Tennis Court",
       "passed": true,
-      "latency_ms": 83.11,
+      "latency_ms": 27.69,
       "role": "Society Admin",
-      "endpoint": "/societies/04c30cd4-99a1-4630-b0a3-90ff505ae50e/amenities",
+      "endpoint": "/societies/0f62af59-e83e-4c64-8147-a715b0e4a880/amenities",
       "method": "POST",
       "status_code": 201,
       "req_payload": {
@@ -209,8 +209,8 @@
         "is_paid": false
       },
       "res_payload": {
-        "id": "320e798a-e1a0-4efe-8eb1-d88544c4b223",
-        "society_id": "04c30cd4-99a1-4630-b0a3-90ff505ae50e",
+        "id": "9e360b07-3465-4e1e-a718-1d1044694667",
+        "society_id": "0f62af59-e83e-4c64-8147-a715b0e4a880",
         "name": "Clubhouse Tennis Court",
         "code": "AMN-TENNIS-01",
         "category": "sports",
@@ -224,32 +224,32 @@
         "is_paid": false,
         "price_per_slot": 0.0,
         "is_active": true,
-        "created_at": "2026-08-19T16:55:30.250904Z"
+        "created_at": "2026-08-19T17:04:32.212289Z"
       },
       "error": null
     },
     {
       "name": "Resident: Issue Pre-Approved QR Guest Pass",
       "passed": true,
-      "latency_ms": 44.47,
+      "latency_ms": 58.82,
       "role": "Resident",
-      "endpoint": "/societies/04c30cd4-99a1-4630-b0a3-90ff505ae50e/visitors/passes",
+      "endpoint": "/societies/0f62af59-e83e-4c64-8147-a715b0e4a880/visitors/passes",
       "method": "POST",
       "status_code": 201,
       "req_payload": {
-        "unit_id": "24eca18d-2a2f-4a52-8cd3-de6eb71b0778",
+        "unit_id": "55fddd7c-e5b9-40f6-911e-75106bedac93",
         "visitor_name": "Rohan Deshmukh",
         "visitor_phone": "+919876599901",
         "pass_type": "guest",
-        "valid_from": "2026-08-19T16:55:30.262031+00:00",
-        "valid_until": "2026-08-19T22:55:30.262031+00:00",
+        "valid_from": "2026-08-19T17:04:32.223350+00:00",
+        "valid_until": "2026-08-19T23:04:32.223350+00:00",
         "vehicle_number": "KA-01-MJ-8899",
         "purpose": "Weekend Family Dinner"
       },
       "res_payload": {
-        "id": "5abb04a2-6c5d-4480-92f5-c0d3856fec58",
-        "society_id": "04c30cd4-99a1-4630-b0a3-90ff505ae50e",
-        "unit_id": "24eca18d-2a2f-4a52-8cd3-de6eb71b0778",
+        "id": "d6af246b-2cf8-4dc9-9741-4f30a344a3a6",
+        "society_id": "0f62af59-e83e-4c64-8147-a715b0e4a880",
+        "unit_id": "55fddd7c-e5b9-40f6-911e-75106bedac93",
         "visitor_id": "1f312d5e-8d94-4d53-8b0a-a0a480fc57f4",
         "issued_by": "35f84c33-268a-4073-b52e-f0b780785d7b",
         "pass_type": "guest",
@@ -258,23 +258,24 @@
         "visitor_company": null,
         "purpose": "Weekend Family Dinner",
         "vehicle_number": "KA-01-MJ-8899",
-        "qr_token": "NBR-A3Xo689cscGmTC9rokxq3Q-26abd783315e",
-        "valid_from": "2026-08-19T16:55:30.262031Z",
-        "valid_until": "2026-08-19T22:55:30.262031Z",
+        "pass_code": "310238",
+        "qr_token": "NBR-KvMckIZ4-aQe4jxD_PdfhA-1dedfe4d8cc9",
+        "valid_from": "2026-08-19T17:04:32.223350Z",
+        "valid_until": "2026-08-19T23:04:32.223350Z",
         "status": "APPROVED",
         "notes": null,
-        "created_at": "2026-08-19T16:55:30.286184Z",
+        "created_at": "2026-08-19T17:04:32.243685Z",
         "unit": {
-          "id": "24eca18d-2a2f-4a52-8cd3-de6eb71b0778",
-          "society_id": "04c30cd4-99a1-4630-b0a3-90ff505ae50e",
-          "building_id": "c9c40f06-3fe3-4c13-8d48-15eb27adaafd",
-          "floor_id": "b6bb2476-01df-44aa-874e-c5a4ea08c1a7",
+          "id": "55fddd7c-e5b9-40f6-911e-75106bedac93",
+          "society_id": "0f62af59-e83e-4c64-8147-a715b0e4a880",
+          "building_id": "6c26fe66-1ee3-4c7b-b33e-0b4c07c0acbd",
+          "floor_id": "e427198d-3aa2-44f2-9573-e7a38839f528",
           "unit_number": "VILLA-42",
           "unit_type": "villa",
           "area_sqft": null,
           "is_occupied": false,
           "is_active": true,
-          "created_at": "2026-08-19T16:55:30.142225Z"
+          "created_at": "2026-08-19T17:04:32.157613Z"
         },
         "issuer": {
           "id": "35f84c33-268a-4073-b52e-f0b780785d7b",
@@ -294,20 +295,20 @@
     {
       "name": "Gate Guard: Scan & Verify Visitor Pass at Terminal",
       "passed": true,
-      "latency_ms": 26.96,
+      "latency_ms": 48.64,
       "role": "Gate Guard",
-      "endpoint": "/societies/04c30cd4-99a1-4630-b0a3-90ff505ae50e/gates/90e19612-cf56-4a93-96b6-ccec06f7b5d3/scan",
+      "endpoint": "/societies/0f62af59-e83e-4c64-8147-a715b0e4a880/gates/cc10a897-60de-42cf-bf1c-f5ccff7de14d/scan",
       "method": "POST",
       "status_code": 200,
       "req_payload": {
-        "qr_token": "NBR-A3Xo689cscGmTC9rokxq3Q-26abd783315e",
-        "gate_id": "90e19612-cf56-4a93-96b6-ccec06f7b5d3",
+        "qr_token": "NBR-KvMckIZ4-aQe4jxD_PdfhA-1dedfe4d8cc9",
+        "gate_id": "cc10a897-60de-42cf-bf1c-f5ccff7de14d",
         "guard_notes": "Verified photo ID at gate checkpoint"
       },
       "res_payload": {
-        "id": "5abb04a2-6c5d-4480-92f5-c0d3856fec58",
-        "society_id": "04c30cd4-99a1-4630-b0a3-90ff505ae50e",
-        "unit_id": "24eca18d-2a2f-4a52-8cd3-de6eb71b0778",
+        "id": "d6af246b-2cf8-4dc9-9741-4f30a344a3a6",
+        "society_id": "0f62af59-e83e-4c64-8147-a715b0e4a880",
+        "unit_id": "55fddd7c-e5b9-40f6-911e-75106bedac93",
         "visitor_id": "1f312d5e-8d94-4d53-8b0a-a0a480fc57f4",
         "issued_by": "35f84c33-268a-4073-b52e-f0b780785d7b",
         "pass_type": "guest",
@@ -316,23 +317,82 @@
         "visitor_company": null,
         "purpose": "Weekend Family Dinner",
         "vehicle_number": "KA-01-MJ-8899",
-        "qr_token": "NBR-A3Xo689cscGmTC9rokxq3Q-26abd783315e",
-        "valid_from": "2026-08-19T16:55:30.262031Z",
-        "valid_until": "2026-08-19T22:55:30.262031Z",
+        "pass_code": "310238",
+        "qr_token": "NBR-KvMckIZ4-aQe4jxD_PdfhA-1dedfe4d8cc9",
+        "valid_from": "2026-08-19T17:04:32.223350Z",
+        "valid_until": "2026-08-19T23:04:32.223350Z",
         "status": "APPROVED",
         "notes": null,
-        "created_at": "2026-08-19T16:55:30.286184Z",
+        "created_at": "2026-08-19T17:04:32.243685Z",
         "unit": {
-          "id": "24eca18d-2a2f-4a52-8cd3-de6eb71b0778",
-          "society_id": "04c30cd4-99a1-4630-b0a3-90ff505ae50e",
-          "building_id": "c9c40f06-3fe3-4c13-8d48-15eb27adaafd",
-          "floor_id": "b6bb2476-01df-44aa-874e-c5a4ea08c1a7",
+          "id": "55fddd7c-e5b9-40f6-911e-75106bedac93",
+          "society_id": "0f62af59-e83e-4c64-8147-a715b0e4a880",
+          "building_id": "6c26fe66-1ee3-4c7b-b33e-0b4c07c0acbd",
+          "floor_id": "e427198d-3aa2-44f2-9573-e7a38839f528",
           "unit_number": "VILLA-42",
           "unit_type": "villa",
           "area_sqft": null,
           "is_occupied": false,
           "is_active": true,
-          "created_at": "2026-08-19T16:55:30.142225Z"
+          "created_at": "2026-08-19T17:04:32.157613Z"
+        },
+        "issuer": {
+          "id": "35f84c33-268a-4073-b52e-f0b780785d7b",
+          "phone": "+919876530002",
+          "phone_verified": true,
+          "email": null,
+          "full_name": "Siddharth Verma",
+          "avatar_url": null,
+          "is_active": true,
+          "is_platform_admin": false,
+          "created_at": "2026-08-18T19:53:18.244517Z",
+          "updated_at": "2026-08-18T19:53:18.244520Z"
+        }
+      },
+      "error": null
+    },
+    {
+      "name": "Gate Guard: Verify 6-Digit PIN Entry Fallback",
+      "passed": true,
+      "latency_ms": 43.33,
+      "role": "Gate Guard",
+      "endpoint": "/societies/0f62af59-e83e-4c64-8147-a715b0e4a880/gates/cc10a897-60de-42cf-bf1c-f5ccff7de14d/scan",
+      "method": "POST",
+      "status_code": 200,
+      "req_payload": {
+        "pin_code": "310238",
+        "gate_id": "cc10a897-60de-42cf-bf1c-f5ccff7de14d"
+      },
+      "res_payload": {
+        "id": "d6af246b-2cf8-4dc9-9741-4f30a344a3a6",
+        "society_id": "0f62af59-e83e-4c64-8147-a715b0e4a880",
+        "unit_id": "55fddd7c-e5b9-40f6-911e-75106bedac93",
+        "visitor_id": "1f312d5e-8d94-4d53-8b0a-a0a480fc57f4",
+        "issued_by": "35f84c33-268a-4073-b52e-f0b780785d7b",
+        "pass_type": "guest",
+        "visitor_name": "Rohan Deshmukh",
+        "visitor_phone": "+919876599901",
+        "visitor_company": null,
+        "purpose": "Weekend Family Dinner",
+        "vehicle_number": "KA-01-MJ-8899",
+        "pass_code": "310238",
+        "qr_token": "NBR-KvMckIZ4-aQe4jxD_PdfhA-1dedfe4d8cc9",
+        "valid_from": "2026-08-19T17:04:32.223350Z",
+        "valid_until": "2026-08-19T23:04:32.223350Z",
+        "status": "APPROVED",
+        "notes": null,
+        "created_at": "2026-08-19T17:04:32.243685Z",
+        "unit": {
+          "id": "55fddd7c-e5b9-40f6-911e-75106bedac93",
+          "society_id": "0f62af59-e83e-4c64-8147-a715b0e4a880",
+          "building_id": "6c26fe66-1ee3-4c7b-b33e-0b4c07c0acbd",
+          "floor_id": "e427198d-3aa2-44f2-9573-e7a38839f528",
+          "unit_number": "VILLA-42",
+          "unit_type": "villa",
+          "area_sqft": null,
+          "is_occupied": false,
+          "is_active": true,
+          "created_at": "2026-08-19T17:04:32.157613Z"
         },
         "issuer": {
           "id": "35f84c33-268a-4073-b52e-f0b780785d7b",
@@ -352,23 +412,23 @@
     {
       "name": "Gate Guard: Record Checked-In Entry Egress",
       "passed": true,
-      "latency_ms": 79.52,
+      "latency_ms": 128.31,
       "role": "Gate Guard",
-      "endpoint": "/societies/04c30cd4-99a1-4630-b0a3-90ff505ae50e/gates/90e19612-cf56-4a93-96b6-ccec06f7b5d3/check-in",
+      "endpoint": "/societies/0f62af59-e83e-4c64-8147-a715b0e4a880/gates/cc10a897-60de-42cf-bf1c-f5ccff7de14d/check-in",
       "method": "POST",
       "status_code": 200,
       "req_payload": {
-        "pass_id": "5abb04a2-6c5d-4480-92f5-c0d3856fec58",
-        "idempotency_key": "d20be870-b95a-48bf-8754-4a2e16294272",
+        "pass_id": "d6af246b-2cf8-4dc9-9741-4f30a344a3a6",
+        "idempotency_key": "25e48d0f-f9a2-49e4-bb13-1808b8e316e9",
         "visitor_photo_url": "https://minio.local/media/visitor-99901.jpg"
       },
       "res_payload": {
-        "id": "60efff76-440d-4c8e-9020-f8afc304f6f5",
-        "society_id": "04c30cd4-99a1-4630-b0a3-90ff505ae50e",
-        "pass_id": "5abb04a2-6c5d-4480-92f5-c0d3856fec58",
+        "id": "9c86035c-7e52-4947-9f45-197e219c5cc9",
+        "society_id": "0f62af59-e83e-4c64-8147-a715b0e4a880",
+        "pass_id": "d6af246b-2cf8-4dc9-9741-4f30a344a3a6",
         "visitor_id": null,
-        "unit_id": "24eca18d-2a2f-4a52-8cd3-de6eb71b0778",
-        "gate_id": "90e19612-cf56-4a93-96b6-ccec06f7b5d3",
+        "unit_id": "55fddd7c-e5b9-40f6-911e-75106bedac93",
+        "gate_id": "cc10a897-60de-42cf-bf1c-f5ccff7de14d",
         "guard_id": null,
         "event_type": "CHECKED_IN",
         "visitor_name": "Rohan Deshmukh",
@@ -377,31 +437,31 @@
         "vehicle_number": "KA-01-MJ-8899",
         "entry_method": "manual",
         "is_offline": false,
-        "occurred_at": "2026-08-19T16:55:30.365865Z",
-        "created_at": "2026-08-19T16:55:30.365868Z"
+        "occurred_at": "2026-08-19T17:04:32.450027Z",
+        "created_at": "2026-08-19T17:04:32.450034Z"
       },
       "error": null
     },
     {
       "name": "Gate Guard: Check-Out Visitor at Gate",
       "passed": true,
-      "latency_ms": 50.61,
+      "latency_ms": 63.44,
       "role": "Gate Guard",
-      "endpoint": "/societies/04c30cd4-99a1-4630-b0a3-90ff505ae50e/gates/90e19612-cf56-4a93-96b6-ccec06f7b5d3/check-out",
+      "endpoint": "/societies/0f62af59-e83e-4c64-8147-a715b0e4a880/gates/cc10a897-60de-42cf-bf1c-f5ccff7de14d/check-out",
       "method": "POST",
       "status_code": 200,
       "req_payload": {
-        "pass_id": "5abb04a2-6c5d-4480-92f5-c0d3856fec58",
-        "event_id": "60efff76-440d-4c8e-9020-f8afc304f6f5",
-        "idempotency_key": "c4c276f7-46d8-409f-ad57-53621fdc8eb3"
+        "pass_id": "d6af246b-2cf8-4dc9-9741-4f30a344a3a6",
+        "event_id": "9c86035c-7e52-4947-9f45-197e219c5cc9",
+        "idempotency_key": "64fcfd68-0787-40ba-a6b3-a13b4e86fd7b"
       },
       "res_payload": {
-        "id": "f144022a-bab3-4a88-abfc-bf083e29118f",
-        "society_id": "04c30cd4-99a1-4630-b0a3-90ff505ae50e",
-        "pass_id": "5abb04a2-6c5d-4480-92f5-c0d3856fec58",
+        "id": "651aa096-c19b-4961-b05a-3345ae16ddef",
+        "society_id": "0f62af59-e83e-4c64-8147-a715b0e4a880",
+        "pass_id": "d6af246b-2cf8-4dc9-9741-4f30a344a3a6",
         "visitor_id": null,
         "unit_id": null,
-        "gate_id": "90e19612-cf56-4a93-96b6-ccec06f7b5d3",
+        "gate_id": "cc10a897-60de-42cf-bf1c-f5ccff7de14d",
         "guard_id": null,
         "event_type": "CHECKED_OUT",
         "visitor_name": "Rohan Deshmukh",
@@ -410,17 +470,17 @@
         "vehicle_number": null,
         "entry_method": "qr",
         "is_offline": false,
-        "occurred_at": "2026-08-19T16:55:30.452382Z",
-        "created_at": "2026-08-19T16:55:30.452386Z"
+        "occurred_at": "2026-08-19T17:04:32.554475Z",
+        "created_at": "2026-08-19T17:04:32.554482Z"
       },
       "error": null
     },
     {
       "name": "Security Supervisor: Add Vehicle to Estate Blacklist",
       "passed": true,
-      "latency_ms": 25.79,
+      "latency_ms": 54.24,
       "role": "Security Supervisor",
-      "endpoint": "/societies/04c30cd4-99a1-4630-b0a3-90ff505ae50e/visitors/blacklist",
+      "endpoint": "/societies/0f62af59-e83e-4c64-8147-a715b0e4a880/visitors/blacklist",
       "method": "POST",
       "status_code": 201,
       "req_payload": {
@@ -430,26 +490,26 @@
         "is_active": true
       },
       "res_payload": {
-        "id": "5e670ba2-0b12-45fd-b518-2ef0529e7f6d",
-        "society_id": "04c30cd4-99a1-4630-b0a3-90ff505ae50e",
+        "id": "d61e97d8-7c69-41c9-a610-741a968f02ae",
+        "society_id": "0f62af59-e83e-4c64-8147-a715b0e4a880",
         "entity_type": "vehicle",
         "entity_value": "DL-01-STOLEN-99",
         "reason": "Vehicle flagged by law enforcement for suspicious perimeter reconnaissance",
         "is_active": true,
-        "created_at": "2026-08-19T16:55:30.480629Z"
+        "created_at": "2026-08-19T17:04:32.609861Z"
       },
       "error": null
     },
     {
       "name": "Resident: Trigger Urgent Medical SOS Alarm",
       "passed": true,
-      "latency_ms": 61.83,
+      "latency_ms": 51.71,
       "role": "Resident",
-      "endpoint": "/societies/04c30cd4-99a1-4630-b0a3-90ff505ae50e/sos",
+      "endpoint": "/societies/0f62af59-e83e-4c64-8147-a715b0e4a880/sos",
       "method": "POST",
       "status_code": 201,
       "req_payload": {
-        "unit_id": "24eca18d-2a2f-4a52-8cd3-de6eb71b0778",
+        "unit_id": "55fddd7c-e5b9-40f6-911e-75106bedac93",
         "sos_type": "medical",
         "message": "Elderly resident medical assistance needed immediately at Villa-42",
         "location": {
@@ -459,14 +519,14 @@
         }
       },
       "res_payload": {
-        "id": "e3c5c726-a56b-46af-9457-06476e27f835",
-        "society_id": "04c30cd4-99a1-4630-b0a3-90ff505ae50e",
+        "id": "46046cf6-7111-4e71-a13f-572225c02d50",
+        "society_id": "0f62af59-e83e-4c64-8147-a715b0e4a880",
         "triggered_by": "35f84c33-268a-4073-b52e-f0b780785d7b",
-        "unit_id": "24eca18d-2a2f-4a52-8cd3-de6eb71b0778",
+        "unit_id": "55fddd7c-e5b9-40f6-911e-75106bedac93",
         "sos_type": "medical",
         "message": "Elderly resident medical assistance needed immediately at Villa-42",
         "status": "active",
-        "created_at": "2026-08-19T16:55:30.513717Z",
+        "created_at": "2026-08-19T17:04:32.639700Z",
         "user": {
           "id": "35f84c33-268a-4073-b52e-f0b780785d7b",
           "phone": "+919876530002",
@@ -485,9 +545,9 @@
     {
       "name": "Society Admin: Resolve SOS Incident with Audit Log",
       "passed": true,
-      "latency_ms": 41.74,
+      "latency_ms": 45.13,
       "role": "Society Admin",
-      "endpoint": "/societies/04c30cd4-99a1-4630-b0a3-90ff505ae50e/sos/e3c5c726-a56b-46af-9457-06476e27f835/resolve",
+      "endpoint": "/societies/0f62af59-e83e-4c64-8147-a715b0e4a880/sos/46046cf6-7111-4e71-a13f-572225c02d50/resolve",
       "method": "POST",
       "status_code": 200,
       "req_payload": {
@@ -495,14 +555,14 @@
         "resolution_notes": "First-aid medical team dispatched and resident assisted safely."
       },
       "res_payload": {
-        "id": "e3c5c726-a56b-46af-9457-06476e27f835",
-        "society_id": "04c30cd4-99a1-4630-b0a3-90ff505ae50e",
+        "id": "46046cf6-7111-4e71-a13f-572225c02d50",
+        "society_id": "0f62af59-e83e-4c64-8147-a715b0e4a880",
         "triggered_by": "35f84c33-268a-4073-b52e-f0b780785d7b",
-        "unit_id": "24eca18d-2a2f-4a52-8cd3-de6eb71b0778",
+        "unit_id": "55fddd7c-e5b9-40f6-911e-75106bedac93",
         "sos_type": "medical",
         "message": "Elderly resident medical assistance needed immediately at Villa-42",
         "status": "resolved",
-        "created_at": "2026-08-19T16:55:30.513717Z",
+        "created_at": "2026-08-19T17:04:32.639700Z",
         "user": {
           "id": "35f84c33-268a-4073-b52e-f0b780785d7b",
           "phone": "+919876530002",
@@ -521,9 +581,9 @@
     {
       "name": "Society Admin: Broadcast AI-Assisted Society Alert",
       "passed": true,
-      "latency_ms": 54.88,
+      "latency_ms": 69.01,
       "role": "Society Admin",
-      "endpoint": "/societies/04c30cd4-99a1-4630-b0a3-90ff505ae50e/notices",
+      "endpoint": "/societies/0f62af59-e83e-4c64-8147-a715b0e4a880/notices",
       "method": "POST",
       "status_code": 201,
       "req_payload": {
@@ -534,8 +594,8 @@
         "send_push": true
       },
       "res_payload": {
-        "id": "814e88c3-c6f1-41d1-8eb1-10222a83a117",
-        "society_id": "04c30cd4-99a1-4630-b0a3-90ff505ae50e",
+        "id": "4f1450ad-9dbe-4b6c-bd8b-399702faf5e0",
+        "society_id": "0f62af59-e83e-4c64-8147-a715b0e4a880",
         "title": "\ud83d\udea8 EMERGENCY NOTICE: Severe Rain Advisory",
         "body": "Heavy monsoon rains forecasted. Residents advised to park vehicles on Upper Level.",
         "category": "emergency",
@@ -543,10 +603,10 @@
         "image_url": null,
         "document_url": null,
         "target_type": "all",
-        "published_at": "2026-08-19T16:55:30.616269Z",
+        "published_at": "2026-08-19T17:04:32.742124Z",
         "expires_at": null,
         "send_push": true,
-        "created_at": "2026-08-19T16:55:30.616275Z",
+        "created_at": "2026-08-19T17:04:32.742131Z",
         "author": {
           "id": "35f84c33-268a-4073-b52e-f0b780785d7b",
           "phone": "+919876530002",
@@ -565,38 +625,38 @@
     {
       "name": "Gate Guard: Reconcile Offline SQLite Mutations via /sync/batch",
       "passed": true,
-      "latency_ms": 46.48,
+      "latency_ms": 78.56,
       "role": "Gate Guard",
       "endpoint": "/sync/batch",
       "method": "POST",
       "status_code": 200,
       "req_payload": {
-        "society_id": "04c30cd4-99a1-4630-b0a3-90ff505ae50e",
+        "society_id": "0f62af59-e83e-4c64-8147-a715b0e4a880",
         "device_id": "GATE-TERM-01",
-        "gate_id": "90e19612-cf56-4a93-96b6-ccec06f7b5d3",
+        "gate_id": "cc10a897-60de-42cf-bf1c-f5ccff7de14d",
         "operations": [
           {
-            "operation_id": "33dec822-3fee-4250-99fb-963d8e761a6f",
+            "operation_id": "046091ff-0674-4fb1-a6c7-8465a0a20dd7",
             "operation_type": "walk_in",
             "entity_type": "visitor",
-            "idempotency_key": "dbb09f11-728f-4345-aed0-849bf40c4295",
-            "local_created_at": "2026-08-19T16:55:30.650022+00:00",
+            "idempotency_key": "d9a2a465-db6a-4ea7-8282-59d30c459396",
+            "local_created_at": "2026-08-19T17:04:32.789690+00:00",
             "payload": {
               "visitor_name": "Zomato Delivery Executive",
               "visitor_phone": "+919876544401",
-              "unit_id": "24eca18d-2a2f-4a52-8cd3-de6eb71b0778"
+              "unit_id": "55fddd7c-e5b9-40f6-911e-75106bedac93"
             }
           },
           {
-            "operation_id": "443cde27-9764-4b78-ae12-a58faf2900d6",
+            "operation_id": "9bc8ad18-b939-42fa-8dbb-c8880ed9f32f",
             "operation_type": "walk_in",
             "entity_type": "visitor",
-            "idempotency_key": "2ef2cbd4-2584-45a0-9451-d0b81787c3ca",
-            "local_created_at": "2026-08-19T16:55:30.650047+00:00",
+            "idempotency_key": "20b4692f-ca32-48b6-a856-9fc4884747b4",
+            "local_created_at": "2026-08-19T17:04:32.789771+00:00",
             "payload": {
               "visitor_name": "Uber Driver (KA03HA1290)",
               "visitor_phone": "+919876544402",
-              "unit_id": "24eca18d-2a2f-4a52-8cd3-de6eb71b0778"
+              "unit_id": "55fddd7c-e5b9-40f6-911e-75106bedac93"
             }
           }
         ]
@@ -604,21 +664,21 @@
       "res_payload": {
         "results": [
           {
-            "operation_id": "33dec822-3fee-4250-99fb-963d8e761a6f",
-            "idempotency_key": "dbb09f11-728f-4345-aed0-849bf40c4295",
+            "operation_id": "046091ff-0674-4fb1-a6c7-8465a0a20dd7",
+            "idempotency_key": "d9a2a465-db6a-4ea7-8282-59d30c459396",
             "status": "SYNCED",
             "error": null,
-            "entity_id": "2cc23274-9c4c-46ed-a2dc-a33bd761588b"
+            "entity_id": "95da209c-a585-4fa3-bd7b-76c2b52a8535"
           },
           {
-            "operation_id": "443cde27-9764-4b78-ae12-a58faf2900d6",
-            "idempotency_key": "2ef2cbd4-2584-45a0-9451-d0b81787c3ca",
+            "operation_id": "9bc8ad18-b939-42fa-8dbb-c8880ed9f32f",
+            "idempotency_key": "20b4692f-ca32-48b6-a856-9fc4884747b4",
             "status": "SYNCED",
             "error": null,
-            "entity_id": "c2d90e02-d184-48a9-a4eb-7fbd5babf9a2"
+            "entity_id": "bee0a5f2-0a5b-4302-b40c-d8562a0daa0e"
           }
         ],
-        "server_time": "2026-08-19T16:55:30.695436Z",
+        "server_time": "2026-08-19T17:04:32.865006Z",
         "synced_count": 2,
         "failed_count": 0
       },
@@ -627,9 +687,9 @@
     {
       "name": "Resident: Book Clubhouse Tennis Court 6PM Slot",
       "passed": true,
-      "latency_ms": 50.39,
+      "latency_ms": 71.62,
       "role": "Resident",
-      "endpoint": "/societies/04c30cd4-99a1-4630-b0a3-90ff505ae50e/amenities/320e798a-e1a0-4efe-8eb1-d88544c4b223/book",
+      "endpoint": "/societies/0f62af59-e83e-4c64-8147-a715b0e4a880/amenities/9e360b07-3465-4e1e-a718-1d1044694667/book",
       "method": "POST",
       "status_code": 201,
       "req_payload": {
@@ -637,14 +697,14 @@
         "start_time": "18:00",
         "end_time": "19:00",
         "guest_count": 2,
-        "unit_id": "24eca18d-2a2f-4a52-8cd3-de6eb71b0778"
+        "unit_id": "55fddd7c-e5b9-40f6-911e-75106bedac93"
       },
       "res_payload": {
-        "id": "e858b7dc-182a-4a00-aed7-f2e34a5d221a",
-        "society_id": "04c30cd4-99a1-4630-b0a3-90ff505ae50e",
-        "amenity_id": "320e798a-e1a0-4efe-8eb1-d88544c4b223",
+        "id": "45c37237-8100-4157-a448-c32f1843096e",
+        "society_id": "0f62af59-e83e-4c64-8147-a715b0e4a880",
+        "amenity_id": "9e360b07-3465-4e1e-a718-1d1044694667",
         "amenity_name": "Clubhouse Tennis Court",
-        "unit_id": "24eca18d-2a2f-4a52-8cd3-de6eb71b0778",
+        "unit_id": "55fddd7c-e5b9-40f6-911e-75106bedac93",
         "unit_number": "VILLA-42",
         "booked_by": "35f84c33-268a-4073-b52e-f0b780785d7b",
         "user_name": "Siddharth Verma",
@@ -654,18 +714,18 @@
         "guest_count": 2,
         "total_amount": 0.0,
         "status": "CONFIRMED",
-        "qr_pass": "AMN-AMN-TENNIS-01-007B43E2",
+        "qr_pass": "AMN-AMN-TENNIS-01-27332419",
         "cancellation_reason": null,
-        "created_at": "2026-08-19T16:55:30.720938Z"
+        "created_at": "2026-08-19T17:04:32.908872Z"
       },
       "error": null
     },
     {
       "name": "Concurrency Guard: Verify Capacity Exceeded Conflict Rejection",
       "passed": true,
-      "latency_ms": 25.31,
+      "latency_ms": 42.56,
       "role": "Resident",
-      "endpoint": "/societies/04c30cd4-99a1-4630-b0a3-90ff505ae50e/amenities/320e798a-e1a0-4efe-8eb1-d88544c4b223/book",
+      "endpoint": "/societies/0f62af59-e83e-4c64-8147-a715b0e4a880/amenities/9e360b07-3465-4e1e-a718-1d1044694667/book",
       "method": "POST",
       "status_code": 400,
       "req_payload": {
@@ -673,7 +733,7 @@
         "start_time": "18:00",
         "end_time": "19:00",
         "guest_count": 10,
-        "unit_id": "24eca18d-2a2f-4a52-8cd3-de6eb71b0778"
+        "unit_id": "55fddd7c-e5b9-40f6-911e-75106bedac93"
       },
       "res_payload": {
         "error": {
@@ -682,20 +742,20 @@
           "details": {},
           "field_errors": []
         },
-        "request_id": "50f553d8-e90d-4e9f-ab0c-e0d514f58f0f"
+        "request_id": "b56b1f49-9121-4c6c-a190-c6455ffc3a4e"
       },
       "error": null
     },
     {
       "name": "Resident: Raise High-Priority Lift Maintenance Ticket",
       "passed": true,
-      "latency_ms": 54.17,
+      "latency_ms": 61.54,
       "role": "Resident",
-      "endpoint": "/societies/04c30cd4-99a1-4630-b0a3-90ff505ae50e/helpdesk/tickets",
+      "endpoint": "/societies/0f62af59-e83e-4c64-8147-a715b0e4a880/helpdesk/tickets",
       "method": "POST",
       "status_code": 201,
       "req_payload": {
-        "unit_id": "24eca18d-2a2f-4a52-8cd3-de6eb71b0778",
+        "unit_id": "55fddd7c-e5b9-40f6-911e-75106bedac93",
         "category": "lift",
         "priority": "high",
         "title": "Tower A Passenger Lift jerky stops on 4th floor",
@@ -705,9 +765,9 @@
         ]
       },
       "res_payload": {
-        "id": "c49d343f-6b6a-41a9-8226-458a5bf1b183",
-        "society_id": "04c30cd4-99a1-4630-b0a3-90ff505ae50e",
-        "unit_id": "24eca18d-2a2f-4a52-8cd3-de6eb71b0778",
+        "id": "e4a40606-0d13-41fb-b4c7-7573587abb46",
+        "society_id": "0f62af59-e83e-4c64-8147-a715b0e4a880",
+        "unit_id": "55fddd7c-e5b9-40f6-911e-75106bedac93",
         "unit_number": "VILLA-42",
         "created_by": "35f84c33-268a-4073-b52e-f0b780785d7b",
         "creator_name": "Siddharth Verma",
@@ -724,11 +784,11 @@
         "resolution_notes": null,
         "rating": null,
         "feedback": null,
-        "sla_due_at": "2026-08-20T04:55:30.794958Z",
+        "sla_due_at": "2026-08-20T05:04:33.008965Z",
         "resolved_at": null,
         "closed_at": null,
-        "created_at": "2026-08-19T16:55:30.796586Z",
-        "updated_at": "2026-08-19T16:55:30.796589Z",
+        "created_at": "2026-08-19T17:04:33.009901Z",
+        "updated_at": "2026-08-19T17:04:33.009906Z",
         "comments": []
       },
       "error": null
@@ -736,9 +796,9 @@
     {
       "name": "Society Admin: Transition Ticket to IN_PROGRESS",
       "passed": true,
-      "latency_ms": 55.89,
+      "latency_ms": 51.04,
       "role": "Society Admin",
-      "endpoint": "/societies/04c30cd4-99a1-4630-b0a3-90ff505ae50e/helpdesk/tickets/c49d343f-6b6a-41a9-8226-458a5bf1b183/status",
+      "endpoint": "/societies/0f62af59-e83e-4c64-8147-a715b0e4a880/helpdesk/tickets/e4a40606-0d13-41fb-b4c7-7573587abb46/status",
       "method": "PATCH",
       "status_code": 200,
       "req_payload": {
@@ -746,9 +806,9 @@
         "resolution_notes": "Otis Elevator technician on-site inspecting traction motor cables."
       },
       "res_payload": {
-        "id": "c49d343f-6b6a-41a9-8226-458a5bf1b183",
-        "society_id": "04c30cd4-99a1-4630-b0a3-90ff505ae50e",
-        "unit_id": "24eca18d-2a2f-4a52-8cd3-de6eb71b0778",
+        "id": "e4a40606-0d13-41fb-b4c7-7573587abb46",
+        "society_id": "0f62af59-e83e-4c64-8147-a715b0e4a880",
+        "unit_id": "55fddd7c-e5b9-40f6-911e-75106bedac93",
         "unit_number": "VILLA-42",
         "created_by": "35f84c33-268a-4073-b52e-f0b780785d7b",
         "creator_name": "Siddharth Verma",
@@ -765,11 +825,11 @@
         "resolution_notes": "Otis Elevator technician on-site inspecting traction motor cables.",
         "rating": null,
         "feedback": null,
-        "sla_due_at": "2026-08-20T04:55:30.794958Z",
+        "sla_due_at": "2026-08-20T05:04:33.008965Z",
         "resolved_at": null,
         "closed_at": null,
-        "created_at": "2026-08-19T16:55:30.796586Z",
-        "updated_at": "2026-08-19T16:55:30.868791Z",
+        "created_at": "2026-08-19T17:04:33.009901Z",
+        "updated_at": "2026-08-19T17:04:33.078944Z",
         "comments": []
       },
       "error": null
@@ -777,9 +837,9 @@
     {
       "name": "Technician: Post Public Maintenance Resolution Update",
       "passed": true,
-      "latency_ms": 51.27,
+      "latency_ms": 48.35,
       "role": "Society Admin",
-      "endpoint": "/societies/04c30cd4-99a1-4630-b0a3-90ff505ae50e/helpdesk/tickets/c49d343f-6b6a-41a9-8226-458a5bf1b183/comments",
+      "endpoint": "/societies/0f62af59-e83e-4c64-8147-a715b0e4a880/helpdesk/tickets/e4a40606-0d13-41fb-b4c7-7573587abb46/comments",
       "method": "POST",
       "status_code": 201,
       "req_payload": {
@@ -787,22 +847,22 @@
         "is_internal": false
       },
       "res_payload": {
-        "id": "90944b8b-1a3a-47c3-a0f0-baacfd2dc6b4",
-        "ticket_id": "c49d343f-6b6a-41a9-8226-458a5bf1b183",
+        "id": "ffe3412d-9f90-4135-a3f5-8065d786ca23",
+        "ticket_id": "e4a40606-0d13-41fb-b4c7-7573587abb46",
         "author_id": "35f84c33-268a-4073-b52e-f0b780785d7b",
         "author_name": "Siddharth Verma",
         "message": "Replaced guide shoe bearings on car frame. Test run completed with 100% smooth leveling.",
         "is_internal": false,
-        "created_at": "2026-08-19T16:55:30.926391Z"
+        "created_at": "2026-08-19T17:04:33.133776Z"
       },
       "error": null
     },
     {
       "name": "Society Admin: Mark Ticket RESOLVED",
       "passed": true,
-      "latency_ms": 33.88,
+      "latency_ms": 60.81,
       "role": "Society Admin",
-      "endpoint": "/societies/04c30cd4-99a1-4630-b0a3-90ff505ae50e/helpdesk/tickets/c49d343f-6b6a-41a9-8226-458a5bf1b183/status",
+      "endpoint": "/societies/0f62af59-e83e-4c64-8147-a715b0e4a880/helpdesk/tickets/e4a40606-0d13-41fb-b4c7-7573587abb46/status",
       "method": "PATCH",
       "status_code": 200,
       "req_payload": {
@@ -810,9 +870,9 @@
         "resolution_notes": "Repairs verified and elevator restored to full service."
       },
       "res_payload": {
-        "id": "c49d343f-6b6a-41a9-8226-458a5bf1b183",
-        "society_id": "04c30cd4-99a1-4630-b0a3-90ff505ae50e",
-        "unit_id": "24eca18d-2a2f-4a52-8cd3-de6eb71b0778",
+        "id": "e4a40606-0d13-41fb-b4c7-7573587abb46",
+        "society_id": "0f62af59-e83e-4c64-8147-a715b0e4a880",
+        "unit_id": "55fddd7c-e5b9-40f6-911e-75106bedac93",
         "unit_number": "VILLA-42",
         "created_by": "35f84c33-268a-4073-b52e-f0b780785d7b",
         "creator_name": "Siddharth Verma",
@@ -829,20 +889,20 @@
         "resolution_notes": "Repairs verified and elevator restored to full service.",
         "rating": null,
         "feedback": null,
-        "sla_due_at": "2026-08-20T04:55:30.794958Z",
-        "resolved_at": "2026-08-19T16:55:30.957362Z",
+        "sla_due_at": "2026-08-20T05:04:33.008965Z",
+        "resolved_at": "2026-08-19T17:04:33.185866Z",
         "closed_at": null,
-        "created_at": "2026-08-19T16:55:30.796586Z",
-        "updated_at": "2026-08-19T16:55:30.958203Z",
+        "created_at": "2026-08-19T17:04:33.009901Z",
+        "updated_at": "2026-08-19T17:04:33.187101Z",
         "comments": [
           {
-            "id": "90944b8b-1a3a-47c3-a0f0-baacfd2dc6b4",
-            "ticket_id": "c49d343f-6b6a-41a9-8226-458a5bf1b183",
+            "id": "ffe3412d-9f90-4135-a3f5-8065d786ca23",
+            "ticket_id": "e4a40606-0d13-41fb-b4c7-7573587abb46",
             "author_id": "35f84c33-268a-4073-b52e-f0b780785d7b",
             "author_name": "Siddharth Verma",
             "message": "Replaced guide shoe bearings on car frame. Test run completed with 100% smooth leveling.",
             "is_internal": false,
-            "created_at": "2026-08-19T16:55:30.926391Z"
+            "created_at": "2026-08-19T17:04:33.133776Z"
           }
         ]
       },
@@ -851,9 +911,9 @@
     {
       "name": "Resident: Submit 5-Star Feedback & Rating",
       "passed": true,
-      "latency_ms": 39.72,
+      "latency_ms": 61.07,
       "role": "Resident",
-      "endpoint": "/societies/04c30cd4-99a1-4630-b0a3-90ff505ae50e/helpdesk/tickets/c49d343f-6b6a-41a9-8226-458a5bf1b183/rate",
+      "endpoint": "/societies/0f62af59-e83e-4c64-8147-a715b0e4a880/helpdesk/tickets/e4a40606-0d13-41fb-b4c7-7573587abb46/rate",
       "method": "POST",
       "status_code": 200,
       "req_payload": {
@@ -861,9 +921,9 @@
         "feedback": "Prompt and professional technician service. Elevator running silently now!"
       },
       "res_payload": {
-        "id": "c49d343f-6b6a-41a9-8226-458a5bf1b183",
-        "society_id": "04c30cd4-99a1-4630-b0a3-90ff505ae50e",
-        "unit_id": "24eca18d-2a2f-4a52-8cd3-de6eb71b0778",
+        "id": "e4a40606-0d13-41fb-b4c7-7573587abb46",
+        "society_id": "0f62af59-e83e-4c64-8147-a715b0e4a880",
+        "unit_id": "55fddd7c-e5b9-40f6-911e-75106bedac93",
         "unit_number": "VILLA-42",
         "created_by": "35f84c33-268a-4073-b52e-f0b780785d7b",
         "creator_name": "Siddharth Verma",
@@ -880,20 +940,20 @@
         "resolution_notes": "Repairs verified and elevator restored to full service.",
         "rating": 5,
         "feedback": "Prompt and professional technician service. Elevator running silently now!",
-        "sla_due_at": "2026-08-20T04:55:30.794958Z",
-        "resolved_at": "2026-08-19T16:55:30.957362Z",
-        "closed_at": "2026-08-19T16:55:30.994633Z",
-        "created_at": "2026-08-19T16:55:30.796586Z",
-        "updated_at": "2026-08-19T16:55:30.996179Z",
+        "sla_due_at": "2026-08-20T05:04:33.008965Z",
+        "resolved_at": "2026-08-19T17:04:33.185866Z",
+        "closed_at": "2026-08-19T17:04:33.244968Z",
+        "created_at": "2026-08-19T17:04:33.009901Z",
+        "updated_at": "2026-08-19T17:04:33.246042Z",
         "comments": [
           {
-            "id": "90944b8b-1a3a-47c3-a0f0-baacfd2dc6b4",
-            "ticket_id": "c49d343f-6b6a-41a9-8226-458a5bf1b183",
+            "id": "ffe3412d-9f90-4135-a3f5-8065d786ca23",
+            "ticket_id": "e4a40606-0d13-41fb-b4c7-7573587abb46",
             "author_id": "35f84c33-268a-4073-b52e-f0b780785d7b",
             "author_name": "Siddharth Verma",
             "message": "Replaced guide shoe bearings on car frame. Test run completed with 100% smooth leveling.",
             "is_internal": false,
-            "created_at": "2026-08-19T16:55:30.926391Z"
+            "created_at": "2026-08-19T17:04:33.133776Z"
           }
         ]
       },
@@ -902,9 +962,9 @@
     {
       "name": "Resident: Create Community Discussion Thread",
       "passed": true,
-      "latency_ms": 76.87,
+      "latency_ms": 48.94,
       "role": "Resident",
-      "endpoint": "/societies/04c30cd4-99a1-4630-b0a3-90ff505ae50e/community/posts",
+      "endpoint": "/societies/0f62af59-e83e-4c64-8147-a715b0e4a880/community/posts",
       "method": "POST",
       "status_code": 201,
       "req_payload": {
@@ -913,8 +973,8 @@
         "category": "events"
       },
       "res_payload": {
-        "id": "183788ef-1b48-4a9c-bd23-0fce50e31cab",
-        "society_id": "04c30cd4-99a1-4630-b0a3-90ff505ae50e",
+        "id": "05f4c4e6-888a-427c-8327-002a882a76ef",
+        "society_id": "0f62af59-e83e-4c64-8147-a715b0e4a880",
         "author_id": "35f84c33-268a-4073-b52e-f0b780785d7b",
         "author_name": "Siddharth Verma",
         "unit_id": null,
@@ -925,7 +985,7 @@
         "images": [],
         "likes_count": 0,
         "is_pinned": false,
-        "created_at": "2026-08-19T16:55:31.060479Z",
+        "created_at": "2026-08-19T17:04:33.289830Z",
         "comments": []
       },
       "error": null
@@ -933,9 +993,9 @@
     {
       "name": "Resident: Upvote Community Discussion",
       "passed": true,
-      "latency_ms": 33.66,
+      "latency_ms": 38.51,
       "role": "Resident",
-      "endpoint": "/societies/04c30cd4-99a1-4630-b0a3-90ff505ae50e/community/posts/183788ef-1b48-4a9c-bd23-0fce50e31cab/like",
+      "endpoint": "/societies/0f62af59-e83e-4c64-8147-a715b0e4a880/community/posts/05f4c4e6-888a-427c-8327-002a882a76ef/like",
       "method": "POST",
       "status_code": 200,
       "req_payload": null,
@@ -947,9 +1007,9 @@
     {
       "name": "Committee Member: Create Rooftop Solar Decision Poll",
       "passed": true,
-      "latency_ms": 45.62,
+      "latency_ms": 43.07,
       "role": "Management Committee",
-      "endpoint": "/societies/04c30cd4-99a1-4630-b0a3-90ff505ae50e/community/polls",
+      "endpoint": "/societies/0f62af59-e83e-4c64-8147-a715b0e4a880/community/polls",
       "method": "POST",
       "status_code": 201,
       "req_payload": {
@@ -961,8 +1021,8 @@
         ]
       },
       "res_payload": {
-        "id": "6a0856a2-26f8-4f6b-ad98-5e75f74aee6f",
-        "society_id": "04c30cd4-99a1-4630-b0a3-90ff505ae50e",
+        "id": "b2d63fcc-339c-4f5b-bb46-090af522b4d9",
+        "society_id": "0f62af59-e83e-4c64-8147-a715b0e4a880",
         "created_by": "35f84c33-268a-4073-b52e-f0b780785d7b",
         "author_name": "Siddharth Verma",
         "question": "Should the society install rooftop solar panels for common area electricity?",
@@ -995,16 +1055,16 @@
         ],
         "user_voted_option": null,
         "is_active": true,
-        "created_at": "2026-08-19T16:55:31.140061Z"
+        "created_at": "2026-08-19T17:04:33.378535Z"
       },
       "error": null
     },
     {
       "name": "Resident: Cast Vote on Solar Decision Poll",
       "passed": true,
-      "latency_ms": 46.13,
+      "latency_ms": 44.73,
       "role": "Resident",
-      "endpoint": "/societies/04c30cd4-99a1-4630-b0a3-90ff505ae50e/community/polls/6a0856a2-26f8-4f6b-ad98-5e75f74aee6f/vote",
+      "endpoint": "/societies/0f62af59-e83e-4c64-8147-a715b0e4a880/community/polls/b2d63fcc-339c-4f5b-bb46-090af522b4d9/vote",
       "method": "POST",
       "status_code": 200,
       "req_payload": {
@@ -1012,8 +1072,8 @@
       },
       "res_payload": [
         {
-          "id": "6a0856a2-26f8-4f6b-ad98-5e75f74aee6f",
-          "society_id": "04c30cd4-99a1-4630-b0a3-90ff505ae50e",
+          "id": "b2d63fcc-339c-4f5b-bb46-090af522b4d9",
+          "society_id": "0f62af59-e83e-4c64-8147-a715b0e4a880",
           "created_by": "35f84c33-268a-4073-b52e-f0b780785d7b",
           "author_name": "Siddharth Verma",
           "question": "Should the society install rooftop solar panels for common area electricity?",
@@ -1046,7 +1106,7 @@
           ],
           "user_voted_option": 0,
           "is_active": true,
-          "created_at": "2026-08-19T16:55:31.140061Z"
+          "created_at": "2026-08-19T17:04:33.378535Z"
         }
       ],
       "error": null
@@ -1054,9 +1114,9 @@
     {
       "name": "Resident: Post Classified Listing on Marketplace",
       "passed": true,
-      "latency_ms": 68.36,
+      "latency_ms": 39.98,
       "role": "Resident",
-      "endpoint": "/societies/04c30cd4-99a1-4630-b0a3-90ff505ae50e/marketplace/listings",
+      "endpoint": "/societies/0f62af59-e83e-4c64-8147-a715b0e4a880/marketplace/listings",
       "method": "POST",
       "status_code": 201,
       "req_payload": {
@@ -1069,8 +1129,8 @@
         ]
       },
       "res_payload": {
-        "id": "3238f0d8-cda2-48dd-a6a8-d7bfb5b7d1bf",
-        "society_id": "04c30cd4-99a1-4630-b0a3-90ff505ae50e",
+        "id": "8400f26a-f959-4d4d-add7-373710282ef3",
+        "society_id": "0f62af59-e83e-4c64-8147-a715b0e4a880",
         "seller_id": "35f84c33-268a-4073-b52e-f0b780785d7b",
         "seller_name": "Siddharth Verma",
         "seller_phone": "+919876530002",
@@ -1084,16 +1144,16 @@
           "https://minio.local/media/bike-01.jpg"
         ],
         "status": "ACTIVE",
-        "created_at": "2026-08-19T16:55:31.258543Z"
+        "created_at": "2026-08-19T17:04:33.464751Z"
       },
       "error": null
     },
     {
       "name": "Accountant: Generate Monthly Maintenance Invoicing Batch Run",
       "passed": true,
-      "latency_ms": 55.91,
+      "latency_ms": 36.64,
       "role": "Accountant",
-      "endpoint": "/societies/04c30cd4-99a1-4630-b0a3-90ff505ae50e/billing/invoices/generate-batch",
+      "endpoint": "/societies/0f62af59-e83e-4c64-8147-a715b0e4a880/billing/invoices/generate-batch",
       "method": "POST",
       "status_code": 201,
       "req_payload": {
@@ -1105,11 +1165,11 @@
       },
       "res_payload": [
         {
-          "id": "b94bf68e-6600-4110-808e-cbc857747fd3",
-          "society_id": "04c30cd4-99a1-4630-b0a3-90ff505ae50e",
-          "unit_id": "24eca18d-2a2f-4a52-8cd3-de6eb71b0778",
+          "id": "1d4fa3f4-fa68-46f5-b357-7f9ae07a45e0",
+          "society_id": "0f62af59-e83e-4c64-8147-a715b0e4a880",
+          "unit_id": "55fddd7c-e5b9-40f6-911e-75106bedac93",
           "unit_number": "VILLA-42",
-          "invoice_number": "INV-202608-VILLA-42-8452",
+          "invoice_number": "INV-202608-VILLA-42-4E3D",
           "billing_period": "AUG-2026",
           "due_date": "2026-08-31",
           "subtotal": 4500.0,
@@ -1140,7 +1200,7 @@
               "category": "tax"
             }
           ],
-          "created_at": "2026-08-19T16:55:31.312686Z",
+          "created_at": "2026-08-19T17:04:33.508128Z",
           "paid_at": null,
           "transactions": []
         }
@@ -1150,19 +1210,19 @@
     {
       "name": "Resident: Fetch Personal Household Maintenance Invoices",
       "passed": true,
-      "latency_ms": 27.85,
+      "latency_ms": 27.52,
       "role": "Resident",
-      "endpoint": "/societies/04c30cd4-99a1-4630-b0a3-90ff505ae50e/billing/invoices",
+      "endpoint": "/societies/0f62af59-e83e-4c64-8147-a715b0e4a880/billing/invoices",
       "method": "GET",
       "status_code": 200,
       "req_payload": null,
       "res_payload": [
         {
-          "id": "b94bf68e-6600-4110-808e-cbc857747fd3",
-          "society_id": "04c30cd4-99a1-4630-b0a3-90ff505ae50e",
-          "unit_id": "24eca18d-2a2f-4a52-8cd3-de6eb71b0778",
+          "id": "1d4fa3f4-fa68-46f5-b357-7f9ae07a45e0",
+          "society_id": "0f62af59-e83e-4c64-8147-a715b0e4a880",
+          "unit_id": "55fddd7c-e5b9-40f6-911e-75106bedac93",
           "unit_number": "VILLA-42",
-          "invoice_number": "INV-202608-VILLA-42-8452",
+          "invoice_number": "INV-202608-VILLA-42-4E3D",
           "billing_period": "AUG-2026",
           "due_date": "2026-08-31",
           "subtotal": 4500.0,
@@ -1193,7 +1253,7 @@
               "category": "tax"
             }
           ],
-          "created_at": "2026-08-19T16:55:31.312686Z",
+          "created_at": "2026-08-19T17:04:33.508128Z",
           "paid_at": null,
           "transactions": []
         }
@@ -1203,9 +1263,9 @@
     {
       "name": "Resident: Settle Maintenance Invoice via Instant Payment Gateway",
       "passed": true,
-      "latency_ms": 40.57,
+      "latency_ms": 51.94,
       "role": "Resident",
-      "endpoint": "/societies/04c30cd4-99a1-4630-b0a3-90ff505ae50e/billing/invoices/b94bf68e-6600-4110-808e-cbc857747fd3/pay",
+      "endpoint": "/societies/0f62af59-e83e-4c64-8147-a715b0e4a880/billing/invoices/1d4fa3f4-fa68-46f5-b357-7f9ae07a45e0/pay",
       "method": "POST",
       "status_code": 201,
       "req_payload": {
@@ -1213,27 +1273,27 @@
         "amount": 4500.0
       },
       "res_payload": {
-        "id": "eefb07c2-25d4-4fc1-b654-16c1e6ef175a",
-        "society_id": "04c30cd4-99a1-4630-b0a3-90ff505ae50e",
-        "invoice_id": "b94bf68e-6600-4110-808e-cbc857747fd3",
-        "unit_id": "24eca18d-2a2f-4a52-8cd3-de6eb71b0778",
+        "id": "2fb70ba7-bdb0-4fe9-85fb-a722c8d41a5d",
+        "society_id": "0f62af59-e83e-4c64-8147-a715b0e4a880",
+        "invoice_id": "1d4fa3f4-fa68-46f5-b357-7f9ae07a45e0",
+        "unit_id": "55fddd7c-e5b9-40f6-911e-75106bedac93",
         "user_id": "35f84c33-268a-4073-b52e-f0b780785d7b",
         "user_name": "Siddharth Verma",
-        "transaction_ref": "TXN-UPI-325ED4BC",
-        "receipt_number": "REC-BBDF50",
+        "transaction_ref": "TXN-UPI-341D3EE1",
+        "receipt_number": "REC-A8CA3B",
         "payment_method": "UPI",
         "amount": 4500.0,
         "status": "SUCCESS",
-        "paid_at": "2026-08-19T16:55:31.396203Z"
+        "paid_at": "2026-08-19T17:04:33.591731Z"
       },
       "error": null
     },
     {
       "name": "Accountant: Audit Society Financial Ledger Summary",
       "passed": true,
-      "latency_ms": 31.95,
+      "latency_ms": 31.57,
       "role": "Accountant",
-      "endpoint": "/societies/04c30cd4-99a1-4630-b0a3-90ff505ae50e/billing/ledger",
+      "endpoint": "/societies/0f62af59-e83e-4c64-8147-a715b0e4a880/billing/ledger",
       "method": "GET",
       "status_code": 200,
       "req_payload": null,
@@ -1251,13 +1311,13 @@
     {
       "name": "Security Supervisor: Register Gate Boom Barrier IoT Hardware",
       "passed": true,
-      "latency_ms": 52.18,
+      "latency_ms": 36.16,
       "role": "Security Supervisor",
-      "endpoint": "/societies/04c30cd4-99a1-4630-b0a3-90ff505ae50e/iot/devices",
+      "endpoint": "/societies/0f62af59-e83e-4c64-8147-a715b0e4a880/iot/devices",
       "method": "POST",
       "status_code": 201,
       "req_payload": {
-        "gate_id": "90e19612-cf56-4a93-96b6-ccec06f7b5d3",
+        "gate_id": "cc10a897-60de-42cf-bf1c-f5ccff7de14d",
         "name": "Main North Gate Boom Barrier Controller",
         "device_type": "BOOM_BARRIER",
         "ip_address": "192.168.1.201",
@@ -1265,17 +1325,17 @@
         "firmware_version": "v2.4.1"
       },
       "res_payload": {
-        "id": "3a1e7f19-b4aa-41e8-b240-dff4f14f4dfd",
-        "society_id": "04c30cd4-99a1-4630-b0a3-90ff505ae50e",
-        "gate_id": "90e19612-cf56-4a93-96b6-ccec06f7b5d3",
+        "id": "cc30a41d-a18c-4fb4-b8c9-cdb6c88a4437",
+        "society_id": "0f62af59-e83e-4c64-8147-a715b0e4a880",
+        "gate_id": "cc10a897-60de-42cf-bf1c-f5ccff7de14d",
         "name": "Main North Gate Boom Barrier Controller",
         "device_type": "BOOM_BARRIER",
         "ip_address": "192.168.1.201",
         "mac_address": "00:1A:2B:3C:4D:5E",
         "status": "ONLINE",
         "firmware_version": "v2.4.1",
-        "last_heartbeat_at": "2026-08-19T16:55:31.474156Z",
-        "created_at": "2026-08-19T16:55:31.474162Z",
+        "last_heartbeat_at": "2026-08-19T17:04:33.655628Z",
+        "created_at": "2026-08-19T17:04:33.655635Z",
         "commands": []
       },
       "error": null
@@ -1283,9 +1343,9 @@
     {
       "name": "Security Supervisor: Dispatch Remote Barrier Pulse Command",
       "passed": true,
-      "latency_ms": 38.9,
+      "latency_ms": 45.17,
       "role": "Security Supervisor",
-      "endpoint": "/societies/04c30cd4-99a1-4630-b0a3-90ff505ae50e/iot/devices/3a1e7f19-b4aa-41e8-b240-dff4f14f4dfd/command",
+      "endpoint": "/societies/0f62af59-e83e-4c64-8147-a715b0e4a880/iot/devices/cc30a41d-a18c-4fb4-b8c9-cdb6c88a4437/command",
       "method": "POST",
       "status_code": 200,
       "req_payload": {
@@ -1293,21 +1353,21 @@
         "triggered_by": "SECURITY_SUPERVISOR_CONSOLE"
       },
       "res_payload": {
-        "id": "86c3a2c2-ffb6-43ab-a625-e9ab882ecaef",
-        "device_id": "3a1e7f19-b4aa-41e8-b240-dff4f14f4dfd",
+        "id": "2139e224-4ee1-4057-8b98-a970cd06c20e",
+        "device_id": "cc30a41d-a18c-4fb4-b8c9-cdb6c88a4437",
         "command": "OPEN_BARRIER",
         "triggered_by": "SECURITY_SUPERVISOR_CONSOLE",
         "status": "EXECUTED",
-        "executed_at": "2026-08-19T16:55:31.520207Z"
+        "executed_at": "2026-08-19T17:04:33.705187Z"
       },
       "error": null
     },
     {
       "name": "Security Supervisor: Audit Security Hardware & Egress Logs",
       "passed": true,
-      "latency_ms": 37.26,
+      "latency_ms": 27.68,
       "role": "Security Supervisor",
-      "endpoint": "/societies/04c30cd4-99a1-4630-b0a3-90ff505ae50e/audit/events",
+      "endpoint": "/societies/0f62af59-e83e-4c64-8147-a715b0e4a880/audit/events",
       "method": "GET",
       "status_code": 200,
       "req_payload": null,
