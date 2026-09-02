@@ -2,14 +2,15 @@ import hashlib
 import uuid
 import secrets
 from datetime import datetime, timezone
-from sqlalchemy import select, update, and_
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
+from sqlalchemy import select
 
 from app.core.errors import AppException
 from app.core.events import event_bus, DomainEvent
 from app.modules.auth.models import User
+from app.modules.societies.models import UnitMembership
 from app.modules.visitors.models import VisitorProfile, VisitorPass, VisitorEvent, Blacklist
+from app.modules.visitors.repository import VisitorRepository
 from app.modules.visitors.schemas import (
     CreateVisitorPassRequest,
     GateCheckInRequest,
@@ -30,6 +31,7 @@ def _generate_qr_token(pass_id: uuid.UUID, secret: str) -> str:
 class VisitorService:
     def __init__(self, db: AsyncSession):
         self.db = db
+        self.repo = VisitorRepository(db)
 
     async def create_pass(
         self, society_id: uuid.UUID, payload: CreateVisitorPassRequest, issuer: User
@@ -40,18 +42,29 @@ class VisitorService:
 
         visitor_profile = None
         if payload.visitor_phone:
-            res = await self.db.execute(
-                select(VisitorProfile).where(VisitorProfile.phone == payload.visitor_phone.strip())
-            )
-            visitor_profile = res.scalar_one_or_none()
+            visitor_profile = await self.repo.get_visitor_profile_by_phone(payload.visitor_phone.strip())
+            
             if not visitor_profile:
                 visitor_profile = VisitorProfile(
                     phone=payload.visitor_phone.strip(),
                     name=payload.visitor_name,
                     company=payload.visitor_company,
                 )
-                self.db.add(visitor_profile)
-                await self.db.flush()
+                await self.repo.flush(visitor_profile)
+
+        # Check if issuer is a guard
+        res = await self.db.execute(
+            select(UnitMembership).where(
+                UnitMembership.society_id == society_id,
+                UnitMembership.user_id == issuer.id,
+                UnitMembership.is_active.is_(True)
+            )
+        )
+        memberships = res.scalars().all()
+        is_guard = any(m.role and m.role.code == "guard" for m in memberships)
+
+        # Default state based on issuer
+        initial_status = "APPROVAL_PENDING" if is_guard else "APPROVED"
 
         visitor_pass = VisitorPass(
             id=pass_id,
@@ -71,43 +84,96 @@ class VisitorService:
             valid_from=payload.valid_from,
             valid_until=payload.valid_until,
             is_recurring=payload.is_recurring,
-            status="APPROVED",
+            status=initial_status,
             notes=payload.notes,
         )
-        self.db.add(visitor_pass)
-        await self.db.commit()
+        await self.repo.save(visitor_pass)
 
+        # Publish the correct event based on status
+        event_type = "VISITOR_APPROVAL_REQUEST" if initial_status == "APPROVAL_PENDING" else "PASS_CREATED"
+        
         await event_bus.publish(
             DomainEvent(
                 society_id=str(society_id),
                 actor_user_id=str(issuer.id),
-                event_type="PASS_CREATED",
+                event_type=event_type,
                 entity_type="visitor_pass",
                 entity_id=str(visitor_pass.id),
-                payload={"visitor_name": payload.visitor_name, "pass_type": payload.pass_type, "pass_code": pass_code},
+                payload={"visitor_name": payload.visitor_name, "pass_type": payload.pass_type, "pass_code": pass_code, "unit_id": str(payload.unit_id)},
             )
         )
 
-        res = await self.db.execute(
-            select(VisitorPass)
-            .where(VisitorPass.id == pass_id)
-            .options(selectinload(VisitorPass.unit), selectinload(VisitorPass.issuer))
-        )
-        return res.scalar_one()
+        return await self.repo.get_pass_with_relations(pass_id)
 
     async def list_passes(
         self, society_id: uuid.UUID, unit_id: uuid.UUID | None = None, user_id: uuid.UUID | None = None
     ) -> list[VisitorPass]:
-        query = select(VisitorPass).where(VisitorPass.society_id == society_id).options(
-            selectinload(VisitorPass.unit), selectinload(VisitorPass.issuer)
+        return await self.repo.list_passes(society_id, unit_id, user_id)
+
+    async def approve_pass(self, society_id: uuid.UUID, pass_id: uuid.UUID, actor: User) -> VisitorPass:
+        visitor_pass = await self.repo.get_pass_by_id_and_society(pass_id, society_id)
+        if not visitor_pass:
+            raise AppException(code="PASS_NOT_FOUND", message="Pass not found", status_code=404)
+        if visitor_pass.status != "APPROVAL_PENDING":
+            raise AppException(code="INVALID_STATE", message=f"Pass is not pending approval (current: {visitor_pass.status})", status_code=400)
+        
+        visitor_pass.status = "APPROVED"
+        await self.repo.save(visitor_pass)
+
+        await event_bus.publish(
+            DomainEvent(
+                society_id=str(society_id),
+                actor_user_id=str(actor.id),
+                event_type="PASS_APPROVED",
+                entity_type="visitor_pass",
+                entity_id=str(visitor_pass.id),
+            )
         )
-        if unit_id:
-            query = query.where(VisitorPass.unit_id == unit_id)
-        if user_id:
-            query = query.where(VisitorPass.issued_by == user_id)
-        query = query.order_by(VisitorPass.created_at.desc())
-        result = await self.db.execute(query)
-        return list(result.scalars().all())
+        return visitor_pass
+
+    async def reject_pass(self, society_id: uuid.UUID, pass_id: uuid.UUID, actor: User) -> VisitorPass:
+        visitor_pass = await self.repo.get_pass_by_id_and_society(pass_id, society_id)
+        if not visitor_pass:
+            raise AppException(code="PASS_NOT_FOUND", message="Pass not found", status_code=404)
+        if visitor_pass.status != "APPROVAL_PENDING":
+            raise AppException(code="INVALID_STATE", message=f"Pass is not pending approval (current: {visitor_pass.status})", status_code=400)
+        
+        visitor_pass.status = "REJECTED"
+        await self.repo.save(visitor_pass)
+
+        await event_bus.publish(
+            DomainEvent(
+                society_id=str(society_id),
+                actor_user_id=str(actor.id),
+                event_type="PASS_REJECTED",
+                entity_type="visitor_pass",
+                entity_id=str(visitor_pass.id),
+            )
+        )
+        return visitor_pass
+
+    async def revoke_pass(self, society_id: uuid.UUID, pass_id: uuid.UUID, actor: User) -> VisitorPass:
+        visitor_pass = await self.repo.get_pass_by_id_and_society(pass_id, society_id)
+        if not visitor_pass:
+            raise AppException(code="PASS_NOT_FOUND", message="Pass not found", status_code=404)
+        if visitor_pass.status in ("CHECKED_IN", "EXPIRED", "CANCELLED", "REJECTED"):
+            raise AppException(code="INVALID_STATE", message=f"Cannot revoke pass in state: {visitor_pass.status}", status_code=400)
+        
+        visitor_pass.status = "CANCELLED"
+        visitor_pass.revoked_at = datetime.now(timezone.utc)
+        visitor_pass.revoked_by = actor.id
+        await self.repo.save(visitor_pass)
+
+        await event_bus.publish(
+            DomainEvent(
+                society_id=str(society_id),
+                actor_user_id=str(actor.id),
+                event_type="PASS_REVOKED",
+                entity_type="visitor_pass",
+                entity_id=str(visitor_pass.id),
+            )
+        )
+        return visitor_pass
 
     async def scan_pass(
         self, society_id: uuid.UUID, qr_token: str | None = None, pin_code: str | None = None, gate_id: uuid.UUID | None = None
@@ -115,22 +181,14 @@ class VisitorService:
         if not qr_token and not pin_code:
             raise AppException(code="INVALID_PASS_QUERY", message="QR token or 6-digit PIN code required", status_code=400)
 
-        query = select(VisitorPass).where(VisitorPass.society_id == society_id).options(
-            selectinload(VisitorPass.unit), selectinload(VisitorPass.issuer)
-        )
-
         if qr_token and qr_token.strip().startswith("AMN-"):
-            from app.modules.amenities.models import AmenityBooking
-            ab_res = await self.db.execute(
-                select(AmenityBooking)
-                .where(AmenityBooking.society_id == society_id, AmenityBooking.qr_pass == qr_token.strip())
-                .options(selectinload(AmenityBooking.amenity), selectinload(AmenityBooking.unit), selectinload(AmenityBooking.user))
-            )
-            ab = ab_res.scalar_one_or_none()
+            ab = await self.repo.get_amenity_booking_by_qr(society_id, qr_token.strip())
+            
             if not ab:
                 raise AppException(code="AMENITY_PASS_NOT_FOUND", message="Clubhouse Amenity pass not found", status_code=404)
             if ab.status == "CANCELLED":
                 raise AppException(code="PASS_CANCELLED", message="Clubhouse booking was cancelled", status_code=400)
+                
             return VisitorPass(
                 id=ab.id,
                 society_id=ab.society_id,
@@ -146,13 +204,8 @@ class VisitorService:
                 issuer=ab.user,
             )
 
-        if qr_token:
-            query = query.where(VisitorPass.qr_token == qr_token.strip())
-        elif pin_code:
-            query = query.where(VisitorPass.pass_code == pin_code.strip())
-
-        result = await self.db.execute(query)
-        visitor_pass = result.scalar_one_or_none()
+        visitor_pass = await self.repo.get_pass_by_qr_or_pin(society_id, qr_token=qr_token, pin_code=pin_code)
+        
         if not visitor_pass:
             raise AppException(
                 code="PASS_NOT_FOUND",
@@ -166,7 +219,7 @@ class VisitorService:
 
         if valid_until < now:
             visitor_pass.status = "EXPIRED"
-            await self.db.commit()
+            await self.repo.save(visitor_pass)
             raise AppException(
                 code="PASS_EXPIRED",
                 message=f"This visitor pass expired on {valid_until.strftime('%d %b %Y, %I:%M %p')}",
@@ -187,31 +240,24 @@ class VisitorService:
                 status_code=400
             )
 
+        if visitor_pass.status == "APPROVAL_PENDING":
+            raise AppException(
+                code="PASS_PENDING",
+                message="This pass is pending approval from the resident",
+                status_code=400
+            )
+
         if visitor_pass.gate_restriction and gate_id and visitor_pass.gate_restriction != gate_id:
             raise AppException(code="GATE_RESTRICTED", message="This pass is restricted to a different gate checkpoint", status_code=403)
 
         # Check blacklist for phone
         if visitor_pass.visitor_phone:
-            bl_res = await self.db.execute(
-                select(Blacklist).where(
-                    Blacklist.society_id == society_id,
-                    Blacklist.entity_value == visitor_pass.visitor_phone,
-                    Blacklist.is_active.is_(True),
-                )
-            )
-            if bl_res.scalar_one_or_none():
+            if await self.repo.is_blacklisted(society_id, visitor_pass.visitor_phone):
                 raise AppException(code="VISITOR_BLACKLISTED", message="This visitor phone is on the security blacklist", status_code=403)
 
         # Check blacklist for vehicle
         if visitor_pass.vehicle_number:
-            bl_veh = await self.db.execute(
-                select(Blacklist).where(
-                    Blacklist.society_id == society_id,
-                    Blacklist.entity_value == visitor_pass.vehicle_number.strip().upper(),
-                    Blacklist.is_active.is_(True),
-                )
-            )
-            if bl_veh.scalar_one_or_none():
+            if await self.repo.is_blacklisted(society_id, visitor_pass.vehicle_number.strip().upper()):
                 raise AppException(code="VEHICLE_BLACKLISTED", message="This vehicle license plate is on the security blacklist", status_code=403)
 
         return visitor_pass
@@ -219,10 +265,7 @@ class VisitorService:
     async def check_in(
         self, society_id: uuid.UUID, gate_id: uuid.UUID, payload: GateCheckInRequest, guard_id: uuid.UUID | None = None
     ) -> VisitorEvent:
-        existing_event = await self.db.execute(
-            select(VisitorEvent).where(VisitorEvent.idempotency_key == payload.idempotency_key)
-        )
-        evt = existing_event.scalar_one_or_none()
+        evt = await self.repo.get_event_by_idempotency_key(payload.idempotency_key)
         if evt:
             return evt
 
@@ -230,10 +273,7 @@ class VisitorService:
         if payload.qr_token:
             visitor_pass = await self.scan_pass(society_id, payload.qr_token, gate_id)
         elif payload.pass_id:
-            pass_res = await self.db.execute(
-                select(VisitorPass).where(VisitorPass.id == payload.pass_id, VisitorPass.society_id == society_id)
-            )
-            visitor_pass = pass_res.scalar_one_or_none()
+            visitor_pass = await self.repo.get_pass_by_id_and_society(payload.pass_id, society_id)
 
         visitor_name = payload.visitor_name or (visitor_pass.visitor_name if visitor_pass else "Guest")
         visitor_phone = payload.visitor_phone or (visitor_pass.visitor_phone if visitor_pass else None)
@@ -255,13 +295,14 @@ class VisitorService:
             is_offline=payload.is_offline,
             idempotency_key=payload.idempotency_key,
         )
-        self.db.add(event)
 
         if visitor_pass:
+            if visitor_pass.status != "APPROVED":
+                raise AppException(code="INVALID_STATE", message="Pass must be APPROVED before check-in", status_code=400)
             visitor_pass.status = "CHECKED_IN"
+            self.db.add(visitor_pass)
 
-        await self.db.commit()
-        await self.db.refresh(event)
+        await self.repo.save(event)
 
         await event_bus.publish(
             DomainEvent(
@@ -277,19 +318,13 @@ class VisitorService:
     async def check_out(
         self, society_id: uuid.UUID, gate_id: uuid.UUID, payload: GateCheckOutRequest, guard_id: uuid.UUID | None = None
     ) -> VisitorEvent:
-        existing_event = await self.db.execute(
-            select(VisitorEvent).where(VisitorEvent.idempotency_key == payload.idempotency_key)
-        )
-        evt = existing_event.scalar_one_or_none()
+        evt = await self.repo.get_event_by_idempotency_key(payload.idempotency_key)
         if evt:
             return evt
 
         visitor_pass = None
         if payload.pass_id:
-            pass_res = await self.db.execute(
-                select(VisitorPass).where(VisitorPass.id == payload.pass_id, VisitorPass.society_id == society_id)
-            )
-            visitor_pass = pass_res.scalar_one_or_none()
+            visitor_pass = await self.repo.get_pass_by_id_and_society(payload.pass_id, society_id)
 
         event = VisitorEvent(
             society_id=society_id,
@@ -301,13 +336,14 @@ class VisitorService:
             is_offline=payload.is_offline,
             idempotency_key=payload.idempotency_key,
         )
-        self.db.add(event)
 
         if visitor_pass:
+            if visitor_pass.status != "CHECKED_IN":
+                raise AppException(code="INVALID_STATE", message="Pass must be CHECKED_IN before check-out", status_code=400)
             visitor_pass.status = "CHECKED_OUT"
+            self.db.add(visitor_pass)
 
-        await self.db.commit()
-        await self.db.refresh(event)
+        await self.repo.save(event)
 
         await event_bus.publish(
             DomainEvent(
@@ -320,10 +356,7 @@ class VisitorService:
         return event
 
     async def list_inside_visitors(self, society_id: uuid.UUID) -> list[VisitorPass]:
-        result = await self.db.execute(
-            select(VisitorPass).where(VisitorPass.society_id == society_id, VisitorPass.status == "CHECKED_IN")
-        )
-        return list(result.scalars().all())
+        return await self.repo.get_passes_by_status(society_id, "CHECKED_IN")
 
     async def add_blacklist(self, society_id: uuid.UUID, payload: BlacklistCreate, actor: User) -> Blacklist:
         item = Blacklist(
@@ -333,13 +366,8 @@ class VisitorService:
             reason=payload.reason,
             added_by=actor.id,
         )
-        self.db.add(item)
-        await self.db.commit()
-        await self.db.refresh(item)
+        await self.repo.save(item)
         return item
 
     async def list_blacklists(self, society_id: uuid.UUID) -> list[Blacklist]:
-        result = await self.db.execute(
-            select(Blacklist).where(Blacklist.society_id == society_id, Blacklist.is_active.is_(True))
-        )
-        return list(result.scalars().all())
+        return await self.repo.list_active_blacklists(society_id)

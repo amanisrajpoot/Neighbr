@@ -58,7 +58,7 @@ export function useBilling() {
       const endpoint = unitId
         ? `/societies/${societyId}/billing/invoices?unit_id=${unitId}`
         : `/societies/${societyId}/billing/invoices`;
-      return apiClient<InvoiceItem[]>(endpoint).catch(() => []);
+      return apiClient<InvoiceItem[]>(endpoint);
     },
     enabled: Boolean(societyId),
   });

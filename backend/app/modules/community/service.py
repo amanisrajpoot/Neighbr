@@ -1,13 +1,19 @@
 import uuid
 from datetime import datetime, timezone
-from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 from app.core.errors import AppException
 from app.core.events import event_bus, DomainEvent
 from app.modules.auth.models import User
 from app.modules.community.models import CommunityPost, PostComment, CommunityPoll, PollVote
+from app.modules.community.repository import CommunityRepository
+from app.modules.community.events import (
+    POST_CREATED,
+    POST_COMMENT_ADDED,
+    POST_LIKED,
+    POLL_CREATED,
+    POLL_VOTED,
+)
 from app.modules.community.schemas import (
     PostCreate,
     PostCommentCreate,
@@ -20,6 +26,7 @@ from app.modules.community.schemas import (
 class CommunityService:
     def __init__(self, db: AsyncSession):
         self.db = db
+        self.repo = CommunityRepository(db)
 
     async def create_post(
         self, society_id: uuid.UUID, payload: PostCreate, author: User
@@ -33,37 +40,29 @@ class CommunityService:
             category=payload.category,
             images=payload.images,
         )
-        self.db.add(post)
-        await self.db.commit()
-        await self.db.refresh(post)
+        await self.repo.save(post)
+
+        await event_bus.publish(
+            DomainEvent(
+                society_id=str(society_id),
+                actor_user_id=str(author.id),
+                event_type=POST_CREATED,
+                entity_type="community_post",
+                entity_id=str(post.id),
+                payload={"title": post.title, "category": post.category},
+            )
+        )
         return post
 
     async def list_posts(
         self, society_id: uuid.UUID, category: str | None = None
     ) -> list[CommunityPost]:
-        query = (
-            select(CommunityPost)
-            .where(CommunityPost.society_id == society_id, CommunityPost.is_active.is_(True))
-            .options(
-                selectinload(CommunityPost.author),
-                selectinload(CommunityPost.unit),
-                selectinload(CommunityPost.comments).selectinload(PostComment.author),
-            )
-        )
-        if category and category != "all":
-            query = query.where(CommunityPost.category == category)
-
-        query = query.order_by(CommunityPost.is_pinned.desc(), CommunityPost.created_at.desc())
-        result = await self.db.execute(query)
-        return list(result.scalars().all())
+        return await self.repo.list_posts(society_id, category)
 
     async def add_comment(
         self, society_id: uuid.UUID, post_id: uuid.UUID, payload: PostCommentCreate, author: User
     ) -> PostComment:
-        result = await self.db.execute(
-            select(CommunityPost).where(CommunityPost.id == post_id, CommunityPost.society_id == society_id)
-        )
-        post = result.scalar_one_or_none()
+        post = await self.repo.get_post(society_id, post_id)
         if not post:
             raise AppException(code="POST_NOT_FOUND", message="Post not found", status_code=404)
 
@@ -72,21 +71,38 @@ class CommunityService:
             author_id=author.id,
             content=payload.content.strip(),
         )
-        self.db.add(comment)
-        await self.db.commit()
-        await self.db.refresh(comment)
+        await self.repo.save(comment)
+
+        await event_bus.publish(
+            DomainEvent(
+                society_id=str(society_id),
+                actor_user_id=str(author.id),
+                event_type=POST_COMMENT_ADDED,
+                entity_type="community_post",
+                entity_id=str(post.id),
+                payload={"comment_id": str(comment.id)},
+            )
+        )
         return comment
 
-    async def like_post(self, society_id: uuid.UUID, post_id: uuid.UUID) -> int:
-        result = await self.db.execute(
-            select(CommunityPost).where(CommunityPost.id == post_id, CommunityPost.society_id == society_id)
-        )
-        post = result.scalar_one_or_none()
+    async def like_post(self, society_id: uuid.UUID, post_id: uuid.UUID, user: User) -> int:
+        post = await self.repo.get_post(society_id, post_id)
         if not post:
             raise AppException(code="POST_NOT_FOUND", message="Post not found", status_code=404)
 
         post.likes_count = post.likes_count + 1
-        await self.db.commit()
+        await self.repo.commit()
+
+        await event_bus.publish(
+            DomainEvent(
+                society_id=str(society_id),
+                actor_user_id=str(user.id),
+                event_type=POST_LIKED,
+                entity_type="community_post",
+                entity_id=str(post.id),
+                payload={"likes_count": post.likes_count},
+            )
+        )
         return post.likes_count
 
     # Polls
@@ -101,22 +117,22 @@ class CommunityService:
             options=payload.options,
             expires_at=payload.expires_at,
         )
-        self.db.add(poll)
-        await self.db.commit()
-        await self.db.refresh(poll)
+        await self.repo.save(poll)
+
+        await event_bus.publish(
+            DomainEvent(
+                society_id=str(society_id),
+                actor_user_id=str(author.id),
+                event_type=POLL_CREATED,
+                entity_type="community_poll",
+                entity_id=str(poll.id),
+                payload={"question": poll.question},
+            )
+        )
         return poll
 
     async def list_polls(self, society_id: uuid.UUID, current_user_id: uuid.UUID | None = None) -> list[PollOut]:
-        result = await self.db.execute(
-            select(CommunityPoll)
-            .where(CommunityPoll.society_id == society_id, CommunityPoll.is_active.is_(True))
-            .options(
-                selectinload(CommunityPoll.author),
-                selectinload(CommunityPoll.votes),
-            )
-            .order_by(CommunityPoll.created_at.desc())
-        )
-        polls = result.scalars().all()
+        polls = await self.repo.list_polls(society_id)
 
         poll_outs: list[PollOut] = []
         for p in polls:
@@ -155,11 +171,8 @@ class CommunityService:
     async def cast_vote(
         self, society_id: uuid.UUID, poll_id: uuid.UUID, payload: PollVoteRequest, user: User
     ) -> PollVote:
-        # Check if already voted
-        existing = await self.db.execute(
-            select(PollVote).where(PollVote.poll_id == poll_id, PollVote.user_id == user.id)
-        )
-        if existing.scalar_one_or_none():
+        existing = await self.repo.get_poll_vote(poll_id, user.id)
+        if existing:
             raise AppException(code="ALREADY_VOTED", message="You have already voted on this poll", status_code=400)
 
         vote = PollVote(
@@ -168,7 +181,16 @@ class CommunityService:
             unit_id=payload.unit_id,
             option_index=payload.option_index,
         )
-        self.db.add(vote)
-        await self.db.commit()
-        await self.db.refresh(vote)
+        await self.repo.save(vote)
+
+        await event_bus.publish(
+            DomainEvent(
+                society_id=str(society_id),
+                actor_user_id=str(user.id),
+                event_type=POLL_VOTED,
+                entity_type="community_poll",
+                entity_id=str(poll_id),
+                payload={"option_index": vote.option_index},
+            )
+        )
         return vote

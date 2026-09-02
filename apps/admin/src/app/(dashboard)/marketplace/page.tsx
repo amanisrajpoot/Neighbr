@@ -80,22 +80,7 @@ export default function MarketplaceAdminPage() {
       setVName("");
       setVPhone("");
     } catch (e) {
-      // local fallback
-      setVendors([
-        ...vendors,
-        {
-          id: `v-${Date.now()}`,
-          vendor_name: vName,
-          category: vCategory,
-          contact_phone: vPhone,
-          description: vDesc,
-          is_verified: true,
-          rating: 5.0,
-          review_count: 1,
-          pricing_starts_at: parseFloat(vPrice) || 299,
-          is_active: true,
-        },
-      ]);
+      alert("Failed to verify and onboard vendor.");
       setIsAddVendorOpen(false);
     } finally {
       setIsSubmitting(false);

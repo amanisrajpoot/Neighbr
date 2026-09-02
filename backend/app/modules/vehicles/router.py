@@ -4,10 +4,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.dependencies import get_current_user
-from app.middleware.tenancy import require_society_membership
 from app.modules.auth.models import User
 from app.modules.vehicles.schemas import VehicleCreate, VehicleOut
 from app.modules.vehicles.service import VehicleService
+from app.modules.vehicles.permissions import RequireResident
 
 router = APIRouter(prefix="/societies/{society_id}/vehicles", tags=["Vehicles"])
 
@@ -16,7 +16,7 @@ async def register_vehicle(
     society_id: uuid.UUID,
     payload: VehicleCreate,
     user: User = Depends(get_current_user),
-    _mem = Depends(require_society_membership),
+    _auth = RequireResident,
     db: AsyncSession = Depends(get_db),
 ):
     service = VehicleService(db)
@@ -26,7 +26,7 @@ async def register_vehicle(
 async def list_vehicles(
     society_id: uuid.UUID,
     unit_id: uuid.UUID | None = None,
-    _mem = Depends(require_society_membership),
+    _auth = RequireResident,
     db: AsyncSession = Depends(get_db),
 ):
     service = VehicleService(db)
@@ -36,8 +36,9 @@ async def list_vehicles(
 async def delete_vehicle(
     society_id: uuid.UUID,
     vehicle_id: uuid.UUID,
-    _mem = Depends(require_society_membership),
+    user: User = Depends(get_current_user),
+    _auth = RequireResident,
     db: AsyncSession = Depends(get_db),
 ):
     service = VehicleService(db)
-    await service.delete_vehicle(society_id, vehicle_id)
+    await service.delete_vehicle(society_id, vehicle_id, user)

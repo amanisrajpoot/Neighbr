@@ -76,21 +76,7 @@ export default function CommunityAdminPage() {
       setPollQuestion("");
       setPollDesc("");
     } catch (e) {
-      // local fallback
-      setPolls([
-        {
-          id: `pl-${Date.now()}`,
-          author_name: "Management Committee",
-          question: pollQuestion,
-          description: pollDesc,
-          options: opts,
-          total_votes: 0,
-          stats: opts.map((t, idx) => ({ index: idx, text: t, vote_count: 0, percentage: 0 })),
-          is_active: true,
-          created_at: new Date().toISOString(),
-        },
-        ...polls,
-      ]);
+      alert("Failed to create poll in database.");
       setIsPollModalOpen(false);
     } finally {
       setIsSubmitting(false);

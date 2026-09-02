@@ -4,8 +4,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.dependencies import get_current_user
-from app.middleware.tenancy import require_society_membership, require_roles
 from app.modules.auth.models import User
+from app.modules.billing.permissions import RequireBillingAdmin, RequireResident
 from app.modules.billing.schemas import (
     BatchInvoiceCreate,
     PayInvoiceRequest,
@@ -59,7 +59,7 @@ async def generate_batch_invoices(
     society_id: uuid.UUID,
     payload: BatchInvoiceCreate,
     author: User = Depends(get_current_user),
-    _auth = Depends(require_roles(["society_admin", "super_admin"])),
+    _auth = RequireBillingAdmin,
     db: AsyncSession = Depends(get_db),
 ):
     service = BillingService(db)
@@ -72,7 +72,7 @@ async def list_invoices(
     society_id: uuid.UUID,
     unit_id: uuid.UUID | None = None,
     status_filter: str | None = None,
-    _mem = Depends(require_society_membership),
+    _auth = RequireResident,
     db: AsyncSession = Depends(get_db),
 ):
     service = BillingService(db)
@@ -83,7 +83,7 @@ async def list_invoices(
 async def get_invoice(
     society_id: uuid.UUID,
     invoice_id: uuid.UUID,
-    _mem = Depends(require_society_membership),
+    _auth = RequireResident,
     db: AsyncSession = Depends(get_db),
 ):
     service = BillingService(db)
@@ -96,7 +96,7 @@ async def pay_invoice(
     invoice_id: uuid.UUID,
     payload: PayInvoiceRequest,
     user: User = Depends(get_current_user),
-    _mem = Depends(require_society_membership),
+    _auth = RequireResident,
     db: AsyncSession = Depends(get_db),
 ):
     service = BillingService(db)
@@ -119,7 +119,7 @@ async def pay_invoice(
 @router.get("/ledger", response_model=LedgerSummary)
 async def get_ledger_summary(
     society_id: uuid.UUID,
-    _mem = Depends(require_society_membership),
+    _auth = RequireBillingAdmin,
     db: AsyncSession = Depends(get_db),
 ):
     service = BillingService(db)

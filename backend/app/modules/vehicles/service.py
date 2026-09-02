@@ -1,29 +1,26 @@
 import uuid
-from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 from app.core.errors import AppException
+from app.core.events import event_bus, DomainEvent
 from app.modules.auth.models import User
 from app.modules.vehicles.models import VehicleProfile
+from app.modules.vehicles.repository import VehicleRepository
+from app.modules.vehicles.events import VEHICLE_REGISTERED, VEHICLE_DELETED
 from app.modules.vehicles.schemas import VehicleCreate
 
 class VehicleService:
     def __init__(self, db: AsyncSession):
         self.db = db
+        self.repo = VehicleRepository(db)
 
     async def register_vehicle(
         self, society_id: uuid.UUID, payload: VehicleCreate, user: User
     ) -> VehicleProfile:
         reg_num = payload.registration_number.strip().upper().replace(" ", "")
-        existing = await self.db.execute(
-            select(VehicleProfile).where(
-                VehicleProfile.society_id == society_id,
-                VehicleProfile.registration_number == reg_num,
-                VehicleProfile.is_active.is_(True),
-            )
-        )
-        if existing.scalar_one_or_none():
+        existing = await self.repo.get_by_reg_num(society_id, reg_num)
+        
+        if existing:
             raise AppException(code="VEHICLE_EXISTS", message="Vehicle with this registration number is already registered", status_code=400)
 
         vehicle = VehicleProfile(
@@ -38,30 +35,38 @@ class VehicleService:
             parking_slot=payload.parking_slot,
             sticker_id=payload.sticker_id,
         )
-        self.db.add(vehicle)
-        await self.db.commit()
-        await self.db.refresh(vehicle)
+        await self.repo.save(vehicle)
+
+        await event_bus.publish(
+            DomainEvent(
+                society_id=str(society_id),
+                actor_user_id=str(user.id),
+                event_type=VEHICLE_REGISTERED,
+                entity_type="vehicle",
+                entity_id=str(vehicle.id),
+                payload={"registration_number": vehicle.registration_number},
+            )
+        )
         return vehicle
 
     async def list_vehicles(
         self, society_id: uuid.UUID, unit_id: uuid.UUID | None = None
     ) -> list[VehicleProfile]:
-        query = select(VehicleProfile).where(
-            VehicleProfile.society_id == society_id, VehicleProfile.is_active.is_(True)
-        )
-        if unit_id:
-            query = query.where(VehicleProfile.unit_id == unit_id)
-        query = query.order_by(VehicleProfile.created_at.desc())
-        result = await self.db.execute(query)
-        return list(result.scalars().all())
+        return await self.repo.list_vehicles(society_id, unit_id)
 
-    async def delete_vehicle(self, society_id: uuid.UUID, vehicle_id: uuid.UUID):
-        result = await self.db.execute(
-            select(VehicleProfile).where(
-                VehicleProfile.id == vehicle_id, VehicleProfile.society_id == society_id
-            )
-        )
-        veh = result.scalar_one_or_none()
+    async def delete_vehicle(self, society_id: uuid.UUID, vehicle_id: uuid.UUID, user: User):
+        veh = await self.repo.get_by_id(society_id, vehicle_id)
         if veh:
             veh.is_active = False
-            await self.db.commit()
+            await self.repo.commit()
+
+            await event_bus.publish(
+                DomainEvent(
+                    society_id=str(society_id),
+                    actor_user_id=str(user.id),
+                    event_type=VEHICLE_DELETED,
+                    entity_type="vehicle",
+                    entity_id=str(veh.id),
+                    payload={"registration_number": veh.registration_number},
+                )
+            )

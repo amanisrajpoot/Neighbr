@@ -12,10 +12,10 @@ class RuleCreate(BaseModel):
     action_payload: dict[str, Any] = {}
     is_active: bool = True
 
-class RuleToggleRequest(BaseModel):
+class ToggleRuleRequest(BaseModel):
     is_active: bool
 
-class AutomationRuleOut(BaseModel):
+class RuleOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID

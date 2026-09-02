@@ -64,7 +64,7 @@ export function useAmenities() {
     queryKey: ["amenities", societyId],
     queryFn: async () => {
       if (!societyId) return [];
-      return apiClient<AmenityItem[]>(`/societies/${societyId}/amenities`).catch(() => []);
+      return apiClient<AmenityItem[]>(`/societies/${societyId}/amenities`);
     },
     enabled: Boolean(societyId),
   });
@@ -80,7 +80,7 @@ export function useAmenities() {
       if (!societyId || !user?.id) return [];
       return apiClient<BookingItem[]>(
         `/societies/${societyId}/amenities/bookings?user_id=${user.id}`
-      ).catch(() => []);
+      );
     },
     enabled: Boolean(societyId && user?.id),
   });
@@ -90,7 +90,7 @@ export function useAmenities() {
     if (!societyId) return [];
     return apiClient<SlotInfo[]>(
       `/societies/${societyId}/amenities/${amenityId}/slots?date=${date}`
-    ).catch(() => []);
+    );
   };
 
   // Mutation: Book slot

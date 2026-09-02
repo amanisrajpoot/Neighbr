@@ -4,8 +4,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.dependencies import get_current_user
-from app.middleware.tenancy import require_society_membership, require_roles
 from app.modules.auth.models import User
+from app.modules.notices.permissions import RequireNoticeAdmin, RequireSOSResolver, RequireResident
 from app.modules.notices.schemas import (
     NoticeCreate,
     NoticeOut,
@@ -24,7 +24,7 @@ async def create_notice(
     society_id: uuid.UUID,
     payload: NoticeCreate,
     user: User = Depends(get_current_user),
-    _auth = Depends(require_roles(["society_admin", "super_admin", "committee"])),
+    _auth = RequireNoticeAdmin,
     db: AsyncSession = Depends(get_db),
 ):
     service = NoticeService(db)
@@ -33,7 +33,7 @@ async def create_notice(
 @router.get("/notices", response_model=list[NoticeOut])
 async def list_notices(
     society_id: uuid.UUID,
-    _mem = Depends(require_society_membership),
+    _auth = RequireResident,
     db: AsyncSession = Depends(get_db),
 ):
     service = NoticeService(db)
@@ -44,7 +44,7 @@ async def list_notices(
 async def add_emergency_contact(
     society_id: uuid.UUID,
     payload: EmergencyContactCreate,
-    _auth = Depends(require_roles(["society_admin", "super_admin"])),
+    _auth = RequireNoticeAdmin,
     db: AsyncSession = Depends(get_db),
 ):
     service = NoticeService(db)
@@ -53,7 +53,7 @@ async def add_emergency_contact(
 @router.get("/emergency-contacts", response_model=list[EmergencyContactOut])
 async def list_emergency_contacts(
     society_id: uuid.UUID,
-    _mem = Depends(require_society_membership),
+    _auth = RequireResident,
     db: AsyncSession = Depends(get_db),
 ):
     service = NoticeService(db)
@@ -65,7 +65,7 @@ async def trigger_sos(
     society_id: uuid.UUID,
     payload: SOSCreate,
     user: User = Depends(get_current_user),
-    _mem = Depends(require_society_membership),
+    _auth = RequireResident,
     db: AsyncSession = Depends(get_db),
 ):
     service = NoticeService(db)
@@ -76,7 +76,7 @@ async def resolve_sos(
     society_id: uuid.UUID,
     sos_id: uuid.UUID,
     user: User = Depends(get_current_user),
-    _auth = Depends(require_roles(["society_admin", "guard", "super_admin"])),
+    _auth = RequireSOSResolver,
     db: AsyncSession = Depends(get_db),
 ):
     service = NoticeService(db)

@@ -24,6 +24,7 @@ from app.modules.marketplace.router import router as marketplace_router
 from app.modules.iot.router import router as iot_router
 from app.modules.automations.router import router as automations_router
 from app.modules.ai.router import router as ai_router
+from app.modules.notifications.ws_router import router as ws_router
 
 settings = get_settings()
 
@@ -51,16 +52,9 @@ async def lifespan(app: FastAPI):
     import app.modules.iot.models
     import app.modules.automations.models
 
-    try:
-        async with engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
-    except Exception as e:
-        print("Database schema init warning:", e)
-
     register_subscribers()
     yield
     # Shutdown
-    pass
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -115,6 +109,8 @@ app.include_router(marketplace_router, prefix=settings.API_V1_STR)
 app.include_router(iot_router, prefix=settings.API_V1_STR)
 app.include_router(automations_router, prefix=settings.API_V1_STR)
 app.include_router(ai_router, prefix=settings.API_V1_STR)
+
+app.include_router(ws_router)
 
 @app.get("/health", tags=["Health"])
 async def health_check():

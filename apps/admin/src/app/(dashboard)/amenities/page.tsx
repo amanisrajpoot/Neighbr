@@ -87,24 +87,7 @@ export default function AmenitiesAdminPage() {
       setName("");
       setCode("");
     } catch (err: any) {
-      // Local fallback
-      setAmenities([
-        ...amenities,
-        {
-          id: `amn-${Date.now()}`,
-          society_id: societyId || "soc-1",
-          name,
-          code: code.toUpperCase(),
-          category,
-          capacity_per_slot: parseInt(capacity) || 4,
-          slot_duration_minutes: parseInt(duration) || 60,
-          open_time: openTime,
-          close_time: closeTime,
-          is_paid: isPaid,
-          price_per_slot: parseFloat(price) || 0,
-          is_active: true,
-        },
-      ]);
+      setErrorMessage(err.message || "Failed to create facility in database.");
       setIsAddModalOpen(false);
     } finally {
       setIsSubmitting(false);

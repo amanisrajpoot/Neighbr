@@ -3,9 +3,9 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.middleware.tenancy import require_society_membership, require_roles
 from app.modules.audit.schemas import DashboardStatsOut, AuditEventOut
 from app.modules.audit.service import AuditService
+from app.modules.audit.permissions import RequireAuditAdmin
 
 router = APIRouter(prefix="/societies/{society_id}", tags=["Admin Dashboard & Audit"])
 
@@ -13,7 +13,7 @@ router = APIRouter(prefix="/societies/{society_id}", tags=["Admin Dashboard & Au
 @router.get("/audit/dashboard-stats", response_model=DashboardStatsOut)
 async def get_dashboard_stats(
     society_id: uuid.UUID,
-    _mem = Depends(require_society_membership),
+    _auth = RequireAuditAdmin,
     db: AsyncSession = Depends(get_db),
 ):
     service = AuditService(db)
@@ -23,7 +23,7 @@ async def get_dashboard_stats(
 async def list_audit_events(
     society_id: uuid.UUID,
     limit: int = 100,
-    _auth = Depends(require_roles(["society_admin", "super_admin"])),
+    _auth = RequireAuditAdmin,
     db: AsyncSession = Depends(get_db),
 ):
     service = AuditService(db)

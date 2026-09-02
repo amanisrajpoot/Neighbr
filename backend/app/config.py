@@ -36,8 +36,13 @@ class Settings(BaseSettings):
     CASHFREE_ENV: str = "TEST"  # "TEST" or "PROD"
     CASHFREE_API_VERSION: str = "2023-08-01"
     
+    # SMS
+    SMS_PROVIDER: str = "console"
+    MSG91_AUTH_KEY: str = ""
+    MSG91_OTP_TEMPLATE_ID: str = ""
+    
     # CORS
-    CORS_ORIGINS: list[str] = ["http://localhost:3000", "http://localhost:8081"]
+    CORS_ORIGINS: list[str] = ["http://localhost:3000", "http://localhost:3001", "http://localhost:8081"]
 
 @lru_cache()
 def get_settings() -> Settings:

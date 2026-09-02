@@ -64,7 +64,7 @@ export function useHelpdesk() {
       const endpoint = unitId
         ? `/societies/${societyId}/helpdesk/tickets?unit_id=${unitId}`
         : `/societies/${societyId}/helpdesk/tickets`;
-      return apiClient<TicketItem[]>(endpoint).catch(() => []);
+      return apiClient<TicketItem[]>(endpoint);
     },
     enabled: Boolean(societyId),
   });

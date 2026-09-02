@@ -1,13 +1,18 @@
 import uuid
 from datetime import datetime, timezone
-from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 from app.core.errors import AppException
 from app.core.events import event_bus, DomainEvent
 from app.modules.auth.models import User
 from app.modules.staff.models import StaffProfile, StaffAssignment, StaffAttendance
+from app.modules.staff.repository import StaffRepository
+from app.modules.staff.events import (
+    STAFF_CREATED,
+    STAFF_ASSIGNED,
+    STAFF_CHECKED_IN,
+    STAFF_CHECKED_OUT,
+)
 from app.modules.staff.schemas import (
     StaffCreate,
     StaffAssignRequest,
@@ -18,6 +23,7 @@ from app.modules.staff.schemas import (
 class StaffService:
     def __init__(self, db: AsyncSession):
         self.db = db
+        self.repo = StaffRepository(db)
 
     async def create_staff(self, society_id: uuid.UUID, payload: StaffCreate) -> StaffProfile:
         staff = StaffProfile(
@@ -29,16 +35,20 @@ class StaffService:
             id_proof_type=payload.id_proof_type,
             id_proof_number=payload.id_proof_number,
         )
-        self.db.add(staff)
-        await self.db.commit()
-        await self.db.refresh(staff)
+        await self.repo.save(staff)
+
+        await event_bus.publish(
+            DomainEvent(
+                society_id=str(society_id),
+                event_type=STAFF_CREATED,
+                entity_type="staff_profile",
+                entity_id=str(staff.id),
+            )
+        )
         return staff
 
     async def list_staff(self, society_id: uuid.UUID) -> list[StaffProfile]:
-        result = await self.db.execute(
-            select(StaffProfile).where(StaffProfile.society_id == society_id, StaffProfile.is_active.is_(True))
-        )
-        return list(result.scalars().all())
+        return await self.repo.list_staff(society_id)
 
     async def assign_staff(
         self, society_id: uuid.UUID, staff_id: uuid.UUID, payload: StaffAssignRequest, actor: User
@@ -50,30 +60,26 @@ class StaffService:
             schedule=payload.schedule,
             authorized_by=actor.id,
         )
-        self.db.add(assignment)
-        await self.db.commit()
-        await self.db.refresh(assignment)
+        await self.repo.save(assignment)
+
+        await event_bus.publish(
+            DomainEvent(
+                society_id=str(society_id),
+                actor_user_id=str(actor.id),
+                event_type=STAFF_ASSIGNED,
+                entity_type="staff_assignment",
+                entity_id=str(assignment.id),
+            )
+        )
         return assignment
 
     async def list_unit_staff(self, society_id: uuid.UUID, unit_id: uuid.UUID) -> list[StaffAssignment]:
-        result = await self.db.execute(
-            select(StaffAssignment)
-            .where(
-                StaffAssignment.society_id == society_id,
-                StaffAssignment.unit_id == unit_id,
-                StaffAssignment.is_active.is_(True),
-            )
-            .options(selectinload(StaffAssignment.staff), selectinload(StaffAssignment.unit))
-        )
-        return list(result.scalars().all())
+        return await self.repo.list_unit_staff(society_id, unit_id)
 
     async def record_attendance_in(
         self, society_id: uuid.UUID, staff_id: uuid.UUID, payload: StaffAttendanceCheckIn
     ) -> StaffAttendance:
-        existing = await self.db.execute(
-            select(StaffAttendance).where(StaffAttendance.idempotency_key == payload.idempotency_key)
-        )
-        att = existing.scalar_one_or_none()
+        att = await self.repo.get_attendance_by_idempotency_key(payload.idempotency_key)
         if att:
             return att
 
@@ -85,37 +91,39 @@ class StaffService:
             check_in_at=datetime.now(timezone.utc),
             idempotency_key=payload.idempotency_key,
         )
-        self.db.add(att)
-        await self.db.commit()
-        await self.db.refresh(att)
+        await self.repo.save(att)
+
+        await event_bus.publish(
+            DomainEvent(
+                society_id=str(society_id),
+                event_type=STAFF_CHECKED_IN,
+                entity_type="staff_attendance",
+                entity_id=str(att.id),
+            )
+        )
         return att
 
     async def record_attendance_out(
         self, society_id: uuid.UUID, staff_id: uuid.UUID, payload: StaffAttendanceCheckOut
     ) -> StaffAttendance:
-        existing = await self.db.execute(
-            select(StaffAttendance).where(StaffAttendance.idempotency_key == payload.idempotency_key)
-        )
-        att = existing.scalar_one_or_none()
+        att = await self.repo.get_attendance_by_idempotency_key(payload.idempotency_key)
         if att:
             return att
 
-        result = await self.db.execute(
-            select(StaffAttendance)
-            .where(
-                StaffAttendance.society_id == society_id,
-                StaffAttendance.staff_id == staff_id,
-                StaffAttendance.check_out_at.is_(None),
-            )
-            .order_by(StaffAttendance.check_in_at.desc())
-            .limit(1)
-        )
-        att = result.scalar_one_or_none()
+        att = await self.repo.get_active_attendance(society_id, staff_id)
         if not att:
             raise AppException(code="STAFF_NOT_CHECKED_IN", message="Staff is not checked in", status_code=400)
 
         att.check_out_at = datetime.now(timezone.utc)
         att.idempotency_key = payload.idempotency_key
-        await self.db.commit()
-        await self.db.refresh(att)
+        await self.repo.save(att)
+
+        await event_bus.publish(
+            DomainEvent(
+                society_id=str(society_id),
+                event_type=STAFF_CHECKED_OUT,
+                entity_type="staff_attendance",
+                entity_id=str(att.id),
+            )
+        )
         return att

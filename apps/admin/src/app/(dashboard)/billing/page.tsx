@@ -20,14 +20,14 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { api, InvoiceAdminItem, LedgerSummaryAdmin } from "@/lib/api";
 import { useSociety } from "@/context/SocietyContext";
 
-const DEFAULT_LEDGER: LedgerSummaryAdmin = {
-  total_billed: 105525,
-  total_collected: 73867.5,
-  total_outstanding: 31657.5,
-  collection_rate_pct: 70.0,
-  total_invoices: 30,
-  paid_invoices: 21,
-  overdue_invoices: 4,
+const EMPTY_LEDGER: LedgerSummaryAdmin = {
+  total_billed: 0,
+  total_collected: 0,
+  total_outstanding: 0,
+  collection_rate_pct: 0,
+  total_invoices: 0,
+  paid_invoices: 0,
+  overdue_invoices: 0,
 };
 
 export default function BillingAdminPage() {
@@ -35,7 +35,7 @@ export default function BillingAdminPage() {
   const societyId = currentSociety?.id;
 
   const [invoices, setInvoices] = useState<InvoiceAdminItem[]>([]);
-  const [ledger, setLedger] = useState<LedgerSummaryAdmin>(DEFAULT_LEDGER);
+  const [ledger, setLedger] = useState<LedgerSummaryAdmin>(EMPTY_LEDGER);
   const [activeFilter, setActiveFilter] = useState("ALL");
   const [searchQuery, setSearchQuery] = useState("");
   const [isBatchModalOpen, setIsBatchModalOpen] = useState(false);
@@ -53,10 +53,10 @@ export default function BillingAdminPage() {
     try {
       const [invList, ledgerData] = await Promise.all([
         api.getInvoices(societyId).catch(() => []),
-        api.getLedgerSummary(societyId).catch(() => DEFAULT_LEDGER),
+        api.getLedgerSummary(societyId).catch(() => EMPTY_LEDGER),
       ]);
       setInvoices(invList);
-      setLedger(ledgerData || DEFAULT_LEDGER);
+      setLedger(ledgerData || EMPTY_LEDGER);
     } catch (err) {
       console.warn("Failed to load billing data:", err);
     }

@@ -1,14 +1,18 @@
 import uuid
 import secrets
 from datetime import datetime, timezone, date, timedelta, time
-from sqlalchemy import select, and_
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 from app.core.errors import AppException
 from app.core.events import event_bus, DomainEvent
 from app.modules.auth.models import User
 from app.modules.amenities.models import Amenity, AmenityBooking
+from app.modules.amenities.repository import AmenityRepository
+from app.modules.amenities.events import (
+    AMENITY_CREATED,
+    AMENITY_BOOKED,
+    BOOKING_CANCELLED,
+)
 from app.modules.amenities.schemas import (
     AmenityCreate,
     BookingCreate,
@@ -21,6 +25,7 @@ def _generate_amenity_qr(amenity_code: str, booking_id: uuid.UUID) -> str:
 class AmenityService:
     def __init__(self, db: AsyncSession):
         self.db = db
+        self.repo = AmenityRepository(db)
 
     async def create_amenity(self, society_id: uuid.UUID, payload: AmenityCreate) -> Amenity:
         amenity = Amenity(
@@ -38,22 +43,24 @@ class AmenityService:
             is_paid=payload.is_paid,
             price_per_slot=payload.price_per_slot,
         )
-        self.db.add(amenity)
-        await self.db.commit()
-        await self.db.refresh(amenity)
+        await self.repo.save(amenity)
+
+        await event_bus.publish(
+            DomainEvent(
+                society_id=str(society_id),
+                event_type=AMENITY_CREATED,
+                entity_type="amenity",
+                entity_id=str(amenity.id),
+                payload={"name": amenity.name},
+            )
+        )
         return amenity
 
     async def list_amenities(self, society_id: uuid.UUID) -> list[Amenity]:
-        result = await self.db.execute(
-            select(Amenity).where(Amenity.society_id == society_id, Amenity.is_active.is_(True)).order_by(Amenity.name)
-        )
-        return list(result.scalars().all())
+        return await self.repo.list_amenities(society_id)
 
     async def get_amenity(self, society_id: uuid.UUID, amenity_id: uuid.UUID) -> Amenity:
-        result = await self.db.execute(
-            select(Amenity).where(Amenity.id == amenity_id, Amenity.society_id == society_id)
-        )
-        amenity = result.scalar_one_or_none()
+        amenity = await self.repo.get_amenity_by_id(society_id, amenity_id)
         if not amenity:
             raise AppException(code="AMENITY_NOT_FOUND", message="Clubhouse amenity not found", status_code=404)
         return amenity
@@ -67,14 +74,7 @@ class AmenityService:
         duration = amenity.slot_duration_minutes or 60
 
         # Fetch active bookings for target date
-        res = await self.db.execute(
-            select(AmenityBooking).where(
-                AmenityBooking.amenity_id == amenity_id,
-                AmenityBooking.booking_date == target_date,
-                AmenityBooking.status == "CONFIRMED",
-            )
-        )
-        existing_bookings = res.scalars().all()
+        existing_bookings = await self.repo.get_active_bookings_for_date(amenity_id, target_date)
 
         current = datetime.combine(target_date, time(open_h, open_m))
         end = datetime.combine(target_date, time(close_h, close_m))
@@ -112,15 +112,7 @@ class AmenityService:
         amenity = await self.get_amenity(society_id, amenity_id)
 
         # Check existing bookings for capacity
-        res = await self.db.execute(
-            select(AmenityBooking).where(
-                AmenityBooking.amenity_id == amenity_id,
-                AmenityBooking.booking_date == payload.booking_date,
-                AmenityBooking.start_time == payload.start_time,
-                AmenityBooking.status == "CONFIRMED",
-            )
-        )
-        bookings = res.scalars().all()
+        bookings = await self.repo.get_active_bookings_for_slot(amenity_id, payload.booking_date, payload.start_time)
         current_booked = sum(b.guest_count for b in bookings)
 
         if current_booked + payload.guest_count > amenity.capacity_per_slot:
@@ -148,15 +140,13 @@ class AmenityService:
             status="CONFIRMED",
             qr_pass=qr_pass,
         )
-        self.db.add(booking)
-        await self.db.commit()
-        await self.db.refresh(booking)
+        await self.repo.save(booking)
 
         await event_bus.publish(
             DomainEvent(
                 society_id=str(society_id),
                 actor_user_id=str(user.id),
-                event_type="AMENITY_BOOKED",
+                event_type=AMENITY_BOOKED,
                 entity_type="amenity_booking",
                 entity_id=str(booking.id),
                 payload={"amenity_name": amenity.name, "booking_date": str(payload.booking_date), "start_time": payload.start_time},
@@ -167,38 +157,26 @@ class AmenityService:
     async def list_bookings(
         self, society_id: uuid.UUID, unit_id: uuid.UUID | None = None, user_id: uuid.UUID | None = None, amenity_id: uuid.UUID | None = None
     ) -> list[AmenityBooking]:
-        query = (
-            select(AmenityBooking)
-            .where(AmenityBooking.society_id == society_id)
-            .options(
-                selectinload(AmenityBooking.amenity),
-                selectinload(AmenityBooking.user),
-                selectinload(AmenityBooking.unit),
-            )
-        )
-        if unit_id:
-            query = query.where(AmenityBooking.unit_id == unit_id)
-        if user_id:
-            query = query.where(AmenityBooking.booked_by == user_id)
-        if amenity_id:
-            query = query.where(AmenityBooking.amenity_id == amenity_id)
-
-        query = query.order_by(AmenityBooking.booking_date.desc(), AmenityBooking.start_time.desc())
-        result = await self.db.execute(query)
-        return list(result.scalars().all())
+        return await self.repo.list_bookings(society_id, unit_id, user_id, amenity_id)
 
     async def cancel_booking(
         self, society_id: uuid.UUID, booking_id: uuid.UUID, user: User, reason: str | None = None
     ) -> AmenityBooking:
-        result = await self.db.execute(
-            select(AmenityBooking).where(AmenityBooking.id == booking_id, AmenityBooking.society_id == society_id)
-        )
-        booking = result.scalar_one_or_none()
+        booking = await self.repo.get_booking_by_id(society_id, booking_id)
         if not booking:
             raise AppException(code="BOOKING_NOT_FOUND", message="Booking record not found", status_code=404)
 
         booking.status = "CANCELLED"
         booking.cancellation_reason = reason or "Cancelled by resident"
-        await self.db.commit()
-        await self.db.refresh(booking)
+        await self.repo.save(booking)
+
+        await event_bus.publish(
+            DomainEvent(
+                society_id=str(society_id),
+                actor_user_id=str(user.id),
+                event_type=BOOKING_CANCELLED,
+                entity_type="amenity_booking",
+                entity_id=str(booking.id),
+            )
+        )
         return booking

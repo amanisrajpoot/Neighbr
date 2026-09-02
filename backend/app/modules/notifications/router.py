@@ -3,8 +3,8 @@ from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.dependencies import get_current_user
 from app.modules.auth.models import User
+from app.modules.notifications.permissions import RequireAuth
 from app.modules.notifications.schemas import NotificationOut, UnreadCountResponse
 from app.modules.notifications.service import NotificationService
 
@@ -12,7 +12,7 @@ router = APIRouter(prefix="/notifications", tags=["Notifications"])
 
 @router.get("", response_model=list[NotificationOut])
 async def list_my_notifications(
-    user: User = Depends(get_current_user),
+    user: User = RequireAuth,
     db: AsyncSession = Depends(get_db),
 ):
     service = NotificationService(db)
@@ -20,7 +20,7 @@ async def list_my_notifications(
 
 @router.get("/unread-count", response_model=UnreadCountResponse)
 async def get_unread_count(
-    user: User = Depends(get_current_user),
+    user: User = RequireAuth,
     db: AsyncSession = Depends(get_db),
 ):
     service = NotificationService(db)
@@ -30,7 +30,7 @@ async def get_unread_count(
 @router.post("/{notification_id}/read", response_model=NotificationOut | None)
 async def mark_notification_read(
     notification_id: uuid.UUID,
-    user: User = Depends(get_current_user),
+    user: User = RequireAuth,
     db: AsyncSession = Depends(get_db),
 ):
     service = NotificationService(db)
@@ -38,7 +38,7 @@ async def mark_notification_read(
 
 @router.post("/read-all", status_code=status.HTTP_204_NO_CONTENT)
 async def mark_all_notifications_read(
-    user: User = Depends(get_current_user),
+    user: User = RequireAuth,
     db: AsyncSession = Depends(get_db),
 ):
     service = NotificationService(db)

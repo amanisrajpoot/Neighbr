@@ -42,7 +42,7 @@ export function useVehicles() {
       const endpoint = unitId
         ? `/societies/${societyId}/vehicles?unit_id=${unitId}`
         : `/societies/${societyId}/vehicles`;
-      return apiClient<VehicleItem[]>(endpoint).catch(() => []);
+      return apiClient<VehicleItem[]>(endpoint);
     },
     enabled: Boolean(societyId),
   });

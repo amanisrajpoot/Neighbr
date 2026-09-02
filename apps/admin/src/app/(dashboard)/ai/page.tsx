@@ -73,12 +73,8 @@ export default function AIAssistantAdminPage() {
       });
       setDraftedNotice(res);
     } catch (e) {
-      setDraftedNotice({
-        title: `Notice: ${topic.trim()}`,
-        body: `Dear Residents,\n\nPlease be advised regarding ${topic.trim()}:\n\n${bulletPoints}\n\nThank you for your cooperation.\n\nManagement Committee`,
-        category: "maintenance",
-        priority: "urgent",
-      });
+      alert("Failed to generate notice via AI.");
+      setDraftedNotice(null);
     } finally {
       setIsGenerating(false);
     }
@@ -98,8 +94,7 @@ export default function AIAssistantAdminPage() {
       alert("Notice published and broadcasted to all resident devices! 🚀");
       setDraftedNotice(null);
     } catch (e) {
-      alert("Notice published successfully!");
-      setDraftedNotice(null);
+      alert("Failed to publish notice.");
     } finally {
       setIsPublishing(false);
     }

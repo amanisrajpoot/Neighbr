@@ -24,23 +24,14 @@ export default function CommandDashboardPage() {
   const [stats, setStats] = useState<DashboardStats>({
     active_visitors_inside: 0,
     guards_on_duty: 0,
-    total_units: 11,
-    occupied_units: 7,
-    active_notices: 3,
+    total_units: 0,
+    occupied_units: 0,
+    active_notices: 0,
     open_sos_alerts: 0,
   });
 
-  const [gates, setGates] = useState<GateItem[]>([
-    { id: "gate-1", name: "Main North Gate", code: "GATE-01", gate_type: "entry_exit", is_online: true },
-    { id: "gate-2", name: "East Resident Gate", code: "GATE-02", gate_type: "entry_exit", is_online: true },
-    { id: "gate-3", name: "South Service Gate", code: "GATE-03", gate_type: "service", is_online: true },
-  ]);
-
-  const [activity, setActivity] = useState<VisitorPassItem[]>([
-    { id: "pass-1", visitor_name: "Ananya Roy", pass_type: "guest", unit_number: "Villa-42", status: "INSIDE", valid_until: "10m ago" },
-    { id: "pass-2", visitor_name: "Swiggy Delivery Partner", pass_type: "delivery", unit_number: "A-102", status: "CHECKED_OUT", valid_until: "25m ago" },
-    { id: "pass-3", visitor_name: "Uber Premier", pass_type: "cab", unit_number: "A-302", status: "APPROVED", valid_until: "1h ago" },
-  ]);
+  const [gates, setGates] = useState<GateItem[]>([]);
+  const [activity, setActivity] = useState<VisitorPassItem[]>([]);
 
   const [isBroadcastModalOpen, setIsBroadcastModalOpen] = useState(false);
   const [alertTitle, setAlertTitle] = useState("");
@@ -60,8 +51,8 @@ export default function CommandDashboardPage() {
       ]);
 
       if (sData) setStats(sData);
-      if (gData.length > 0) setGates(gData);
-      if (pData.length > 0) setActivity(pData);
+      setGates(gData);
+      setActivity(pData);
     } catch (err) {
       console.warn("Failed to load dashboard stats:", err);
     } finally {

@@ -1,14 +1,17 @@
 import uuid
 from datetime import datetime, timezone
-from sqlalchemy import select, update, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.events import event_bus, DomainEvent
 from app.modules.notifications.models import Notification, NotificationDelivery
+from app.modules.notifications.repository import NotificationRepository
+from app.modules.notifications.events import NOTIFICATION_SENT, NOTIFICATION_READ
 from app.modules.notifications.schemas import NotificationCreate
 
 class NotificationService:
     def __init__(self, db: AsyncSession):
         self.db = db
+        self.repo = NotificationRepository(db)
 
     async def create_notification(
         self, society_id: uuid.UUID | None, payload: NotificationCreate
@@ -22,8 +25,7 @@ class NotificationService:
             action_type=payload.action_type,
             action_data=payload.action_data,
         )
-        self.db.add(notif)
-        await self.db.flush()
+        await self.repo.flush(notif)
 
         delivery = NotificationDelivery(
             notification_id=notif.id,
@@ -32,48 +34,48 @@ class NotificationService:
             sent_at=datetime.now(timezone.utc),
         )
         self.db.add(delivery)
-        await self.db.commit()
+        await self.repo.commit()
         await self.db.refresh(notif)
+
+        await event_bus.publish(
+            DomainEvent(
+                society_id=str(society_id) if society_id else "",
+                actor_user_id="SYSTEM",
+                event_type=NOTIFICATION_SENT,
+                entity_type="notification",
+                entity_id=str(notif.id),
+                payload={"title": notif.title, "recipient_id": str(payload.recipient_user_id)},
+            )
+        )
         return notif
 
     async def list_notifications(
         self, user_id: uuid.UUID, limit: int = 50
     ) -> list[Notification]:
-        result = await self.db.execute(
-            select(Notification)
-            .where(Notification.recipient_user_id == user_id)
-            .order_by(Notification.created_at.desc())
-            .limit(limit)
-        )
-        return list(result.scalars().all())
+        return await self.repo.list_notifications(user_id, limit)
 
     async def mark_read(self, user_id: uuid.UUID, notification_id: uuid.UUID) -> Notification | None:
-        result = await self.db.execute(
-            select(Notification).where(
-                Notification.id == notification_id,
-                Notification.recipient_user_id == user_id,
-            )
-        )
-        notif = result.scalar_one_or_none()
+        notif = await self.repo.get_notification(user_id, notification_id)
         if notif:
             notif.is_read = True
             notif.read_at = datetime.now(timezone.utc)
-            await self.db.commit()
+            await self.repo.commit()
             await self.db.refresh(notif)
+
+            await event_bus.publish(
+                DomainEvent(
+                    society_id=str(notif.society_id) if notif.society_id else "",
+                    actor_user_id=str(user_id),
+                    event_type=NOTIFICATION_READ,
+                    entity_type="notification",
+                    entity_id=str(notif.id),
+                    payload={},
+                )
+            )
         return notif
 
     async def mark_all_read(self, user_id: uuid.UUID):
-        await self.db.execute(
-            update(Notification)
-            .where(Notification.recipient_user_id == user_id, Notification.is_read.is_(False))
-            .values(is_read=True, read_at=datetime.now(timezone.utc))
-        )
-        await self.db.commit()
+        await self.repo.mark_all_read(user_id)
 
     async def get_unread_count(self, user_id: uuid.UUID) -> int:
-        result = await self.db.execute(
-            select(func.count(Notification.id)).where(
-                Notification.recipient_user_id == user_id, Notification.is_read.is_(False)
-            )
-        )
-        return result.scalar_one() or 0
+        return await self.repo.get_unread_count(user_id)

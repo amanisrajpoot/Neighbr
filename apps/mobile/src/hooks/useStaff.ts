@@ -40,9 +40,9 @@ export function useStaff() {
     queryKey: ["unitStaff", societyId, unitId],
     queryFn: async () => {
       if (!societyId || !unitId) return [];
-      return apiClient<StaffAssignment[]>(
-        `/societies/${societyId}/staff/units/${unitId}`
-      ).catch(() => []);
+      return apiClient<StaffMember[]>(
+        `/societies/${societyId}/units/${unitId}/staff`
+      );
     },
     enabled: Boolean(societyId && unitId),
   });
@@ -55,7 +55,7 @@ export function useStaff() {
     queryKey: ["allStaff", societyId],
     queryFn: async () => {
       if (!societyId) return [];
-      return apiClient<StaffMember[]>(`/societies/${societyId}/staff`).catch(() => []);
+      return apiClient<StaffMember[]>(`/societies/${societyId}/staff`);
     },
     enabled: Boolean(societyId),
   });

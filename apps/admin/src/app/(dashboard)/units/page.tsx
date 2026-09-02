@@ -34,29 +34,11 @@ export default function UnitsPage() {
         api.getUnits(societyId).catch(() => []),
       ]);
 
+      setBuildings(bList);
       if (bList.length > 0) {
-        setBuildings(bList);
         setBuildingId((prev) => prev || bList[0].id);
-      } else {
-        const defaultBuildings = [
-          { id: "bldg-1", name: "Tower A (Oakwood)", code: "TWR-A", total_floors: 12 },
-          { id: "bldg-2", name: "Tower B (Pinecrest)", code: "TWR-B", total_floors: 12 },
-          { id: "bldg-3", name: "Villas & Penthouses", code: "VILLAS", total_floors: 3 },
-        ];
-        setBuildings(defaultBuildings);
-        setBuildingId((prev) => prev || defaultBuildings[0].id);
       }
-
-      if (uList.length > 0) {
-        setUnits(uList);
-      } else {
-        setUnits([
-          { id: "u-1", unit_number: "A-101", unit_type: "apartment", is_occupied: true, resident_name: "Aman Sharma" },
-          { id: "u-2", unit_number: "A-102", unit_type: "apartment", is_occupied: true, resident_name: "Pooja Verma" },
-          { id: "u-3", unit_number: "A-103", unit_type: "apartment", is_occupied: false },
-          { id: "u-4", unit_number: "Villa-42", unit_type: "villa", is_occupied: true, resident_name: "Siddharth Verma" },
-        ]);
-      }
+      setUnits(uList);
     } catch (err) {
       console.warn("Failed to load units from backend:", err);
     } finally {

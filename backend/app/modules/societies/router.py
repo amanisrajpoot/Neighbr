@@ -4,9 +4,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.dependencies import get_current_user
-from app.middleware.tenancy import require_society_membership, require_roles
 from app.modules.auth.models import User
 from app.modules.societies.models import UnitMembership
+from app.modules.societies.permissions import RequireSocietyAdmin, RequireSocietyMember
 from app.modules.societies.schemas import (
     SocietyCreate,
     SocietyUpdate,
@@ -66,7 +66,7 @@ async def get_society(
 async def update_society(
     society_id: uuid.UUID,
     payload: SocietyUpdate,
-    _auth = Depends(require_roles(["society_admin", "super_admin"])),
+    _auth = RequireSocietyAdmin,
     db: AsyncSession = Depends(get_db),
 ):
     service = SocietyService(db)
@@ -75,7 +75,7 @@ async def update_society(
 @router.get("/{society_id}/settings", response_model=SocietySettingsOut)
 async def get_society_settings(
     society_id: uuid.UUID,
-    _mem = Depends(require_society_membership),
+    _mem = RequireSocietyMember,
     db: AsyncSession = Depends(get_db),
 ):
     service = SocietyService(db)
@@ -85,7 +85,7 @@ async def get_society_settings(
 async def update_society_settings(
     society_id: uuid.UUID,
     payload: SocietySettingsUpdate,
-    _auth = Depends(require_roles(["society_admin", "super_admin"])),
+    _auth = RequireSocietyAdmin,
     db: AsyncSession = Depends(get_db),
 ):
     service = SocietyService(db)
@@ -96,7 +96,7 @@ async def update_society_settings(
 async def create_building(
     society_id: uuid.UUID,
     payload: BuildingCreate,
-    _auth = Depends(require_roles(["society_admin", "super_admin"])),
+    _auth = RequireSocietyAdmin,
     db: AsyncSession = Depends(get_db),
 ):
     service = SocietyService(db)
@@ -105,7 +105,7 @@ async def create_building(
 @router.get("/{society_id}/buildings", response_model=list[BuildingOut])
 async def list_buildings(
     society_id: uuid.UUID,
-    _mem = Depends(require_society_membership),
+    _mem = RequireSocietyMember,
     db: AsyncSession = Depends(get_db),
 ):
     service = SocietyService(db)
@@ -117,7 +117,7 @@ async def create_floor(
     society_id: uuid.UUID,
     building_id: uuid.UUID,
     payload: FloorCreate,
-    _auth = Depends(require_roles(["society_admin", "super_admin"])),
+    _auth = RequireSocietyAdmin,
     db: AsyncSession = Depends(get_db),
 ):
     service = SocietyService(db)
@@ -128,7 +128,7 @@ async def create_floor(
 async def create_unit(
     society_id: uuid.UUID,
     payload: UnitCreate,
-    _auth = Depends(require_roles(["society_admin", "super_admin"])),
+    _auth = RequireSocietyAdmin,
     db: AsyncSession = Depends(get_db),
 ):
     service = SocietyService(db)
@@ -138,7 +138,7 @@ async def create_unit(
 async def bulk_create_units(
     society_id: uuid.UUID,
     payload: UnitBulkCreate,
-    _auth = Depends(require_roles(["society_admin", "super_admin"])),
+    _auth = RequireSocietyAdmin,
     db: AsyncSession = Depends(get_db),
 ):
     service = SocietyService(db)
@@ -148,7 +148,7 @@ async def bulk_create_units(
 async def list_units(
     society_id: uuid.UUID,
     building_id: uuid.UUID | None = None,
-    _mem = Depends(require_society_membership),
+    _mem = RequireSocietyMember,
     db: AsyncSession = Depends(get_db),
 ):
     service = SocietyService(db)
@@ -161,7 +161,7 @@ async def add_member(
     society_id: uuid.UUID,
     payload: AddMemberRequest,
     user: User = Depends(get_current_user),
-    _auth = Depends(require_roles(["society_admin", "super_admin"])),
+    _auth = RequireSocietyAdmin,
     db: AsyncSession = Depends(get_db),
 ):
     service = SocietyService(db)
@@ -171,7 +171,7 @@ async def add_member(
 @router.get("/{society_id}/residents", response_model=list[MembershipOut])
 async def list_members(
     society_id: uuid.UUID,
-    _mem = Depends(require_society_membership),
+    _mem = RequireSocietyMember,
     db: AsyncSession = Depends(get_db),
 ):
     service = SocietyService(db)
@@ -183,7 +183,7 @@ async def add_family_member(
     society_id: uuid.UUID,
     membership_id: uuid.UUID,
     payload: FamilyMemberCreate,
-    _mem = Depends(require_society_membership),
+    _mem = RequireSocietyMember,
     db: AsyncSession = Depends(get_db),
 ):
     service = SocietyService(db)
@@ -193,7 +193,7 @@ async def add_family_member(
 async def list_family_members(
     society_id: uuid.UUID,
     membership_id: uuid.UUID,
-    _mem = Depends(require_society_membership),
+    _mem = RequireSocietyMember,
     db: AsyncSession = Depends(get_db),
 ):
     service = SocietyService(db)

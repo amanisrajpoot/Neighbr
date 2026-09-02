@@ -1,15 +1,17 @@
 import uuid
 import secrets
 from datetime import datetime, timezone, date
-from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 from app.core.errors import AppException
 from app.core.events import event_bus, DomainEvent
 from app.modules.auth.models import User
-from app.modules.societies.models import Unit
 from app.modules.billing.models import Invoice, PaymentTransaction
+from app.modules.billing.repository import BillingRepository
+from app.modules.billing.events import (
+    INVOICES_GENERATED,
+    INVOICE_PAID,
+)
 from app.modules.billing.schemas import (
     BatchInvoiceCreate,
     PayInvoiceRequest,
@@ -19,15 +21,13 @@ from app.modules.billing.schemas import (
 class BillingService:
     def __init__(self, db: AsyncSession):
         self.db = db
+        self.repo = BillingRepository(db)
 
     async def generate_batch_invoices(
         self, society_id: uuid.UUID, payload: BatchInvoiceCreate, author: User
     ) -> list[Invoice]:
         # Fetch all units in society
-        units_res = await self.db.execute(
-            select(Unit).where(Unit.society_id == society_id)
-        )
-        units = units_res.scalars().all()
+        units = await self.repo.get_units(society_id)
         if not units:
             raise AppException(code="NO_UNITS_FOUND", message="No residential units found in this society", status_code=400)
 
@@ -59,16 +59,16 @@ class BillingService:
                 status="UNPAID",
                 line_items=line_items,
             )
-            self.db.add(invoice)
+            self.repo.add(invoice)
             created_invoices.append(invoice)
 
-        await self.db.commit()
+        await self.repo.commit()
 
         await event_bus.publish(
             DomainEvent(
                 society_id=str(society_id),
                 actor_user_id=str(author.id),
-                event_type="INVOICES_GENERATED",
+                event_type=INVOICES_GENERATED,
                 entity_type="billing_batch",
                 payload={"count": len(created_invoices), "period": payload.billing_period},
             )
@@ -78,33 +78,10 @@ class BillingService:
     async def list_invoices(
         self, society_id: uuid.UUID, unit_id: uuid.UUID | None = None, status_filter: str | None = None
     ) -> list[Invoice]:
-        query = (
-            select(Invoice)
-            .where(Invoice.society_id == society_id)
-            .options(
-                selectinload(Invoice.unit),
-                selectinload(Invoice.transactions).selectinload(PaymentTransaction.user),
-            )
-        )
-        if unit_id:
-            query = query.where(Invoice.unit_id == unit_id)
-        if status_filter:
-            query = query.where(Invoice.status == status_filter.upper())
-
-        query = query.order_by(Invoice.created_at.desc())
-        result = await self.db.execute(query)
-        return list(result.scalars().all())
+        return await self.repo.list_invoices(society_id, unit_id, status_filter)
 
     async def get_invoice(self, society_id: uuid.UUID, invoice_id: uuid.UUID) -> Invoice:
-        result = await self.db.execute(
-            select(Invoice)
-            .where(Invoice.id == invoice_id, Invoice.society_id == society_id)
-            .options(
-                selectinload(Invoice.unit),
-                selectinload(Invoice.transactions).selectinload(PaymentTransaction.user),
-            )
-        )
-        invoice = result.scalar_one_or_none()
+        invoice = await self.repo.get_invoice(society_id, invoice_id)
         if not invoice:
             raise AppException(code="INVOICE_NOT_FOUND", message="Invoice not found", status_code=404)
         return invoice
@@ -131,7 +108,7 @@ class BillingService:
             amount=pay_amount,
             status="SUCCESS",
         )
-        self.db.add(transaction)
+        self.repo.add(transaction)
 
         invoice.paid_amount = float(invoice.paid_amount) + pay_amount
         if invoice.paid_amount >= float(invoice.total_amount):
@@ -140,14 +117,15 @@ class BillingService:
         else:
             invoice.status = "PARTIAL"
 
-        await self.db.commit()
+        await self.repo.commit()
+        # Ensure transaction has generated id
         await self.db.refresh(transaction)
 
         await event_bus.publish(
             DomainEvent(
                 society_id=str(society_id),
                 actor_user_id=str(user.id),
-                event_type="INVOICE_PAID",
+                event_type=INVOICE_PAID,
                 entity_type="billing_transaction",
                 entity_id=str(transaction.id),
                 payload={"invoice_number": invoice.invoice_number, "amount": pay_amount},
@@ -156,10 +134,7 @@ class BillingService:
         return transaction
 
     async def get_ledger_summary(self, society_id: uuid.UUID) -> LedgerSummary:
-        invoices_res = await self.db.execute(
-            select(Invoice).where(Invoice.society_id == society_id)
-        )
-        invoices = invoices_res.scalars().all()
+        invoices = await self.repo.get_all_invoices(society_id)
 
         total_billed = sum(float(i.total_amount) for i in invoices)
         total_collected = sum(float(i.paid_amount) for i in invoices)

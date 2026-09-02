@@ -46,6 +46,41 @@ async def list_passes(
     user_filter = None if is_staff else user.id
     return await service.list_passes(society_id, unit_id=unit_id, user_id=user_filter)
 
+# Pass State Transitions (Approval Flow)
+@router.post("/societies/{society_id}/visitors/passes/{pass_id}/approve", response_model=VisitorPassOut)
+async def approve_pass(
+    society_id: uuid.UUID,
+    pass_id: uuid.UUID,
+    user: User = Depends(get_current_user),
+    _mem = Depends(require_society_membership),
+    db: AsyncSession = Depends(get_db),
+):
+    service = VisitorService(db)
+    return await service.approve_pass(society_id, pass_id, user)
+
+@router.post("/societies/{society_id}/visitors/passes/{pass_id}/reject", response_model=VisitorPassOut)
+async def reject_pass(
+    society_id: uuid.UUID,
+    pass_id: uuid.UUID,
+    user: User = Depends(get_current_user),
+    _mem = Depends(require_society_membership),
+    db: AsyncSession = Depends(get_db),
+):
+    service = VisitorService(db)
+    return await service.reject_pass(society_id, pass_id, user)
+
+@router.post("/societies/{society_id}/visitors/passes/{pass_id}/revoke", response_model=VisitorPassOut)
+async def revoke_pass(
+    society_id: uuid.UUID,
+    pass_id: uuid.UUID,
+    user: User = Depends(get_current_user),
+    _mem = Depends(require_society_membership),
+    db: AsyncSession = Depends(get_db),
+):
+    service = VisitorService(db)
+    return await service.revoke_pass(society_id, pass_id, user)
+
+
 # Gatekeeping & Scanning
 @router.post("/societies/{society_id}/gates/{gate_id}/scan", response_model=VisitorPassOut)
 async def scan_pass(

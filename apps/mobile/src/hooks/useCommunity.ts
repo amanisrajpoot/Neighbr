@@ -62,7 +62,7 @@ export function useCommunity() {
     queryKey: ["communityPosts", societyId],
     queryFn: async () => {
       if (!societyId) return [];
-      return apiClient<PostItem[]>(`/societies/${societyId}/community/posts`).catch(() => []);
+      return apiClient<PostItem[]>(`/societies/${societyId}/community/posts`);
     },
     enabled: Boolean(societyId),
   });
@@ -76,7 +76,7 @@ export function useCommunity() {
     queryKey: ["communityPolls", societyId],
     queryFn: async () => {
       if (!societyId) return [];
-      return apiClient<PollItem[]>(`/societies/${societyId}/community/polls`).catch(() => []);
+      return apiClient<PollItem[]>(`/societies/${societyId}/community/polls`);
     },
     enabled: Boolean(societyId),
   });

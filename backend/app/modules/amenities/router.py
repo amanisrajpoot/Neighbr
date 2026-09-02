@@ -5,8 +5,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.dependencies import get_current_user
-from app.middleware.tenancy import require_society_membership, require_roles
 from app.modules.auth.models import User
+from app.modules.amenities.permissions import RequireAmenitiesAdmin, RequireResident
 from app.modules.amenities.schemas import (
     AmenityCreate,
     AmenityOut,
@@ -44,7 +44,7 @@ def _format_booking(b) -> BookingOut:
 async def create_amenity(
     society_id: uuid.UUID,
     payload: AmenityCreate,
-    _auth = Depends(require_roles(["society_admin", "super_admin"])),
+    _auth = RequireAmenitiesAdmin,
     db: AsyncSession = Depends(get_db),
 ):
     service = AmenityService(db)
@@ -53,7 +53,7 @@ async def create_amenity(
 @router.get("", response_model=list[AmenityOut])
 async def list_amenities(
     society_id: uuid.UUID,
-    _mem = Depends(require_society_membership),
+    _auth = RequireResident,
     db: AsyncSession = Depends(get_db),
 ):
     service = AmenityService(db)
@@ -64,7 +64,7 @@ async def get_amenity_slots(
     society_id: uuid.UUID,
     amenity_id: uuid.UUID,
     date: date = Query(default_factory=date.today),
-    _mem = Depends(require_society_membership),
+    _auth = RequireResident,
     db: AsyncSession = Depends(get_db),
 ):
     service = AmenityService(db)
@@ -76,7 +76,7 @@ async def book_amenity(
     amenity_id: uuid.UUID,
     payload: BookingCreate,
     user: User = Depends(get_current_user),
-    _mem = Depends(require_society_membership),
+    _auth = RequireResident,
     db: AsyncSession = Depends(get_db),
 ):
     service = AmenityService(db)
@@ -91,7 +91,7 @@ async def list_bookings(
     unit_id: uuid.UUID | None = None,
     user_id: uuid.UUID | None = None,
     amenity_id: uuid.UUID | None = None,
-    _mem = Depends(require_society_membership),
+    _auth = RequireResident,
     db: AsyncSession = Depends(get_db),
 ):
     service = AmenityService(db)
@@ -104,7 +104,7 @@ async def cancel_booking(
     booking_id: uuid.UUID,
     payload: BookingCancelRequest = None,
     user: User = Depends(get_current_user),
-    _mem = Depends(require_society_membership),
+    _auth = RequireResident,
     db: AsyncSession = Depends(get_db),
 ):
     service = AmenityService(db)

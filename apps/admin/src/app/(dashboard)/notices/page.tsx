@@ -29,36 +29,7 @@ export default function NoticesPage() {
     try {
       setIsLoading(true);
       const list = await api.getNotices(societyId).catch(() => []);
-      setNotices(
-        list.length > 0
-          ? list
-          : [
-              {
-                id: "not-1",
-                title: "Annual General Body Meeting (AGM) 2026",
-                body: "Notice is hereby given that the AGM of Greenwood Palms Heights will be held on Sunday at 10:30 AM in the Clubhouse Banquet Hall.",
-                category: "general",
-                priority: "normal",
-                created_at: "2026-08-15",
-              },
-              {
-                id: "not-2",
-                title: "Scheduled Water Supply Maintenance (Tower A & B)",
-                body: "Overhead water tank cleaning is scheduled from 02:00 PM to 06:00 PM. Please store sufficient water.",
-                category: "maintenance",
-                priority: "high",
-                created_at: "2026-08-16",
-              },
-              {
-                id: "not-3",
-                title: "🚨 Heavy Rain Alert & Basement Parking Precaution",
-                body: "IMD forecast predicts severe waterlogging. All residents are requested to park vehicles on elevated ground floors.",
-                category: "emergency",
-                priority: "urgent",
-                created_at: "2026-08-17",
-              },
-            ]
-      );
+      setNotices(list);
     } catch (err) {
       console.warn("Failed to load notices:", err);
     } finally {

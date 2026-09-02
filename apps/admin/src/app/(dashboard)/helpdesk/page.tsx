@@ -75,14 +75,7 @@ export default function HelpdeskAdminPage() {
       setCommentText("");
       setResolutionNotes("");
     } catch (e: any) {
-      // update local
-      setTickets(
-        tickets.map((t) =>
-          t.id === selectedTicket.id
-            ? { ...t, status: newStatus as any, resolution_notes: resolutionNotes }
-            : t
-        )
-      );
+      alert("Failed to update ticket.");
       setSelectedTicket(null);
     } finally {
       setIsSubmitting(false);

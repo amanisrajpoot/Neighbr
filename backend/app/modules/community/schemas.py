@@ -72,3 +72,14 @@ class PollOut(BaseModel):
     user_voted_option: int | None = None
     is_active: bool
     created_at: datetime
+
+class PollVoteOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    poll_id: uuid.UUID
+    user_id: uuid.UUID
+    unit_id: uuid.UUID | None = None
+    option_index: int
+    voted_at: datetime
+

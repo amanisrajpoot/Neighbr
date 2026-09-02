@@ -4,8 +4,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.dependencies import get_current_user
-from app.middleware.tenancy import require_society_membership, require_roles
 from app.modules.auth.models import User
+from app.modules.staff.permissions import RequireStaffAdmin, RequireResident, RequireGuard
 from app.modules.staff.schemas import (
     StaffCreate,
     StaffOut,
@@ -23,7 +23,7 @@ router = APIRouter(prefix="/societies/{society_id}/staff", tags=["Staff & Domest
 async def create_staff(
     society_id: uuid.UUID,
     payload: StaffCreate,
-    _auth = Depends(require_roles(["society_admin", "super_admin"])),
+    _auth = RequireStaffAdmin,
     db: AsyncSession = Depends(get_db),
 ):
     service = StaffService(db)
@@ -32,7 +32,7 @@ async def create_staff(
 @router.get("", response_model=list[StaffOut])
 async def list_staff(
     society_id: uuid.UUID,
-    _mem = Depends(require_society_membership),
+    _auth = RequireResident,
     db: AsyncSession = Depends(get_db),
 ):
     service = StaffService(db)
@@ -44,7 +44,7 @@ async def assign_staff(
     staff_id: uuid.UUID,
     payload: StaffAssignRequest,
     user: User = Depends(get_current_user),
-    _mem = Depends(require_society_membership),
+    _auth = RequireResident,
     db: AsyncSession = Depends(get_db),
 ):
     service = StaffService(db)
@@ -54,7 +54,7 @@ async def assign_staff(
 async def list_unit_staff(
     society_id: uuid.UUID,
     unit_id: uuid.UUID,
-    _mem = Depends(require_society_membership),
+    _auth = RequireResident,
     db: AsyncSession = Depends(get_db),
 ):
     service = StaffService(db)
@@ -65,7 +65,7 @@ async def staff_check_in(
     society_id: uuid.UUID,
     staff_id: uuid.UUID,
     payload: StaffAttendanceCheckIn,
-    _mem = Depends(require_society_membership),
+    _auth = RequireGuard,
     db: AsyncSession = Depends(get_db),
 ):
     service = StaffService(db)
@@ -76,7 +76,7 @@ async def staff_check_out(
     society_id: uuid.UUID,
     staff_id: uuid.UUID,
     payload: StaffAttendanceCheckOut,
-    _mem = Depends(require_society_membership),
+    _auth = RequireGuard,
     db: AsyncSession = Depends(get_db),
 ):
     service = StaffService(db)

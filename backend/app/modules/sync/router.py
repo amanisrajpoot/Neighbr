@@ -5,9 +5,9 @@ from fastapi import APIRouter, Depends, status, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.dependencies import get_current_user
 from app.middleware.tenancy import verify_society_access
 from app.modules.auth.models import User
+from app.modules.sync.permissions import RequireSecurityGuard
 from app.modules.sync.schemas import (
     BatchSyncRequest,
     BatchSyncResponse,
@@ -21,7 +21,7 @@ router = APIRouter(tags=["Offline Sync"])
 @router.post("/sync/batch", response_model=BatchSyncResponse)
 async def batch_sync_operations(
     payload: BatchSyncRequest,
-    user: User = Depends(get_current_user),
+    user: User = RequireSecurityGuard,
     db: AsyncSession = Depends(get_db),
 ):
     await verify_society_access(payload.society_id, user, db)
@@ -31,7 +31,7 @@ async def batch_sync_operations(
 @router.post("/sync/guard-push")
 async def guard_push_single_or_batch(
     request: Request,
-    user: User = Depends(get_current_user),
+    user: User = RequireSecurityGuard,
     db: AsyncSession = Depends(get_db),
 ):
     data = await request.json()
@@ -68,7 +68,7 @@ async def guard_push_single_or_batch(
 async def society_sync_push(
     society_id: uuid.UUID,
     payload: Dict[str, Any],
-    user: User = Depends(get_current_user),
+    user: User = RequireSecurityGuard,
     db: AsyncSession = Depends(get_db),
 ):
     service = SyncService(db)
@@ -102,7 +102,7 @@ async def society_sync_push(
 async def society_sync_pull(
     society_id: uuid.UUID,
     since_seq: int = 0,
-    user: User = Depends(get_current_user),
+    user: User = RequireSecurityGuard,
     db: AsyncSession = Depends(get_db),
 ):
     return {

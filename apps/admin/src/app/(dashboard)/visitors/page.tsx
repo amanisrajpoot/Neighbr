@@ -34,24 +34,8 @@ export default function VisitorsPage() {
         api.getBlacklist(societyId).catch(() => []),
       ]);
 
-      setPasses(
-        passList.length > 0
-          ? passList
-          : [
-              { id: "pass-1", visitor_name: "Ananya Roy", visitor_phone: "+919876543210", vehicle_number: "KA01AB1234", pass_type: "guest", unit_number: "Villa-42", status: "CHECKED_IN", valid_until: "Today, 10:00 PM" },
-              { id: "pass-2", visitor_name: "Swiggy Delivery (Ravi)", visitor_phone: "+919876543211", pass_type: "delivery", unit_number: "A-102", status: "CHECKED_OUT", valid_until: "Completed" },
-              { id: "pass-3", visitor_name: "Uber Premier (DL01AB9876)", vehicle_number: "DL01AB9876", pass_type: "cab", unit_number: "A-302", status: "APPROVED", valid_until: "Today, 08:30 PM" },
-            ]
-      );
-
-      setBlacklist(
-        blackList.length > 0
-          ? blackList
-          : [
-              { id: "bl-1", entity_type: "phone", entity_value: "+919876599999", reason: "Unauthorized commercial solicitation", is_active: true, created_at: "2026-08-10" },
-              { id: "bl-2", entity_type: "vehicle", entity_value: "DL03XY9999", reason: "Speeding in pedestrian zone", is_active: true, created_at: "2026-08-14" },
-            ]
-      );
+      setPasses(passList);
+      setBlacklist(blackList);
     } catch (err) {
       console.warn("Failed to load visitor data:", err);
     } finally {

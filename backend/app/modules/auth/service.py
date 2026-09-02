@@ -2,14 +2,15 @@ import hashlib
 import random
 import uuid
 from datetime import datetime, timedelta, timezone
-from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
 from app.core.errors import AppException
 from app.core.security import create_access_token, create_refresh_token, decode_token
 from app.core.events import event_bus, DomainEvent
-from app.modules.auth.models import User, UserDevice, Session, OTPRequest, Role
+from app.modules.auth.models import User, UserDevice, Session, OTPRequest
+from app.modules.auth.repository import AuthRepository
+from app.providers.sms import get_sms_provider
 from app.modules.auth.schemas import (
     RequestOTPRequest,
     RequestOTPResponse,
@@ -29,6 +30,7 @@ def _hash_token(token: str) -> str:
 class AuthService:
     def __init__(self, db: AsyncSession):
         self.db = db
+        self.repo = AuthRepository(db)
 
     async def request_otp(self, payload: RequestOTPRequest) -> RequestOTPResponse:
         phone = payload.phone.strip()
@@ -46,8 +48,7 @@ class AuthService:
             otp_hash=otp_hash,
             expires_at=expires_at,
         )
-        self.db.add(otp_record)
-        await self.db.commit()
+        await self.repo.create_otp_request(otp_record)
 
         # Emit event
         await event_bus.publish(
@@ -57,6 +58,10 @@ class AuthService:
                 payload={"phone": phone},
             )
         )
+
+        # Send via SMS provider
+        sms = get_sms_provider()
+        await sms.send_otp(phone, otp)
 
         return RequestOTPResponse(
             phone=phone,
@@ -69,23 +74,12 @@ class AuthService:
         otp_hash = _hash_otp(payload.otp, phone)
         now = datetime.now(timezone.utc)
 
-        # Check latest OTP request
-        result = await self.db.execute(
-            select(OTPRequest)
-            .where(
-                OTPRequest.phone == phone,
-                OTPRequest.verified_at.is_(None),
-                OTPRequest.expires_at > now,
-            )
-            .order_by(OTPRequest.created_at.desc())
-            .limit(1)
-        )
-        otp_record = result.scalar_one_or_none()
+        otp_record = await self.repo.get_latest_unverified_otp(phone, now)
 
         if not otp_record or otp_record.otp_hash != otp_hash:
             if otp_record:
                 otp_record.attempts += 1
-                await self.db.commit()
+                await self.repo.save(otp_record)
             raise AppException(
                 code="INVALID_OTP",
                 message="Invalid or expired OTP code",
@@ -96,27 +90,19 @@ class AuthService:
         otp_record.verified_at = now
 
         # Get or create User
-        user_result = await self.db.execute(select(User).where(User.phone == phone))
-        user = user_result.scalar_one_or_none()
+        user = await self.repo.get_user_by_phone(phone)
 
         if not user:
             user = User(
                 phone=phone,
                 phone_verified=True,
             )
-            self.db.add(user)
-            await self.db.flush()
+            await self.repo.flush(user)
         else:
             user.phone_verified = True
 
         # Register or update device
-        device_result = await self.db.execute(
-            select(UserDevice).where(
-                UserDevice.user_id == user.id,
-                UserDevice.device_id == payload.device_id,
-            )
-        )
-        device = device_result.scalar_one_or_none()
+        device = await self.repo.get_device(user.id, payload.device_id)
 
         if not device:
             device = UserDevice(
@@ -128,8 +114,7 @@ class AuthService:
                 app_version=payload.app_version,
                 last_active_at=now,
             )
-            self.db.add(device)
-            await self.db.flush()
+            await self.repo.flush(device)
         else:
             device.is_active = True
             device.revoked_at = None
@@ -155,9 +140,8 @@ class AuthService:
             expires_at=now + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES),
             refresh_expires_at=now + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS),
         )
-        self.db.add(session_record)
-        await self.db.commit()
-        await self.db.refresh(user)
+        
+        await self.repo.save_all(otp_record, user, device, session_record)
 
         # Publish auth event
         await event_bus.publish(
@@ -190,21 +174,12 @@ class AuthService:
         now = datetime.now(timezone.utc)
 
         # Look up active session
-        result = await self.db.execute(
-            select(Session).where(
-                Session.user_id == user_id,
-                Session.refresh_token_hash == token_hash,
-                Session.is_revoked.is_(False),
-                Session.refresh_expires_at > now,
-            )
-        )
-        session_record = result.scalar_one_or_none()
+        session_record = await self.repo.get_active_session(user_id, token_hash, now)
 
         if not session_record:
             raise AppException(code="SESSION_EXPIRED", message="Session has been revoked or expired", status_code=401)
 
-        user_result = await self.db.execute(select(User).where(User.id == user_id))
-        user = user_result.scalar_one_or_none()
+        user = await self.repo.get_user_by_id(user_id)
         if not user or not user.is_active:
             raise AppException(code="USER_INACTIVE", message="User account is inactive", status_code=403)
 
@@ -223,8 +198,7 @@ class AuthService:
         session_record.expires_at = now + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
         session_record.refresh_expires_at = now + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
 
-        await self.db.commit()
-        await self.db.refresh(user)
+        await self.repo.save_all(session_record, user)
 
         return TokenResponse(
             access_token=new_access_token,
@@ -234,9 +208,4 @@ class AuthService:
         )
 
     async def logout(self, user_id: uuid.UUID, device_id: uuid.UUID | None = None):
-        stmt = update(Session).where(Session.user_id == user_id, Session.is_revoked.is_(False))
-        if device_id:
-            stmt = stmt.where(Session.device_id == device_id)
-        stmt = stmt.values(is_revoked=True, revoked_at=datetime.now(timezone.utc))
-        await self.db.execute(stmt)
-        await self.db.commit()
+        await self.repo.revoke_sessions(user_id, device_id)

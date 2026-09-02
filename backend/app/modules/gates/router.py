@@ -4,8 +4,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.dependencies import get_current_user
-from app.middleware.tenancy import require_society_membership, require_roles
+from app.middleware.tenancy import require_society_membership
 from app.modules.auth.models import User
+from app.modules.gates.permissions import RequireGateAdmin, RequireGuard
 from app.modules.gates.schemas import (
     GateCreate,
     GateUpdate,
@@ -29,7 +30,7 @@ router = APIRouter(tags=["Gates & Guards"])
 async def create_gate(
     society_id: uuid.UUID,
     payload: GateCreate,
-    _auth = Depends(require_roles(["society_admin", "super_admin"])),
+    _auth = RequireGateAdmin,
     db: AsyncSession = Depends(get_db),
 ):
     service = GateService(db)
@@ -48,7 +49,7 @@ async def list_gates(
 async def update_gate(
     gate_id: uuid.UUID,
     payload: GateUpdate,
-    user: User = Depends(get_current_user),
+    _auth = RequireGateAdmin,
     db: AsyncSession = Depends(get_db),
 ):
     service = GateService(db)
@@ -59,7 +60,7 @@ async def update_gate(
 async def create_guard(
     society_id: uuid.UUID,
     payload: GuardCreate,
-    _auth = Depends(require_roles(["society_admin", "super_admin"])),
+    _auth = RequireGateAdmin,
     db: AsyncSession = Depends(get_db),
 ):
     service = GateService(db)
@@ -68,7 +69,7 @@ async def create_guard(
 @router.get("/societies/{society_id}/guards", response_model=list[GuardOut])
 async def list_guards(
     society_id: uuid.UUID,
-    _auth = Depends(require_roles(["society_admin", "super_admin"])),
+    _auth = RequireGateAdmin,
     db: AsyncSession = Depends(get_db),
 ):
     service = GateService(db)
@@ -79,7 +80,7 @@ async def list_guards(
 async def create_shift(
     society_id: uuid.UUID,
     payload: GuardShiftCreate,
-    _auth = Depends(require_roles(["society_admin", "super_admin"])),
+    _auth = RequireGateAdmin,
     db: AsyncSession = Depends(get_db),
 ):
     service = GateService(db)
@@ -88,7 +89,7 @@ async def create_shift(
 @router.get("/societies/{society_id}/guard-shifts", response_model=list[GuardShiftOut])
 async def list_shifts(
     society_id: uuid.UUID,
-    _mem = Depends(require_society_membership),
+    _auth = RequireGateAdmin,
     db: AsyncSession = Depends(get_db),
 ):
     service = GateService(db)
@@ -100,7 +101,7 @@ async def assign_guard(
     society_id: uuid.UUID,
     guard_id: uuid.UUID,
     payload: GuardAssignRequest,
-    _auth = Depends(require_roles(["society_admin", "super_admin"])),
+    _auth = RequireGateAdmin,
     db: AsyncSession = Depends(get_db),
 ):
     service = GateService(db)
@@ -112,7 +113,7 @@ async def guard_duty_check_in(
     society_id: uuid.UUID,
     guard_id: uuid.UUID,
     payload: GuardDutyCheckIn,
-    _mem = Depends(require_society_membership),
+    _auth = RequireGuard,
     db: AsyncSession = Depends(get_db),
 ):
     service = GateService(db)
@@ -123,7 +124,7 @@ async def guard_duty_check_out(
     society_id: uuid.UUID,
     guard_id: uuid.UUID,
     payload: GuardDutyCheckOut,
-    _mem = Depends(require_society_membership),
+    _auth = RequireGuard,
     db: AsyncSession = Depends(get_db),
 ):
     service = GateService(db)

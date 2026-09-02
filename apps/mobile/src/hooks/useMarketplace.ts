@@ -60,7 +60,7 @@ export function useMarketplace() {
     queryKey: ["marketplaceListings", societyId],
     queryFn: async () => {
       if (!societyId) return [];
-      return apiClient<ListingItem[]>(`/societies/${societyId}/marketplace/listings`).catch(() => []);
+      return apiClient<ListingItem[]>(`/societies/${societyId}/marketplace/listings`);
     },
     enabled: Boolean(societyId),
   });
@@ -74,7 +74,7 @@ export function useMarketplace() {
     queryKey: ["marketplaceVendors", societyId],
     queryFn: async () => {
       if (!societyId) return [];
-      return apiClient<VendorItem[]>(`/societies/${societyId}/marketplace/vendors`).catch(() => []);
+      return apiClient<VendorItem[]>(`/societies/${societyId}/marketplace/vendors`);
     },
     enabled: Boolean(societyId),
   });
@@ -88,7 +88,7 @@ export function useMarketplace() {
     queryKey: ["serviceBookings", societyId],
     queryFn: async () => {
       if (!societyId) return [];
-      return apiClient<BookingItem[]>(`/societies/${societyId}/marketplace/bookings`).catch(() => []);
+      return apiClient<BookingItem[]>(`/societies/${societyId}/marketplace/bookings`);
     },
     enabled: Boolean(societyId),
   });
