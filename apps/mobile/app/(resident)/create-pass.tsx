@@ -64,7 +64,7 @@ export default function CreatePassScreen() {
     try {
       // 1. Create on FastAPI Backend
       const res = await visitorApi.createPass(societyId, {
-        unit_id: "5edff9df-0046-4aca-b993-00bf116ce67f", // Villa-42
+        unit_id: user?.unitId || "0be0d1a7-8a9c-46bf-9677-fa36679e01bd",
         pass_type: selectedType,
         visitor_name: name.trim(),
         visitor_phone: phone.trim() || undefined,
@@ -105,20 +105,10 @@ export default function CreatePassScreen() {
 
       setGeneratedPass(newPassData);
     } catch (err: any) {
-      console.log("Pass generation fallback:", err);
-      // Offline fallback pass generation
-      const randomPin = Math.floor(100000 + Math.random() * 900000).toString();
-      const randomToken = `NBR-${selectedType.toUpperCase().substring(0, 3)}-${Math.random().toString(36).substring(2, 10).toUpperCase()}`;
-
-      setGeneratedPass({
-        id: `offline-pass-${Date.now()}`,
-        qrToken: randomToken,
-        pinCode: randomPin,
-        name: name.trim(),
-        unitNumber: user?.unitNumber || "Villa-42",
-        validUntil: "Today, 11:59 PM",
-        status: "APPROVED",
-      });
+      Alert.alert(
+        "Pass Generation Failed",
+        err?.message || "Could not generate gate pass. Please check your connection and try again."
+      );
     } finally {
       setIsGenerating(false);
     }

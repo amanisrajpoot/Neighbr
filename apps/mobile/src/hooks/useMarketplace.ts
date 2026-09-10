@@ -55,6 +55,8 @@ export function useMarketplace() {
   const {
     data: listings = [],
     isLoading: isLoadingListings,
+    isError: isErrorListings,
+    error: errorListings,
     refetch: refetchListings,
   } = useQuery({
     queryKey: ["marketplaceListings", societyId],
@@ -69,6 +71,8 @@ export function useMarketplace() {
   const {
     data: vendors = [],
     isLoading: isLoadingVendors,
+    isError: isErrorVendors,
+    error: errorVendors,
     refetch: refetchVendors,
   } = useQuery({
     queryKey: ["marketplaceVendors", societyId],
@@ -83,6 +87,8 @@ export function useMarketplace() {
   const {
     data: bookings = [],
     isLoading: isLoadingBookings,
+    isError: isErrorBookings,
+    error: errorBookings,
     refetch: refetchBookings,
   } = useQuery({
     queryKey: ["serviceBookings", societyId],
@@ -163,6 +169,12 @@ export function useMarketplace() {
     isLoadingListings,
     isLoadingVendors,
     isLoadingBookings,
+    isErrorListings,
+    errorListings,
+    isErrorVendors,
+    errorVendors,
+    isErrorBookings,
+    errorBookings,
     refetchListings,
     refetchVendors,
     refetchBookings,

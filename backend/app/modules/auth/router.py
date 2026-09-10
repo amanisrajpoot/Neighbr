@@ -18,6 +18,7 @@ from app.modules.auth.service import AuthService
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
 @router.post("/otp/request", response_model=RequestOTPResponse)
+@router.post("/otp/send", response_model=RequestOTPResponse)
 async def request_otp(
     payload: RequestOTPRequest,
     db: AsyncSession = Depends(get_db),

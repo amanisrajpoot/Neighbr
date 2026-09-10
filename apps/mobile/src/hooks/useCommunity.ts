@@ -57,6 +57,8 @@ export function useCommunity() {
   const {
     data: posts = [],
     isLoading: isLoadingPosts,
+    isError: isErrorPosts,
+    error: errorPosts,
     refetch: refetchPosts,
   } = useQuery({
     queryKey: ["communityPosts", societyId],
@@ -71,6 +73,8 @@ export function useCommunity() {
   const {
     data: polls = [],
     isLoading: isLoadingPolls,
+    isError: isErrorPolls,
+    error: errorPolls,
     refetch: refetchPolls,
   } = useQuery({
     queryKey: ["communityPolls", societyId],
@@ -167,6 +171,10 @@ export function useCommunity() {
     polls,
     isLoadingPosts,
     isLoadingPolls,
+    isErrorPosts,
+    errorPosts,
+    isErrorPolls,
+    errorPolls,
     refetchPosts,
     refetchPolls,
     createPost: createPostMutation.mutateAsync,

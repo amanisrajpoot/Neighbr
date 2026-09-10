@@ -12,8 +12,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Colors } from "../../src/theme/colors";
-
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+import { getBaseUrl } from "../../src/api/client";
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -29,7 +28,8 @@ export default function LoginScreen() {
 
     setIsLoading(true);
     try {
-      await fetch(`${API_BASE_URL}/auth/otp/request`, {
+      const baseUrl = getBaseUrl();
+      await fetch(`${baseUrl}/auth/otp/request`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phone: cleanPhone }),

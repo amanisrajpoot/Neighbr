@@ -11,8 +11,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Colors } from "../../src/theme/colors";
 import { useAuthStore } from "../../src/store/authStore";
-
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+import { getBaseUrl } from "../../src/api/client";
 
 export default function VerifyOtpScreen() {
   const router = useRouter();
@@ -30,7 +29,8 @@ export default function VerifyOtpScreen() {
 
     setIsLoading(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/auth/otp/verify`, {
+      const baseUrl = getBaseUrl();
+      const res = await fetch(`${baseUrl}/auth/otp/verify`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -51,12 +51,13 @@ export default function VerifyOtpScreen() {
       }
 
       login(jwtToken, {
-        id: isGuard ? "u-guard-01" : "u-resident-01",
+        id: isGuard ? "u-guard-01" : "35f84c33-268a-4073-b52e-f0b780785d7b",
         phone,
         name: isGuard ? "Jagdish R. (Guard)" : "Siddharth Verma",
         role: isGuard ? "guard" : "resident",
         societyId: "34090e70-34f9-4cdd-9522-e2098982a5ed",
         societyName: "Greenwood Palms Heights",
+        unitId: isGuard ? undefined : "0be0d1a7-8a9c-46bf-9677-fa36679e01bd",
         unitNumber: isGuard ? undefined : "Villa-42",
       });
 
@@ -65,12 +66,13 @@ export default function VerifyOtpScreen() {
       // Offline fallback
       const isGuard = phone.includes("30003");
       login("mock-access-token", {
-        id: isGuard ? "u-guard-01" : "u-resident-01",
+        id: isGuard ? "u-guard-01" : "35f84c33-268a-4073-b52e-f0b780785d7b",
         phone,
         name: isGuard ? "Jagdish R. (Guard)" : "Siddharth Verma",
         role: isGuard ? "guard" : "resident",
         societyId: "34090e70-34f9-4cdd-9522-e2098982a5ed",
         societyName: "Greenwood Palms Heights",
+        unitId: isGuard ? undefined : "0be0d1a7-8a9c-46bf-9677-fa36679e01bd",
         unitNumber: isGuard ? undefined : "Villa-42",
       });
       router.replace("/(auth)/select-society");

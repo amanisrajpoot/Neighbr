@@ -19,14 +19,15 @@ import { usePasses } from "../../src/hooks/usePasses";
 import { useStaff } from "../../src/hooks/useStaff";
 import { useAmenities } from "../../src/hooks/useAmenities";
 import { OfflineBanner } from "../../src/components/OfflineBanner";
+import { QueryErrorView } from "../../src/components/QueryErrorView";
 
 export default function ResidentHomeScreen() {
   const router = useRouter();
   const user = useAuthStore((state) => state.user);
-  const { notices, triggerSOS } = useNotices();
+  const { notices, triggerSOS, isError: isErrorNotices, error: errorNotices, refetch: refetchNotices } = useNotices();
   const { passes } = usePasses();
-  const { unitStaff } = useStaff();
-  const { myBookings } = useAmenities();
+  const { unitStaff, isErrorUnitStaff, errorUnitStaff, refetchUnitStaff } = useStaff();
+  const { myBookings, isErrorBookings, errorBookings, refetchBookings } = useAmenities();
 
   const [dismissedVisitorIds, setDismissedVisitorIds] = useState<string[]>([]);
   const [viewAllVisible, setViewAllVisible] = useState(false);
@@ -75,10 +76,10 @@ export default function ResidentHomeScreen() {
             sos_type: "security",
             message: `Emergency SOS triggered by ${user?.name || "Resident"} in ${user?.unitNumber || "Villa-42"}`,
           });
-        } catch (e) {
-          console.log("SOS backend dispatch:", e);
+          window.alert("🚨 SOS Broadcast Activated!\n\nSecurity team and gate guards have received your emergency alert.");
+        } catch (e: any) {
+          window.alert(`⚠️ SOS Alert Failed: ${e?.message || "Could not broadcast emergency alarm. Call security immediately!"}`);
         }
-        window.alert("🚨 SOS Broadcast Activated!\n\nSecurity team and gate guards have received your emergency alert.");
       }
     } else {
       Alert.alert(
@@ -95,10 +96,13 @@ export default function ResidentHomeScreen() {
                   sos_type: "security",
                   message: `Emergency SOS triggered by ${user?.name || "Resident"} in ${user?.unitNumber || "Villa-42"}`,
                 });
-              } catch (e) {
-                console.log("SOS backend dispatch:", e);
+                Alert.alert("SOS Triggered", "Security team and gate guards have received your emergency alert!");
+              } catch (e: any) {
+                Alert.alert(
+                  "SOS Alert Failed",
+                  e?.message || "Could not broadcast emergency alarm to guards. Please contact security directly!"
+                );
               }
-              Alert.alert("SOS Triggered", "Security team and gate guards have received your emergency alert!");
             },
           },
         ]
@@ -221,7 +225,14 @@ export default function ResidentHomeScreen() {
             </TouchableOpacity>
           </View>
 
-          {unitStaff.length > 0 ? (
+          {isErrorUnitStaff ? (
+            <QueryErrorView
+              compact
+              error={errorUnitStaff}
+              message="Failed to load domestic staff."
+              onRetry={refetchUnitStaff}
+            />
+          ) : unitStaff.length > 0 ? (
             unitStaff.slice(0, 2).map((item, idx) => (
               <View key={item.id || idx} style={styles.staffCard}>
                 <View style={styles.staffLeft}>
@@ -256,7 +267,14 @@ export default function ResidentHomeScreen() {
             </TouchableOpacity>
           </View>
 
-          {myBookings.length > 0 ? (
+          {isErrorBookings ? (
+            <QueryErrorView
+              compact
+              error={errorBookings}
+              message="Failed to load upcoming bookings."
+              onRetry={refetchBookings}
+            />
+          ) : myBookings.length > 0 ? (
             myBookings.slice(0, 2).map((b) => (
               <TouchableOpacity key={b.id} onPress={() => router.push("/(resident)/amenities")} style={styles.amenityCard}>
                 <View style={styles.amenityLeft}>
@@ -291,7 +309,14 @@ export default function ResidentHomeScreen() {
             </TouchableOpacity>
           </View>
 
-          {notices.length > 0 ? (
+          {isErrorNotices ? (
+            <QueryErrorView
+              compact
+              error={errorNotices}
+              message="Failed to load society notices."
+              onRetry={refetchNotices}
+            />
+          ) : notices.length > 0 ? (
             <TouchableOpacity onPress={() => router.push("/(resident)/notices")} style={styles.noticeCard}>
               <View style={styles.noticeTag}>
                 <Text style={styles.noticeTagText}>📢 OFFICIAL BROADCAST • {notices[0].priority.toUpperCase()}</Text>

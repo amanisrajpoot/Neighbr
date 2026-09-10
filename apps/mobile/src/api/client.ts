@@ -7,6 +7,10 @@ import Constants from "expo-constants";
 import { useAuthStore } from "../store/authStore";
 
 export const getServerHost = () => {
+  if (Platform.OS === "web" && typeof window !== "undefined") {
+    return window.location.hostname ? `${window.location.hostname}:8000` : "localhost:8000";
+  }
+
   if (process.env.EXPO_PUBLIC_API_URL) {
     try {
       const url = new URL(process.env.EXPO_PUBLIC_API_URL);
@@ -14,10 +18,6 @@ export const getServerHost = () => {
     } catch {
       // fallback
     }
-  }
-
-  if (Platform.OS === "web" && typeof window !== "undefined") {
-    return window.location.hostname ? `${window.location.hostname}:8000` : "localhost:8000";
   }
 
   // On physical device / Expo Go: extract dev machine IP from hostUri
@@ -46,6 +46,10 @@ export const getServerHost = () => {
 };
 
 export const getBaseUrl = () => {
+  if (Platform.OS === "web" && typeof window !== "undefined") {
+    const host = window.location.hostname || "localhost";
+    return `http://${host}:8000/api/v1`;
+  }
   if (process.env.EXPO_PUBLIC_API_URL) {
     let url = process.env.EXPO_PUBLIC_API_URL.replace(/\/+$/, "");
     if (!url.endsWith("/api/v1")) {
@@ -92,9 +96,45 @@ export async function apiClient<T>(
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    throw new Error(
-      errorData.error?.message || `Request failed with status ${response.status}`
-    );
+    let errorMessage = `Request failed with status ${response.status}`;
+
+    if (errorData && typeof errorData === "object") {
+      if (errorData.error?.message && typeof errorData.error.message === "string") {
+        errorMessage = errorData.error.message;
+        if (Array.isArray(errorData.error.field_errors) && errorData.error.field_errors.length > 0) {
+          const fieldMsgs = errorData.error.field_errors
+            .map((fe: any) => (fe.field ? `${fe.field}: ${fe.message}` : fe.message))
+            .filter(Boolean)
+            .join(", ");
+          if (fieldMsgs) {
+            errorMessage += ` (${fieldMsgs})`;
+          }
+        }
+      } else if (errorData.detail) {
+        if (typeof errorData.detail === "string") {
+          errorMessage = errorData.detail;
+        } else if (Array.isArray(errorData.detail)) {
+          const msgs = errorData.detail
+            .map((d: any) => {
+              if (typeof d === "string") return d;
+              if (d && typeof d === "object") {
+                const field = Array.isArray(d.loc) ? d.loc.slice(1).join(".") : "";
+                return field ? `${field}: ${d.msg}` : d.msg;
+              }
+              return null;
+            })
+            .filter(Boolean)
+            .join(", ");
+          if (msgs) errorMessage = msgs;
+        } else if (typeof errorData.detail === "object") {
+          errorMessage = JSON.stringify(errorData.detail);
+        }
+      } else if (typeof errorData.message === "string") {
+        errorMessage = errorData.message;
+      }
+    }
+
+    throw new Error(errorMessage);
   }
 
   return response.json();

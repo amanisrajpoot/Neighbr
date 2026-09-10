@@ -5,6 +5,8 @@ from fastapi import APIRouter, Depends, status, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
+from app.dependencies import get_current_user
+from app.core.errors import AppException
 from app.middleware.tenancy import verify_society_access
 from app.modules.auth.models import User
 from app.modules.sync.permissions import RequireSecurityGuard
@@ -21,10 +23,17 @@ router = APIRouter(tags=["Offline Sync"])
 @router.post("/sync/batch", response_model=BatchSyncResponse)
 async def batch_sync_operations(
     payload: BatchSyncRequest,
-    user: User = RequireSecurityGuard,
+    user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    await verify_society_access(payload.society_id, user, db)
+    membership = await verify_society_access(payload.society_id, user, db)
+    if not user.is_platform_admin:
+        if not membership or not membership.role or membership.role.code not in ["guard", "security_guard", "security_supervisor", "society_admin", "super_admin"]:
+            raise AppException(
+                code="INSUFFICIENT_PERMISSIONS",
+                message="Action requires security guard or admin permissions",
+                status_code=403,
+            )
     service = SyncService(db)
     return await service.process_batch_sync(payload, user)
 

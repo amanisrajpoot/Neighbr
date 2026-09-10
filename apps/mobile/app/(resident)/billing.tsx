@@ -18,12 +18,13 @@ import { useAuthStore } from "../../src/store/authStore";
 import { useBilling, InvoiceItem } from "../../src/hooks/useBilling";
 import { useVehicles } from "../../src/hooks/useVehicles";
 import { useStaff } from "../../src/hooks/useStaff";
+import { QueryErrorView } from "../../src/components/QueryErrorView";
 
 export default function ResidentMyFlatScreen() {
   const { user } = useAuthStore();
-  const { invoices, isLoading: isLoadingBilling, refetch: refetchBilling, payInvoice } = useBilling();
-  const { vehicles, isLoading: isLoadingVehicles, refetch: refetchVehicles, registerVehicle } = useVehicles();
-  const { unitStaff, isLoadingUnitStaff, refetchUnitStaff } = useStaff();
+  const { invoices, isLoading: isLoadingBilling, isError: isErrorBilling, error: errorBilling, refetch: refetchBilling, payInvoice } = useBilling();
+  const { vehicles, isLoading: isLoadingVehicles, isError: isErrorVehicles, error: errorVehicles, refetch: refetchVehicles, registerVehicle } = useVehicles();
+  const { unitStaff, isLoadingUnitStaff, isErrorUnitStaff, errorUnitStaff, refetchUnitStaff } = useStaff();
 
   const [activeTab, setActiveTab] = useState<"overview" | "family" | "vehicles" | "billing">("overview");
   const [refreshing, setRefreshing] = useState(false);
@@ -74,9 +75,7 @@ export default function ResidentMyFlatScreen() {
       setIsPayModalOpen(false);
       setSelectedInvoice(null);
     } catch (e: any) {
-      Alert.alert("Payment Confirmed", "Transaction recorded and maintenance receipt generated.");
-      setIsPayModalOpen(false);
-      setSelectedInvoice(null);
+      Alert.alert("Payment Failed", e?.message || "Could not process payment transaction. Please try again.");
     } finally {
       setIsSubmittingPay(false);
     }
@@ -121,8 +120,7 @@ export default function ResidentMyFlatScreen() {
       setNewVehModel("");
       setNewVehSlot("");
     } catch (e: any) {
-      Alert.alert("Vehicle Registered", `${newVehNumber.toUpperCase()} added to Flat registry.`);
-      setIsAddVehicleOpen(false);
+      Alert.alert("Registration Failed", e?.message || "Could not register vehicle. Please verify and retry.");
     } finally {
       setIsSubmittingVeh(false);
     }
@@ -253,13 +251,22 @@ export default function ResidentMyFlatScreen() {
                 </TouchableOpacity>
               </View>
 
-              {unitStaff.length > 0 ? (
+              {isErrorUnitStaff ? (
+                <QueryErrorView
+                  compact
+                  error={errorUnitStaff}
+                  message="Failed to load domestic staff."
+                  onRetry={refetchUnitStaff}
+                />
+              ) : unitStaff.length > 0 ? (
                 unitStaff.map((s, idx) => (
                   <View key={s.id || idx} style={styles.compactStaffCard}>
                     <Text style={styles.compactIcon}>👩‍🍳</Text>
                     <View style={{ flex: 1 }}>
                       <Text style={styles.compactName}>{s.staff?.name || "Domestic Staff"}</Text>
-                      <Text style={styles.compactSub}>{s.role || s.staff?.role || "Cook"} • {s.schedule || "Daily"}</Text>
+                      <Text style={styles.compactSub}>
+                        {s.role || s.staff?.role || "Cook"} • {typeof s.schedule === "string" ? s.schedule : (s.schedule?.note || s.schedule?.text || "Daily")}
+                      </Text>
                     </View>
                     <View style={styles.compactBadge}>
                       <Text style={styles.compactBadgeText}>{s.staff?.status || "ASSIGNED"}</Text>
@@ -313,7 +320,13 @@ export default function ResidentMyFlatScreen() {
               </TouchableOpacity>
             </View>
 
-            {vehicles.length > 0 ? (
+            {isErrorVehicles ? (
+              <QueryErrorView
+                error={errorVehicles}
+                message="Failed to load registered vehicles."
+                onRetry={refetchVehicles}
+              />
+            ) : vehicles.length > 0 ? (
               vehicles.map((v) => (
                 <View key={v.id} style={styles.vehicleCard}>
                   <View style={styles.vehicleIconCircle}>
@@ -343,95 +356,109 @@ export default function ResidentMyFlatScreen() {
 
         {/* TAB 4: MAINTENANCE DUES & BILLING */}
         {activeTab === "billing" && (
-          <>
-            {/* Outstanding Dues Banner */}
-            {currentUnpaid ? (
-              <View style={styles.duesCard}>
-                <View style={styles.duesTop}>
-                  <View>
-                    <Text style={styles.duesLabel}>Current Outstanding Dues</Text>
-                    <Text style={styles.duesPeriod}>{currentUnpaid.billing_period}</Text>
-                  </View>
-                  <View style={styles.dueBadge}>
-                    <Text style={styles.dueBadgeText}>Due by {currentUnpaid.due_date}</Text>
-                  </View>
-                </View>
-
-                <Text style={styles.duesAmount}>₹{currentUnpaid.total_amount.toLocaleString()}</Text>
-
-                <View style={styles.breakdownBox}>
-                  {currentUnpaid.line_items.map((item, idx) => (
-                    <View key={idx} style={styles.breakdownRow}>
-                      <Text style={styles.breakdownTitle}>{item.title}</Text>
-                      <Text style={styles.breakdownValue}>₹{item.amount.toFixed(2)}</Text>
+          isErrorBilling ? (
+            <QueryErrorView
+              error={errorBilling}
+              message="Failed to load maintenance billing details."
+              onRetry={refetchBilling}
+            />
+          ) : (
+            <>
+              {/* Outstanding Dues Banner */}
+              {currentUnpaid ? (
+                <View style={styles.duesCard}>
+                  <View style={styles.duesTop}>
+                    <View>
+                      <Text style={styles.duesLabel}>Current Outstanding Dues</Text>
+                      <Text style={styles.duesPeriod}>{currentUnpaid.billing_period}</Text>
                     </View>
-                  ))}
-                </View>
-
-                <TouchableOpacity
-                  style={styles.payNowBtn}
-                  activeOpacity={0.85}
-                  onPress={() => {
-                    setSelectedInvoice(currentUnpaid);
-                    setIsPayModalOpen(true);
-                  }}
-                >
-                  <Text style={styles.payNowBtnText}>Pay ₹{currentUnpaid.total_amount.toLocaleString()} Online &rarr;</Text>
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <View style={styles.allClearCard}>
-                <Text style={styles.allClearEmoji}>✅</Text>
-                <Text style={styles.allClearTitle}>All Flat Maintenance Dues Cleared</Text>
-                <Text style={styles.allClearSub}>No pending charges for Flat {user?.unitNumber || "Villa-42"}.</Text>
-              </View>
-            )}
-
-            {/* Invoices History */}
-            <Text style={[styles.sectionTitle, { marginTop: 18 }]}>Invoices & Billing History</Text>
-            {displayInvoices.map((inv) => (
-              <View key={inv.id} style={styles.historyCard}>
-                <View style={styles.historyTop}>
-                  <View>
-                    <Text style={styles.historyNumber}>{inv.invoice_number}</Text>
-                    <Text style={styles.historyPeriod}>{inv.billing_period}</Text>
+                    <View style={styles.dueBadge}>
+                      <Text style={styles.dueBadgeText}>Due by {currentUnpaid.due_date}</Text>
+                    </View>
                   </View>
-                  <View
-                    style={[
-                      styles.statusBadge,
-                      inv.status === "PAID" ? styles.statusPaid : styles.statusUnpaid,
-                    ]}
+
+                  <Text style={styles.duesAmount}>₹{currentUnpaid.total_amount.toLocaleString()}</Text>
+
+                  <View style={styles.breakdownBox}>
+                    {currentUnpaid.line_items.map((item, idx) => (
+                      <View key={idx} style={styles.breakdownRow}>
+                        <Text style={styles.breakdownTitle}>{item.title}</Text>
+                        <Text style={styles.breakdownValue}>₹{item.amount.toFixed(2)}</Text>
+                      </View>
+                    ))}
+                  </View>
+
+                  <TouchableOpacity
+                    style={styles.payNowBtn}
+                    activeOpacity={0.85}
+                    onPress={() => {
+                      setSelectedInvoice(currentUnpaid);
+                      setIsPayModalOpen(true);
+                    }}
                   >
-                    <Text
-                      style={[
-                        styles.statusBadgeText,
-                        inv.status === "PAID" ? styles.statusTextPaid : styles.statusTextUnpaid,
-                      ]}
-                    >
-                      ● {inv.status}
-                    </Text>
-                  </View>
+                    <Text style={styles.payNowBtnText}>Pay ₹{currentUnpaid.total_amount.toLocaleString()} Online &rarr;</Text>
+                  </TouchableOpacity>
                 </View>
+              ) : (
+                <View style={styles.allClearCard}>
+                  <Text style={styles.allClearEmoji}>✅</Text>
+                  <Text style={styles.allClearTitle}>All Flat Maintenance Dues Cleared</Text>
+                  <Text style={styles.allClearSub}>No pending charges for Flat {user?.unitNumber || "Villa-42"}.</Text>
+                </View>
+              )}
 
-                <View style={styles.historyFooter}>
-                  <Text style={styles.historyAmount}>₹{inv.total_amount.toLocaleString()}</Text>
-                  {inv.status === "PAID" ? (
-                    <Text style={styles.paidDateText}>Paid on {inv.paid_at ? inv.paid_at.slice(0, 10) : "Receipt Confirmed"}</Text>
-                  ) : (
-                    <TouchableOpacity
-                      onPress={() => {
-                        setSelectedInvoice(inv);
-                        setIsPayModalOpen(true);
-                      }}
-                      style={styles.payMiniBtn}
-                    >
-                      <Text style={styles.payMiniBtnText}>Pay Now</Text>
-                    </TouchableOpacity>
-                  )}
+              {/* Invoices History */}
+              <Text style={[styles.sectionTitle, { marginTop: 18 }]}>Invoices & Billing History</Text>
+              {displayInvoices.length === 0 ? (
+                <View style={styles.infoCard}>
+                  <Text style={styles.emptyNote}>No invoices generated yet for this unit.</Text>
                 </View>
-              </View>
-            ))}
-          </>
+              ) : (
+                displayInvoices.map((inv) => (
+                  <View key={inv.id} style={styles.historyCard}>
+                    <View style={styles.historyTop}>
+                      <View>
+                        <Text style={styles.historyNumber}>{inv.invoice_number}</Text>
+                        <Text style={styles.historyPeriod}>{inv.billing_period}</Text>
+                      </View>
+                      <View
+                        style={[
+                          styles.statusBadge,
+                          inv.status === "PAID" ? styles.statusPaid : styles.statusUnpaid,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.statusBadgeText,
+                            inv.status === "PAID" ? styles.statusTextPaid : styles.statusTextUnpaid,
+                          ]}
+                        >
+                          ● {inv.status}
+                        </Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.historyFooter}>
+                      <Text style={styles.historyAmount}>₹{inv.total_amount.toLocaleString()}</Text>
+                      {inv.status === "PAID" ? (
+                        <Text style={styles.paidDateText}>Paid on {inv.paid_at ? inv.paid_at.slice(0, 10) : "Receipt Confirmed"}</Text>
+                      ) : (
+                        <TouchableOpacity
+                          onPress={() => {
+                            setSelectedInvoice(inv);
+                            setIsPayModalOpen(true);
+                          }}
+                          style={styles.payMiniBtn}
+                        >
+                          <Text style={styles.payMiniBtnText}>Pay Now</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  </View>
+                ))
+              )}
+            </>
+          )
         )}
       </ScrollView>
 

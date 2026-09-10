@@ -1,8 +1,11 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Depends, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
+from sqlalchemy import text
 import time
 import uuid
+
+from app.database import get_db, is_sqlite
 
 from app.config import get_settings
 from app.core.errors import AppException, app_exception_handler, validation_exception_handler
@@ -69,10 +72,11 @@ app = FastAPI(
 app.add_exception_handler(AppException, app_exception_handler)
 app.add_exception_handler(RequestValidationError, validation_exception_handler)
 
-# CORS
+# CORS - Allow any origin in development mode (localhost, 127.0.0.1, LAN IPs, Expo Go)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
+    allow_origin_regex=r".*" if settings.DEBUG else None,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -92,6 +96,7 @@ async def add_process_time_header(request: Request, call_next):
 
 # Include All Feature API Routers
 app.include_router(auth_router, prefix=settings.API_V1_STR)
+app.include_router(auth_router)  # Fallback for clients calling /auth directly without /api/v1 prefix
 app.include_router(societies_router, prefix=settings.API_V1_STR)
 app.include_router(gates_router, prefix=settings.API_V1_STR)
 app.include_router(visitors_router, prefix=settings.API_V1_STR)
@@ -113,10 +118,41 @@ app.include_router(ai_router, prefix=settings.API_V1_STR)
 app.include_router(ws_router)
 
 @app.get("/health", tags=["Health"])
-async def health_check():
+@app.get(f"{settings.API_V1_STR}/health", tags=["Health"])
+async def health_check(db = Depends(get_db)):
+    db_status = "connected"
+    db_type = "sqlite" if is_sqlite else "postgresql"
+    latency_ms = None
+    try:
+        t0 = time.perf_counter()
+        await db.execute(text("SELECT 1"))
+        latency_ms = round((time.perf_counter() - t0) * 1000, 2)
+    except Exception as e:
+        db_status = f"disconnected: {str(e)}"
+
+    is_healthy = "connected" in db_status
     return {
-        "status": "healthy",
+        "status": "healthy" if is_healthy else "degraded",
         "service": settings.PROJECT_NAME,
         "version": settings.VERSION,
         "environment": settings.ENVIRONMENT,
+        "database": {
+            "status": db_status,
+            "connected": is_healthy,
+            "type": db_type,
+            "latency_ms": latency_ms,
+        },
     }
+
+@app.options("/{full_path:path}", tags=["CORS"])
+async def universal_options_handler(request: Request, full_path: str):
+    origin = request.headers.get("origin", "*")
+    headers = {
+        "Access-Control-Allow-Origin": origin,
+        "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, PATCH, OPTIONS, HEAD",
+        "Access-Control-Allow-Headers": request.headers.get("access-control-request-headers", "*"),
+        "Access-Control-Max-Age": "86400",
+    }
+    if origin != "*":
+        headers["Access-Control-Allow-Credentials"] = "true"
+    return Response(status_code=200, headers=headers)

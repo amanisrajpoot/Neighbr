@@ -52,6 +52,9 @@ export function useGateDuty(gateId: string = "default-gate") {
   return {
     insideVisitors: insideQuery.data || [],
     isLoading: insideQuery.isLoading,
+    isError: insideQuery.isError,
+    error: insideQuery.error,
+    refetch: insideQuery.refetch,
     checkIn: checkInMutation.mutateAsync,
     checkOut: checkOutMutation.mutateAsync,
   };

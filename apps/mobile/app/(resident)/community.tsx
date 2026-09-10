@@ -13,6 +13,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Colors } from "../../src/theme/colors";
 import { useCommunity, PostItem, PollItem } from "../../src/hooks/useCommunity";
+import { QueryErrorView } from "../../src/components/QueryErrorView";
 
 const CATEGORIES = [
   { id: "all", label: "All Feed" },
@@ -23,7 +24,22 @@ const CATEGORIES = [
 ];
 
 export default function ResidentCommunityScreen() {
-  const { posts, polls, isLoadingPosts, refetchPosts, createPost, addComment, likePost, votePoll } = useCommunity();
+  const {
+    posts,
+    polls,
+    isLoadingPosts,
+    isLoadingPolls,
+    isErrorPosts,
+    errorPosts,
+    isErrorPolls,
+    errorPolls,
+    refetchPosts,
+    refetchPolls,
+    createPost,
+    addComment,
+    likePost,
+    votePoll,
+  } = useCommunity();
   const [activeCategory, setActiveCategory] = useState("all");
   const [activeTab, setActiveTab] = useState<"posts" | "polls">("posts");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -42,7 +58,7 @@ export default function ResidentCommunityScreen() {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await refetchPosts();
+    await Promise.all([refetchPosts(), refetchPolls()]);
     setRefreshing(false);
   };
 
@@ -58,9 +74,8 @@ export default function ResidentCommunityScreen() {
       setIsAddModalOpen(false);
       setNewTitle("");
       setNewContent("");
-    } catch (e) {
-      Alert.alert("Posted", "Post shared with community.");
-      setIsAddModalOpen(false);
+    } catch (e: any) {
+      Alert.alert("Error Creating Post", e?.message || "Could not publish post. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -71,7 +86,15 @@ export default function ResidentCommunityScreen() {
       await votePoll({ pollId, optionIndex });
       Alert.alert("Vote Recorded! 🗳️", "Thank you for participating in society governance.");
     } catch (e: any) {
-      Alert.alert("Vote Submitted", "Your choice has been recorded.");
+      Alert.alert("Voting Failed", e?.message || "Could not submit your vote.");
+    }
+  };
+
+  const handleLike = async (postId: string) => {
+    try {
+      await likePost(postId);
+    } catch (e: any) {
+      Alert.alert("Error", e?.message || "Failed to like post.");
     }
   };
 
@@ -82,9 +105,8 @@ export default function ResidentCommunityScreen() {
       Alert.alert("Comment Added", "Your reply was posted.");
       setCommentText("");
       setActivePost(null);
-    } catch (e) {
-      Alert.alert("Sent", "Comment recorded.");
-      setActivePost(null);
+    } catch (e: any) {
+      Alert.alert("Error Adding Comment", e?.message || "Failed to post comment.");
     }
   };
 
@@ -152,48 +174,70 @@ export default function ResidentCommunityScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
         {activeTab === "posts" ? (
-          filteredPosts.map((post) => (
-            <View key={post.id} style={styles.postCard}>
-              <View style={styles.postTop}>
-                <View style={styles.avatarCircle}>
-                  <Text style={styles.avatarChar}>{post.author_name?.charAt(0) || "R"}</Text>
-                </View>
-                <View style={{ flex: 1 }}>
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                    <Text style={styles.authorName}>{post.author_name || "Resident"}</Text>
-                    {post.unit_number && (
-                      <Text style={styles.unitTag}>{post.unit_number}</Text>
-                    )}
-                  </View>
-                  <Text style={styles.categoryBadge}>#{post.category.toUpperCase()}</Text>
-                </View>
-                {post.is_pinned && (
-                  <View style={styles.pinnedBadge}>
-                    <Text style={styles.pinnedText}>📌 PINNED</Text>
-                  </View>
-                )}
-              </View>
-
-              <Text style={styles.postTitle}>{post.title}</Text>
-              <Text style={styles.postContent}>{post.content}</Text>
-
-              <View style={styles.postActions}>
-                <TouchableOpacity
-                  style={styles.likeBtn}
-                  onPress={() => likePost(post.id)}
-                >
-                  <Text style={styles.likeBtnText}>❤️ {post.likes_count} Likes</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.commentBtn}
-                  onPress={() => setActivePost(post)}
-                >
-                  <Text style={styles.commentBtnText}>💬 {post.comments.length} Comments</Text>
-                </TouchableOpacity>
-              </View>
+          isErrorPosts ? (
+            <QueryErrorView
+              error={errorPosts}
+              message="Failed to load community discussions."
+              onRetry={refetchPosts}
+            />
+          ) : filteredPosts.length === 0 && !isLoadingPosts ? (
+            <View style={styles.postCard}>
+              <Text style={styles.postContent}>No discussions found in this topic yet.</Text>
             </View>
-          ))
+          ) : (
+            filteredPosts.map((post) => (
+              <View key={post.id} style={styles.postCard}>
+                <View style={styles.postTop}>
+                  <View style={styles.avatarCircle}>
+                    <Text style={styles.avatarChar}>{post.author_name?.charAt(0) || "R"}</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                      <Text style={styles.authorName}>{post.author_name || "Resident"}</Text>
+                      {post.unit_number && (
+                        <Text style={styles.unitTag}>{post.unit_number}</Text>
+                      )}
+                    </View>
+                    <Text style={styles.categoryBadge}>#{post.category.toUpperCase()}</Text>
+                  </View>
+                  {post.is_pinned && (
+                    <View style={styles.pinnedBadge}>
+                      <Text style={styles.pinnedText}>📌 PINNED</Text>
+                    </View>
+                  )}
+                </View>
+
+                <Text style={styles.postTitle}>{post.title}</Text>
+                <Text style={styles.postContent}>{post.content}</Text>
+
+                <View style={styles.postActions}>
+                  <TouchableOpacity
+                    style={styles.likeBtn}
+                    onPress={() => handleLike(post.id)}
+                  >
+                    <Text style={styles.likeBtnText}>❤️ {post.likes_count} Likes</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.commentBtn}
+                    onPress={() => setActivePost(post)}
+                  >
+                    <Text style={styles.commentBtnText}>💬 {post.comments.length} Comments</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ))
+          )
+        ) : isErrorPolls ? (
+          <QueryErrorView
+            error={errorPolls}
+            message="Failed to load society polls."
+            onRetry={refetchPolls}
+          />
+        ) : displayPolls.length === 0 && !isLoadingPolls ? (
+          <View style={styles.pollCard}>
+            <Text style={styles.pollDesc}>No active society polls right now.</Text>
+          </View>
         ) : (
           displayPolls.map((poll) => (
             <View key={poll.id} style={styles.pollCard}>

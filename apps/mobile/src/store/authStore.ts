@@ -30,7 +30,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
     role: "resident",
     societyId: "34090e70-34f9-4cdd-9522-e2098982a5ed",
     societyName: "Greenwood Palms Heights",
-    unitId: "5edff9df-0046-4aca-b993-00bf116ce67f",
+    unitId: "0be0d1a7-8a9c-46bf-9677-fa36679e01bd",
     unitNumber: "Villa-42",
   },
   login: (token, user) => set({ isAuthenticated: true, accessToken: token, user }),

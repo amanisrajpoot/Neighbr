@@ -59,6 +59,8 @@ export function useAmenities() {
   const {
     data: amenities = [],
     isLoading: isLoadingAmenities,
+    isError: isErrorAmenities,
+    error: errorAmenities,
     refetch: refetchAmenities,
   } = useQuery({
     queryKey: ["amenities", societyId],
@@ -73,6 +75,8 @@ export function useAmenities() {
   const {
     data: myBookings = [],
     isLoading: isLoadingBookings,
+    isError: isErrorBookings,
+    error: errorBookings,
     refetch: refetchBookings,
   } = useQuery({
     queryKey: ["amenityBookings", societyId, user?.id],
@@ -156,6 +160,10 @@ export function useAmenities() {
     myBookings,
     isLoadingAmenities,
     isLoadingBookings,
+    isErrorAmenities,
+    errorAmenities,
+    isErrorBookings,
+    errorBookings,
     refetchAmenities,
     refetchBookings,
     fetchSlots,

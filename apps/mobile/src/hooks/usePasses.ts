@@ -57,6 +57,7 @@ export function usePasses() {
   return {
     passes: passesQuery.data || [],
     isLoading: passesQuery.isLoading,
+    isError: passesQuery.isError,
     error: passesQuery.error,
     refetch: passesQuery.refetch,
     createPass: createPassMutation.mutateAsync,

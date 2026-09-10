@@ -34,6 +34,8 @@ export function useVehicles() {
   const {
     data: vehicles = [],
     isLoading,
+    isError,
+    error,
     refetch,
   } = useQuery({
     queryKey: ["vehicles", societyId, unitId],
@@ -80,6 +82,8 @@ export function useVehicles() {
   return {
     vehicles,
     isLoading,
+    isError,
+    error,
     refetch,
     registerVehicle: registerVehicleMutation.mutateAsync,
     deleteVehicle: deleteVehicleMutation.mutateAsync,

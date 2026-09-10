@@ -6,9 +6,10 @@ export interface StaffMember {
   id: string;
   society_id: string;
   name: string;
-  phone: string;
-  role: string;
-  pass_code: string;
+  phone?: string | null;
+  role?: string;
+  staff_type?: string;
+  pass_code?: string;
   photo_url?: string;
   is_active: boolean;
   status?: "INSIDE" | "OUTSIDE";
@@ -20,9 +21,14 @@ export interface StaffAssignment {
   id: string;
   staff_id: string;
   unit_id: string;
-  role: string;
-  schedule?: string;
+  society_id?: string;
+  role?: string;
+  schedule?: any;
+  is_active?: boolean;
+  created_at?: string;
   staff?: StaffMember;
+  unit?: any;
+  name?: string;
 }
 
 export function useStaff() {
@@ -35,13 +41,15 @@ export function useStaff() {
   const {
     data: unitStaff = [],
     isLoading: isLoadingUnitStaff,
+    isError: isErrorUnitStaff,
+    error: errorUnitStaff,
     refetch: refetchUnitStaff,
-  } = useQuery({
+  } = useQuery<StaffAssignment[]>({
     queryKey: ["unitStaff", societyId, unitId],
     queryFn: async () => {
       if (!societyId || !unitId) return [];
-      return apiClient<StaffMember[]>(
-        `/societies/${societyId}/units/${unitId}/staff`
+      return apiClient<StaffAssignment[]>(
+        `/societies/${societyId}/staff/units/${unitId}`
       );
     },
     enabled: Boolean(societyId && unitId),
@@ -51,7 +59,10 @@ export function useStaff() {
   const {
     data: allStaff = [],
     isLoading: isLoadingAllStaff,
-  } = useQuery({
+    isError: isErrorAllStaff,
+    error: errorAllStaff,
+    refetch: refetchAllStaff,
+  } = useQuery<StaffMember[]>({
     queryKey: ["allStaff", societyId],
     queryFn: async () => {
       if (!societyId) return [];
@@ -76,7 +87,7 @@ export function useStaff() {
           method: "POST",
           body: JSON.stringify({
             unit_id: unitId,
-            schedule: schedule || "Daily",
+            schedule: typeof schedule === "string" ? { note: schedule } : (schedule || {}),
           }),
         }
       );
@@ -133,7 +144,12 @@ export function useStaff() {
     allStaff,
     isLoadingUnitStaff,
     isLoadingAllStaff,
+    isErrorUnitStaff,
+    errorUnitStaff,
+    isErrorAllStaff,
+    errorAllStaff,
     refetchUnitStaff,
+    refetchAllStaff,
     assignStaff: assignStaffMutation.mutateAsync,
     staffCheckIn: staffCheckInMutation.mutateAsync,
     staffCheckOut: staffCheckOutMutation.mutateAsync,

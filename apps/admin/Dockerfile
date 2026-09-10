@@ -26,6 +26,7 @@ COPY . .
 
 ENV NEXT_TELEMETRY_DISABLED=1
 
+RUN mkdir -p /app/apps/admin/public
 RUN npm run build --workspace=@neighbr/admin
 
 # ────────────────────────────────────────────────────

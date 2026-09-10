@@ -13,9 +13,10 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Colors } from "../../src/theme/colors";
 import { useVehicles, VehicleItem } from "../../src/hooks/useVehicles";
+import { QueryErrorView } from "../../src/components/QueryErrorView";
 
 export default function ResidentVehiclesScreen() {
-  const { vehicles, isLoading, refetch, registerVehicle, deleteVehicle } = useVehicles();
+  const { vehicles, isLoading, isError, error, refetch, registerVehicle, deleteVehicle } = useVehicles();
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [vehicleNumber, setVehicleNumber] = useState("");
   const [makeModel, setMakeModel] = useState("");
@@ -52,8 +53,7 @@ export default function ResidentVehiclesScreen() {
       setMakeModel("");
       setParkingSlot("");
     } catch (e: any) {
-      Alert.alert("Registered", "Vehicle added to your unit profile.");
-      setIsAddModalOpen(false);
+      Alert.alert("Registration Failed", e?.message || "Could not register vehicle.");
     } finally {
       setIsSubmitting(false);
     }
@@ -72,8 +72,8 @@ export default function ResidentVehiclesScreen() {
             try {
               await deleteVehicle(id);
               Alert.alert("Removed", "Vehicle removed from society records.");
-            } catch (e) {
-              Alert.alert("Updated", "Vehicle deregistered.");
+            } catch (e: any) {
+              Alert.alert("Deregistration Failed", e?.message || "Could not remove vehicle.");
             }
           },
         },
@@ -129,48 +129,60 @@ export default function ResidentVehiclesScreen() {
 
         <Text style={styles.sectionHeading}>Registered Vehicles ({displayVehicles.length})</Text>
 
-        {displayVehicles.map((v) => (
-          <View key={v.id} style={styles.card}>
-            <View style={styles.cardHeader}>
-              <View style={styles.iconCircle}>
-                <Text style={styles.iconEmoji}>{getVehicleIcon(v.vehicle_type)}</Text>
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.vehicleNumber}>{v.vehicle_number}</Text>
-                <Text style={styles.vehicleModel}>{v.make_model || "Resident Vehicle"}</Text>
-              </View>
-              <View style={styles.verifiedBadge}>
-                <Text style={styles.verifiedText}>● Verified</Text>
-              </View>
-            </View>
-
-            <View style={styles.cardFooter}>
-              <View style={styles.row}>
-                <Text style={styles.label}>Parking Slot:</Text>
-                <Text style={styles.value}>{v.parking_slot || "Allocated Bay"}</Text>
-              </View>
-              <View style={styles.row}>
-                <Text style={styles.label}>FastTag/RFID:</Text>
-                <Text style={[styles.value, styles.mono]}>{v.rfid_tag || "Auto-detected at Gate"}</Text>
-              </View>
-            </View>
-
-            <View style={styles.actionRow}>
-              <TouchableOpacity
-                style={styles.guestPassBtn}
-                onPress={() => Alert.alert("Gate FastPass", `FastTag RFID is active for ${v.vehicle_number}. Automatic boom barrier entry enabled at Gate 1 & 2.`)}
-              >
-                <Text style={styles.guestPassBtnText}>🛡️ Gate Pass Valid</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.deleteBtn}
-                onPress={() => handleDelete(v.id, v.vehicle_number)}
-              >
-                <Text style={styles.deleteBtnText}>Remove</Text>
-              </TouchableOpacity>
-            </View>
+        {isError ? (
+          <QueryErrorView
+            error={error}
+            message="Failed to load registered vehicles."
+            onRetry={refetch}
+          />
+        ) : displayVehicles.length === 0 && !isLoading ? (
+          <View style={styles.card}>
+            <Text style={styles.vehicleModel}>No vehicles registered under this flat yet. Tap "+ Add Vehicle" to register license plates for RFID gate clearance.</Text>
           </View>
-        ))}
+        ) : (
+          displayVehicles.map((v) => (
+            <View key={v.id} style={styles.card}>
+              <View style={styles.cardHeader}>
+                <View style={styles.iconCircle}>
+                  <Text style={styles.iconEmoji}>{getVehicleIcon(v.vehicle_type)}</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.vehicleNumber}>{v.vehicle_number}</Text>
+                  <Text style={styles.vehicleModel}>{v.make_model || "Resident Vehicle"}</Text>
+                </View>
+                <View style={styles.verifiedBadge}>
+                  <Text style={styles.verifiedText}>● Verified</Text>
+                </View>
+              </View>
+
+              <View style={styles.cardFooter}>
+                <View style={styles.row}>
+                  <Text style={styles.label}>Parking Slot:</Text>
+                  <Text style={styles.value}>{v.parking_slot || "Allocated Bay"}</Text>
+                </View>
+                <View style={styles.row}>
+                  <Text style={styles.label}>FastTag/RFID:</Text>
+                  <Text style={[styles.value, styles.mono]}>{v.rfid_tag || "Auto-detected at Gate"}</Text>
+                </View>
+              </View>
+
+              <View style={styles.actionRow}>
+                <TouchableOpacity
+                  style={styles.guestPassBtn}
+                  onPress={() => Alert.alert("Gate FastPass", `FastTag RFID is active for ${v.vehicle_number}. Automatic boom barrier entry enabled at Gate 1 & 2.`)}
+                >
+                  <Text style={styles.guestPassBtnText}>🛡️ Gate Pass Valid</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.deleteBtn}
+                  onPress={() => handleDelete(v.id, v.vehicle_number)}
+                >
+                  <Text style={styles.deleteBtnText}>Remove</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ))
+        )}
       </ScrollView>
 
       {/* Add Vehicle Modal */}

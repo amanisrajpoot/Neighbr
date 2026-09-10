@@ -50,6 +50,8 @@ export function useBilling() {
   const {
     data: invoices = [],
     isLoading,
+    isError,
+    error,
     refetch,
   } = useQuery({
     queryKey: ["invoices", societyId, unitId],
@@ -91,6 +93,8 @@ export function useBilling() {
   return {
     invoices,
     isLoading,
+    isError,
+    error,
     refetch,
     payInvoice: payInvoiceMutation.mutateAsync,
   };

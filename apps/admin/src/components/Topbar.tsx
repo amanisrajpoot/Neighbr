@@ -20,6 +20,7 @@ import Link from "next/link";
 import { useSociety } from "@/context/SocietyContext";
 import { useAuth, RoleType } from "@/context/AuthContext";
 import { useTheme } from "@/context/ThemeContext";
+import { DevStatusIndicator } from "./DevStatusIndicator";
 
 interface NotificationItem {
   id: string;
@@ -311,11 +312,8 @@ export function Topbar() {
           )}
         </div>
 
-        {/* Compact Live Status Badge */}
-        <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-[11px] font-bold">
-          <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-pulse" />
-          <span>Live System</span>
-        </div>
+        {/* Real-time Backend & DB Status Notifier (Dev-Only) */}
+        <DevStatusIndicator />
 
         <div className="h-5 w-px bg-slate-200 dark:bg-slate-800 hidden sm:block" />
 

@@ -13,10 +13,24 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Colors } from "../../src/theme/colors";
 import { useAmenities, AmenityItem, SlotInfo, BookingItem } from "../../src/hooks/useAmenities";
 import { QRCodeView } from "../../src/components/QRCodeView";
+import { QueryErrorView } from "../../src/components/QueryErrorView";
 
 
 export default function ResidentAmenitiesScreen() {
-  const { amenities, myBookings, isLoadingAmenities, refetchAmenities, refetchBookings, fetchSlots, bookSlot, cancelBooking } = useAmenities();
+  const {
+    amenities,
+    myBookings,
+    isLoadingAmenities,
+    isErrorAmenities,
+    errorAmenities,
+    isErrorBookings,
+    errorBookings,
+    refetchAmenities,
+    refetchBookings,
+    fetchSlots,
+    bookSlot,
+    cancelBooking,
+  } = useAmenities();
   const [activeTab, setActiveTab] = useState<"explore" | "bookings">("explore");
   const [selectedAmenity, setSelectedAmenity] = useState<AmenityItem | null>(null);
   const [selectedDate, setSelectedDate] = useState("2026-08-20");
@@ -45,25 +59,10 @@ export default function ResidentAmenitiesScreen() {
     setSelectedSlot(null);
     try {
       const freshSlots = await fetchSlots(amenityId, dateStr);
-      if (freshSlots && freshSlots.length > 0) {
-        setSlots(freshSlots);
-      } else {
-        // Generate standard morning/evening facility slots
-        setSlots([
-          { start_time: "06:00 AM", end_time: "07:00 AM", max_capacity: 8, booked_count: 1, available_capacity: 7, is_available: true },
-          { start_time: "07:00 AM", end_time: "08:00 AM", max_capacity: 8, booked_count: 2, available_capacity: 6, is_available: true },
-          { start_time: "08:00 AM", end_time: "09:00 AM", max_capacity: 8, booked_count: 4, available_capacity: 4, is_available: true },
-          { start_time: "05:00 PM", end_time: "06:00 PM", max_capacity: 8, booked_count: 3, available_capacity: 5, is_available: true },
-          { start_time: "06:00 PM", end_time: "07:00 PM", max_capacity: 8, booked_count: 0, available_capacity: 8, is_available: true },
-          { start_time: "07:00 PM", end_time: "08:00 PM", max_capacity: 8, booked_count: 2, available_capacity: 6, is_available: true },
-        ]);
-      }
-    } catch (e) {
-      setSlots([
-        { start_time: "06:00 AM", end_time: "07:00 AM", max_capacity: 8, booked_count: 0, available_capacity: 8, is_available: true },
-        { start_time: "07:00 AM", end_time: "08:00 AM", max_capacity: 8, booked_count: 0, available_capacity: 8, is_available: true },
-        { start_time: "06:00 PM", end_time: "07:00 PM", max_capacity: 8, booked_count: 0, available_capacity: 8, is_available: true },
-      ]);
+      setSlots(freshSlots || []);
+    } catch (e: any) {
+      setSlots([]);
+      Alert.alert("Error Loading Slots", e?.message || "Failed to fetch available time slots.");
     } finally {
       setIsLoadingSlots(false);
     }
@@ -84,7 +83,7 @@ export default function ResidentAmenitiesScreen() {
 
     try {
       setIsSubmitting(true);
-      const res = await bookSlot({
+      await bookSlot({
         amenityId: selectedAmenity.id,
         bookingDate: selectedDate,
         startTime: selectedSlot.start_time,
@@ -96,10 +95,7 @@ export default function ResidentAmenitiesScreen() {
       await refetchBookings();
       setActiveTab("bookings");
     } catch (e: any) {
-      Alert.alert("Reservation Booked", `Pass generated for ${selectedAmenity.name} (${selectedSlot.start_time}).`);
-      setIsBookingModalOpen(false);
-      await refetchBookings();
-      setActiveTab("bookings");
+      Alert.alert("Booking Failed", e?.message || "Could not complete booking. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -115,8 +111,8 @@ export default function ResidentAmenitiesScreen() {
           try {
             await cancelBooking({ bookingId });
             Alert.alert("Cancelled", "Slot released for other residents.");
-          } catch (e) {
-            Alert.alert("Cancelled", "Reservation removed.");
+          } catch (e: any) {
+            Alert.alert("Cancellation Failed", e?.message || "Could not cancel reservation.");
           }
         },
       },
@@ -159,37 +155,59 @@ export default function ResidentAmenitiesScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
         {activeTab === "explore" ? (
-          displayAmenities.map((amenity) => (
-            <View key={amenity.id} style={styles.card}>
-              <View style={styles.cardTop}>
-                <View style={styles.codeBadge}>
-                  <Text style={styles.codeText}>{amenity.code}</Text>
-                </View>
-                {amenity.is_paid && (
-                  <View style={styles.paidBadge}>
-                    <Text style={styles.paidText}>₹{amenity.price_per_slot}/slot</Text>
-                  </View>
-                )}
-              </View>
-
-              <Text style={styles.amenityName}>{amenity.name}</Text>
-              <Text style={styles.amenityDesc}>{amenity.description}</Text>
-
-              <View style={styles.amenityMetaRow}>
-                <Text style={styles.metaItem}>🕒 {amenity.open_time} - {amenity.close_time}</Text>
-                <Text style={styles.metaItem}>👥 {amenity.capacity_per_slot} spots/slot</Text>
-                <Text style={styles.metaItem}>⏱️ {amenity.slot_duration_minutes} mins</Text>
-              </View>
-
-              <TouchableOpacity
-                style={styles.bookBtn}
-                onPress={() => handleOpenBooking(amenity)}
-                activeOpacity={0.85}
-              >
-                <Text style={styles.bookBtnText}>Select Slot & Book &rarr;</Text>
-              </TouchableOpacity>
+          isErrorAmenities ? (
+            <QueryErrorView
+              error={errorAmenities}
+              message="Failed to load amenities directory."
+              onRetry={refetchAmenities}
+            />
+          ) : displayAmenities.length === 0 && !isLoadingAmenities ? (
+            <View style={styles.card}>
+              <Text style={styles.amenityDesc}>No facilities available in this society.</Text>
             </View>
-          ))
+          ) : (
+            displayAmenities.map((amenity) => (
+              <View key={amenity.id} style={styles.card}>
+                <View style={styles.cardTop}>
+                  <View style={styles.codeBadge}>
+                    <Text style={styles.codeText}>{amenity.code}</Text>
+                  </View>
+                  {amenity.is_paid && (
+                    <View style={styles.paidBadge}>
+                      <Text style={styles.paidText}>₹{amenity.price_per_slot}/slot</Text>
+                    </View>
+                  )}
+                </View>
+
+                <Text style={styles.amenityName}>{amenity.name}</Text>
+                <Text style={styles.amenityDesc}>{amenity.description}</Text>
+
+                <View style={styles.amenityMetaRow}>
+                  <Text style={styles.metaItem}>🕒 {amenity.open_time} - {amenity.close_time}</Text>
+                  <Text style={styles.metaItem}>👥 {amenity.capacity_per_slot} spots/slot</Text>
+                  <Text style={styles.metaItem}>⏱️ {amenity.slot_duration_minutes} mins</Text>
+                </View>
+
+                <TouchableOpacity
+                  style={styles.bookBtn}
+                  onPress={() => handleOpenBooking(amenity)}
+                  activeOpacity={0.85}
+                >
+                  <Text style={styles.bookBtnText}>Select Slot & Book &rarr;</Text>
+                </TouchableOpacity>
+              </View>
+            ))
+          )
+        ) : isErrorBookings ? (
+          <QueryErrorView
+            error={errorBookings}
+            message="Failed to load your amenity reservations."
+            onRetry={refetchBookings}
+          />
+        ) : displayBookings.length === 0 ? (
+          <View style={styles.card}>
+            <Text style={styles.amenityDesc}>You have no amenity passes booked yet.</Text>
+          </View>
         ) : (
           displayBookings.map((b) => (
             <View key={b.id} style={styles.bookingCard}>
@@ -278,35 +296,41 @@ export default function ResidentAmenitiesScreen() {
               </Text>
               <ScrollView style={styles.slotsScroll}>
                 <View style={styles.slotsGrid}>
-                  {slots.map((s) => {
-                    const isSelected = selectedSlot?.start_time === s.start_time;
+                  {slots.length === 0 && !isLoadingSlots ? (
+                    <Text style={[styles.amenityDesc, { padding: 12, textAlign: "center", width: "100%" }]}>
+                      No available slots found for this date.
+                    </Text>
+                  ) : (
+                    slots.map((s) => {
+                      const isSelected = selectedSlot?.start_time === s.start_time;
 
-                    return (
-                      <TouchableOpacity
-                        key={s.start_time}
-                        disabled={!s.is_available}
-                        onPress={() => setSelectedSlot(s)}
-                        style={[
-                          styles.slotCard,
-                          isSelected && styles.slotCardActive,
-                          !s.is_available && styles.slotCardDisabled,
-                        ]}
-                      >
-                        <Text style={[styles.slotTime, isSelected && styles.slotTimeActive]}>
-                          {s.start_time} - {s.end_time}
-                        </Text>
-                        <Text
+                      return (
+                        <TouchableOpacity
+                          key={s.start_time}
+                          disabled={!s.is_available}
+                          onPress={() => setSelectedSlot(s)}
                           style={[
-                            styles.slotCapacity,
-                            !s.is_available && styles.slotFullText,
-                            isSelected && { color: "#ffffff" },
+                            styles.slotCard,
+                            isSelected && styles.slotCardActive,
+                            !s.is_available && styles.slotCardDisabled,
                           ]}
                         >
-                          {s.is_available ? `${s.available_capacity} spot(s) left` : "FULL"}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
+                          <Text style={[styles.slotTime, isSelected && styles.slotTimeActive]}>
+                            {s.start_time} - {s.end_time}
+                          </Text>
+                          <Text
+                            style={[
+                              styles.slotCapacity,
+                              !s.is_available && styles.slotFullText,
+                              isSelected && { color: "#ffffff" },
+                            ]}
+                          >
+                            {s.is_available ? `${s.available_capacity} spot(s) left` : "FULL"}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })
+                  )}
                 </View>
               </ScrollView>
 

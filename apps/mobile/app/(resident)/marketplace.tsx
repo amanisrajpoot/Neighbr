@@ -13,6 +13,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Colors } from "../../src/theme/colors";
 import { useMarketplace, ListingItem, VendorItem, BookingItem } from "../../src/hooks/useMarketplace";
+import { QueryErrorView } from "../../src/components/QueryErrorView";
 
 const LISTING_CATEGORIES = [
   { id: "all", label: "All Items" },
@@ -23,7 +24,21 @@ const LISTING_CATEGORIES = [
 ];
 
 export default function ResidentMarketplaceScreen() {
-  const { listings, vendors, bookings, refetchListings, refetchVendors, createListing, bookVendor } = useMarketplace();
+  const {
+    listings,
+    vendors,
+    bookings,
+    isLoadingListings,
+    isLoadingVendors,
+    isErrorListings,
+    errorListings,
+    isErrorVendors,
+    errorVendors,
+    refetchListings,
+    refetchVendors,
+    createListing,
+    bookVendor,
+  } = useMarketplace();
   const [activeTab, setActiveTab] = useState<"bazaar" | "services">("bazaar");
   const [activeCategory, setActiveCategory] = useState("all");
   const [isAddListingOpen, setIsAddListingOpen] = useState(false);
@@ -76,9 +91,8 @@ export default function ResidentMarketplaceScreen() {
       setTitle("");
       setDescription("");
       setPrice("");
-    } catch (e) {
-      Alert.alert("Item Published", "Your listing was posted to the society bazaar.");
-      setIsAddListingOpen(false);
+    } catch (e: any) {
+      Alert.alert("Error Creating Listing", e?.message || "Could not publish listing. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -95,8 +109,8 @@ export default function ResidentMarketplaceScreen() {
         notes: notes.trim() || undefined,
       });
       setBookingPassCode(res.gate_pass_code);
-    } catch (e) {
-      setBookingPassCode("SVC-CLEAN-9A12");
+    } catch (e: any) {
+      Alert.alert("Booking Failed", e?.message || "Could not book service with this vendor.");
     } finally {
       setIsSubmitting(false);
     }
@@ -168,38 +182,60 @@ export default function ResidentMarketplaceScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
         {activeTab === "bazaar" ? (
-          filteredListings.map((item) => (
-            <View key={item.id} style={styles.card}>
-              <View style={styles.cardTop}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.itemCategory}>#{item.category.toUpperCase()}</Text>
-                  <Text style={styles.itemTitle}>{item.title}</Text>
-                </View>
-                {item.is_free ? (
-                  <View style={styles.freeBadge}>
-                    <Text style={styles.freeBadgeText}>🎁 FREE</Text>
-                  </View>
-                ) : (
-                  <Text style={styles.priceTag}>₹{item.price.toLocaleString()}</Text>
-                )}
-              </View>
-
-              <Text style={styles.itemDesc}>{item.description}</Text>
-
-              <View style={styles.sellerRow}>
-                <View>
-                  <Text style={styles.sellerName}>Posted by {item.seller_name || "Neighbor"}</Text>
-                  <Text style={styles.unitText}>{item.unit_number || "Villa-42"}</Text>
-                </View>
-                <TouchableOpacity
-                  style={styles.contactBtn}
-                  onPress={() => setSelectedListing(item)}
-                >
-                  <Text style={styles.contactBtnText}>💬 Message Seller</Text>
-                </TouchableOpacity>
-              </View>
+          isErrorListings ? (
+            <QueryErrorView
+              error={errorListings}
+              message="Failed to load marketplace listings."
+              onRetry={refetchListings}
+            />
+          ) : filteredListings.length === 0 && !isLoadingListings ? (
+            <View style={styles.card}>
+              <Text style={styles.itemDesc}>No items listed in this category yet.</Text>
             </View>
-          ))
+          ) : (
+            filteredListings.map((item) => (
+              <View key={item.id} style={styles.card}>
+                <View style={styles.cardTop}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.itemCategory}>#{item.category.toUpperCase()}</Text>
+                    <Text style={styles.itemTitle}>{item.title}</Text>
+                  </View>
+                  {item.is_free ? (
+                    <View style={styles.freeBadge}>
+                      <Text style={styles.freeBadgeText}>🎁 FREE</Text>
+                    </View>
+                  ) : (
+                    <Text style={styles.priceTag}>₹{item.price.toLocaleString()}</Text>
+                  )}
+                </View>
+
+                <Text style={styles.itemDesc}>{item.description}</Text>
+
+                <View style={styles.sellerRow}>
+                  <View>
+                    <Text style={styles.sellerName}>Posted by {item.seller_name || "Neighbor"}</Text>
+                    <Text style={styles.unitText}>{item.unit_number || "Villa-42"}</Text>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.contactBtn}
+                    onPress={() => setSelectedListing(item)}
+                  >
+                    <Text style={styles.contactBtnText}>💬 Message Seller</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ))
+          )
+        ) : isErrorVendors ? (
+          <QueryErrorView
+            error={errorVendors}
+            message="Failed to load verified service vendors."
+            onRetry={refetchVendors}
+          />
+        ) : displayVendors.length === 0 && !isLoadingVendors ? (
+          <View style={styles.card}>
+            <Text style={styles.itemDesc}>No verified service partners available at this time.</Text>
+          </View>
         ) : (
           displayVendors.map((vendor) => (
             <View key={vendor.id} style={styles.card}>

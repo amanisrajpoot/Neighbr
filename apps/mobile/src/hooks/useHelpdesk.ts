@@ -56,6 +56,8 @@ export function useHelpdesk() {
   const {
     data: tickets = [],
     isLoading,
+    isError,
+    error,
     refetch,
   } = useQuery({
     queryKey: ["helpdeskTickets", societyId, unitId],
@@ -137,6 +139,8 @@ export function useHelpdesk() {
   return {
     tickets,
     isLoading,
+    isError,
+    error,
     refetch,
     createTicket: createTicketMutation.mutateAsync,
     addComment: addCommentMutation.mutateAsync,

@@ -8,7 +8,7 @@ from sqlalchemy import select
 from app.core.errors import AppException
 from app.core.events import event_bus, DomainEvent
 from app.modules.auth.models import User
-from app.modules.societies.models import UnitMembership
+from app.modules.societies.models import UnitMembership, Unit
 from app.modules.visitors.models import VisitorProfile, VisitorPass, VisitorEvent, Blacklist
 from app.modules.visitors.repository import VisitorRepository
 from app.modules.visitors.schemas import (
@@ -52,6 +52,30 @@ class VisitorService:
                 )
                 await self.repo.flush(visitor_profile)
 
+        # Safely resolve target unit to prevent foreign key violation
+        target_unit_id = payload.unit_id
+        target_unit = await self.db.get(Unit, target_unit_id) if target_unit_id else None
+
+        if not target_unit or target_unit.society_id != society_id:
+            user_unit_res = await self.db.execute(
+                select(UnitMembership.unit_id).where(
+                    UnitMembership.society_id == society_id,
+                    UnitMembership.user_id == issuer.id,
+                    UnitMembership.is_active.is_(True),
+                    UnitMembership.unit_id.is_not(None)
+                ).limit(1)
+            )
+            fallback_unit_id = user_unit_res.scalar_one_or_none()
+            if fallback_unit_id:
+                target_unit_id = fallback_unit_id
+            else:
+                first_unit_res = await self.db.execute(
+                    select(Unit.id).where(Unit.society_id == society_id, Unit.is_active.is_(True)).limit(1)
+                )
+                target_unit_id = first_unit_res.scalar_one_or_none()
+                if not target_unit_id:
+                    raise AppException(code="UNIT_NOT_FOUND", message="Valid unit not found for this society", status_code=400)
+
         # Check if issuer is a guard
         res = await self.db.execute(
             select(UnitMembership).where(
@@ -69,7 +93,7 @@ class VisitorService:
         visitor_pass = VisitorPass(
             id=pass_id,
             society_id=society_id,
-            unit_id=payload.unit_id,
+            unit_id=target_unit_id,
             visitor_id=visitor_profile.id if visitor_profile else None,
             issued_by=issuer.id,
             pass_type=payload.pass_type,

@@ -14,6 +14,7 @@ const queryClient = new QueryClient({
 });
 
 import { useNotifications } from "../src/hooks/useNotifications";
+import { DevStatusNotifier } from "../src/components/DevStatusNotifier";
 
 export default function RootLayout() {
   // Initialize websocket notifications for authenticated users
@@ -29,6 +30,7 @@ export default function RootLayout() {
           <Stack.Screen name="(resident)" />
           <Stack.Screen name="(guard)" />
         </Stack>
+        <DevStatusNotifier />
       </QueryClientProvider>
     </SafeAreaProvider>
   );

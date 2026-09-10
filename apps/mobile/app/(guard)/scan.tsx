@@ -104,8 +104,9 @@ export default function GuardScanScreen() {
       setManualCode("");
       setScanSuccessMessage(null);
       router.push("/(guard)/inside");
-    } catch (err) {
+    } catch (err: any) {
       console.log("Check-in error:", err);
+      Alert.alert("Check-In Error", err?.message || "Failed to complete gate check-in.");
     } finally {
       setIsValidating(false);
     }

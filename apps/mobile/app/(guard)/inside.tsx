@@ -68,11 +68,11 @@ export default function GuardInsideScreen() {
         onPress: async () => {
           try {
             await staffCheckOut({ staffId: id });
-          } catch (e) {
-            // fallback
+            setStaffInside((prev) => prev.filter((s) => s.id !== id));
+            Alert.alert("Staff Exit Logged", `${name} exit recorded at Gate 1.`);
+          } catch (e: any) {
+            Alert.alert("Exit Logging Failed", e?.message || "Could not log staff departure.");
           }
-          setStaffInside(staffInside.filter((s) => s.id !== id));
-          Alert.alert("Staff Exit Logged", `${name} exit recorded at Gate 1.`);
         },
       },
     ]);

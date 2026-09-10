@@ -14,9 +14,21 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Colors } from "../../src/theme/colors";
 import { useStaff, StaffMember } from "../../src/hooks/useStaff";
+import { QueryErrorView } from "../../src/components/QueryErrorView";
 
 export default function ResidentStaffScreen() {
-  const { unitStaff, allStaff, isLoadingUnitStaff, refetchUnitStaff, assignStaff } = useStaff();
+  const {
+    unitStaff,
+    allStaff,
+    isLoadingUnitStaff,
+    isErrorUnitStaff,
+    errorUnitStaff,
+    isErrorAllStaff,
+    errorAllStaff,
+    refetchUnitStaff,
+    refetchAllStaff,
+    assignStaff,
+  } = useStaff();
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedRole, setSelectedRole] = useState("All");
@@ -31,7 +43,7 @@ export default function ResidentStaffScreen() {
           name: item.staff?.name || "Domestic Staff",
           role: item.role || item.staff?.role || "House Help",
           phone: item.staff?.phone || "+91 98765 40000",
-          schedule: item.schedule || "Daily Schedule",
+          schedule: typeof item.schedule === "string" ? item.schedule : (item.schedule?.note || item.schedule?.text || "Daily Schedule"),
           status: item.staff?.status || (idx === 0 ? "INSIDE" : "OUTSIDE"),
           lastEntry: item.staff?.last_entry || (idx === 0 ? "Entered today at 07:32 AM" : "Exited Gate 1"),
           passCode: item.staff?.pass_code || `STF-${idx + 100}`,
@@ -46,7 +58,7 @@ export default function ResidentStaffScreen() {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await refetchUnitStaff();
+    await Promise.all([refetchUnitStaff(), refetchAllStaff()]);
     setRefreshing(false);
   };
 
@@ -57,8 +69,7 @@ export default function ResidentStaffScreen() {
       Alert.alert("Success", `${staffName} has been linked to your flat.`);
       setIsAddModalOpen(false);
     } catch (e: any) {
-      Alert.alert("Assignment Saved", `${staffName} linked to your flat schedule.`);
-      setIsAddModalOpen(false);
+      Alert.alert("Assignment Failed", e?.message || `Could not assign ${staffName} to your flat.`);
     } finally {
       setIsSubmitting(false);
     }
@@ -93,69 +104,81 @@ export default function ResidentStaffScreen() {
           </Text>
         </View>
 
-        {displayStaff.map((item) => (
-          <View key={item.id} style={styles.card}>
-            <View style={styles.cardHeader}>
-              <View style={styles.avatar}>
-                <Text style={styles.avatarText}>{item.name.charAt(0)}</Text>
-              </View>
-              <View style={{ flex: 1 }}>
-                <View style={styles.nameRow}>
-                  <Text style={styles.staffName}>{item.name}</Text>
-                  <Text style={styles.passCodeTag}>{item.passCode}</Text>
+        {isErrorUnitStaff ? (
+          <QueryErrorView
+            error={errorUnitStaff}
+            message="Failed to load flat domestic staff."
+            onRetry={refetchUnitStaff}
+          />
+        ) : displayStaff.length === 0 && !isLoadingUnitStaff ? (
+          <View style={styles.card}>
+            <Text style={styles.staffRole}>No domestic help currently linked to this flat. Tap "+ Link Staff" to assign maids, cooks or drivers.</Text>
+          </View>
+        ) : (
+          displayStaff.map((item) => (
+            <View key={item.id} style={styles.card}>
+              <View style={styles.cardHeader}>
+                <View style={styles.avatar}>
+                  <Text style={styles.avatarText}>{item.name.charAt(0)}</Text>
                 </View>
-                <Text style={styles.staffRole}>{item.role}</Text>
-              </View>
+                <View style={{ flex: 1 }}>
+                  <View style={styles.nameRow}>
+                    <Text style={styles.staffName}>{item.name}</Text>
+                    <Text style={styles.passCodeTag}>{item.passCode}</Text>
+                  </View>
+                  <Text style={styles.staffRole}>{item.role}</Text>
+                </View>
 
-              <View
-                style={[
-                  styles.statusBadge,
-                  item.status === "INSIDE" ? styles.statusInside : styles.statusOutside,
-                ]}
-              >
-                <Text
+                <View
                   style={[
-                    styles.statusBadgeText,
-                    item.status === "INSIDE" ? styles.statusTextInside : styles.statusTextOutside,
+                    styles.statusBadge,
+                    item.status === "INSIDE" ? styles.statusInside : styles.statusOutside,
                   ]}
                 >
-                  {item.status === "INSIDE" ? "● Inside" : "Outside"}
-                </Text>
+                  <Text
+                    style={[
+                      styles.statusBadgeText,
+                      item.status === "INSIDE" ? styles.statusTextInside : styles.statusTextOutside,
+                    ]}
+                  >
+                    {item.status === "INSIDE" ? "● Inside" : "Outside"}
+                  </Text>
+                </View>
               </View>
-            </View>
 
-            <View style={styles.cardFooter}>
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Schedule:</Text>
-                <Text style={styles.scheduleText}>{item.schedule}</Text>
+              <View style={styles.cardFooter}>
+                <View style={styles.infoRow}>
+                  <Text style={styles.infoLabel}>Schedule:</Text>
+                  <Text style={styles.scheduleText}>{item.schedule}</Text>
+                </View>
+                <View style={styles.infoRow}>
+                  <Text style={styles.infoLabel}>Activity:</Text>
+                  <Text style={styles.entryText}>{item.lastEntry}</Text>
+                </View>
               </View>
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Activity:</Text>
-                <Text style={styles.entryText}>{item.lastEntry}</Text>
-              </View>
-            </View>
 
-            <View style={styles.actionRow}>
-              <TouchableOpacity
-                style={styles.callBtn}
-                onPress={() => Alert.alert("Contact Staff", `Calling ${item.name} at ${item.phone}`)}
-              >
-                <Text style={styles.callBtnText}>📞 Call {item.name.split(" ")[0]}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.historyBtn}
-                onPress={() =>
-                  Alert.alert(
-                    "Attendance History",
-                    `${item.name}\nPass Code: ${item.passCode}\nThis Week: 6 Check-ins\nTotal Hours: 18.5 hrs`
-                  )
-                }
-              >
-                <Text style={styles.historyBtnText}>View Logs</Text>
-              </TouchableOpacity>
+              <View style={styles.actionRow}>
+                <TouchableOpacity
+                  style={styles.callBtn}
+                  onPress={() => Alert.alert("Contact Staff", `Calling ${item.name} at ${item.phone}`)}
+                >
+                  <Text style={styles.callBtnText}>📞 Call {item.name.split(" ")[0]}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.historyBtn}
+                  onPress={() =>
+                    Alert.alert(
+                      "Attendance History",
+                      `${item.name}\nPass Code: ${item.passCode}\nThis Week: 6 Check-ins\nTotal Hours: 18.5 hrs`
+                    )
+                  }
+                >
+                  <Text style={styles.historyBtnText}>View Logs</Text>
+                </TouchableOpacity>
+              </View>
             </View>
-          </View>
-        ))}
+          ))
+        )}
       </ScrollView>
 
       {/* Link Staff Modal */}
@@ -198,24 +221,37 @@ export default function ResidentStaffScreen() {
 
             {/* Directory List */}
             <ScrollView style={styles.directoryList} showsVerticalScrollIndicator={false}>
-              {filteredDirectory.map((staff) => (
-                <View key={staff.id} style={styles.directoryCard}>
-                  <View style={styles.dirAvatar}>
-                    <Text style={styles.dirAvatarText}>{staff.name.charAt(0)}</Text>
+              {isErrorAllStaff ? (
+                <QueryErrorView
+                  compact
+                  error={errorAllStaff}
+                  message="Failed to load society staff directory."
+                  onRetry={refetchAllStaff}
+                />
+              ) : filteredDirectory.length === 0 ? (
+                <Text style={[styles.staffRole, { padding: 12, textAlign: "center" }]}>
+                  No staff members found matching "{searchQuery || selectedRole}".
+                </Text>
+              ) : (
+                filteredDirectory.map((staff) => (
+                  <View key={staff.id} style={styles.directoryCard}>
+                    <View style={styles.dirAvatar}>
+                      <Text style={styles.dirAvatarText}>{staff.name.charAt(0)}</Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.dirName}>{staff.name}</Text>
+                      <Text style={styles.dirRole}>{staff.role} • {staff.pass_code}</Text>
+                    </View>
+                    <TouchableOpacity
+                      style={styles.linkBtn}
+                      onPress={() => handleLinkStaff(staff.id, staff.name)}
+                      disabled={isSubmitting}
+                    >
+                      <Text style={styles.linkBtnText}>+ Add</Text>
+                    </TouchableOpacity>
                   </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.dirName}>{staff.name}</Text>
-                    <Text style={styles.dirRole}>{staff.role} • {staff.pass_code}</Text>
-                  </View>
-                  <TouchableOpacity
-                    style={styles.linkBtn}
-                    onPress={() => handleLinkStaff(staff.id, staff.name)}
-                    disabled={isSubmitting}
-                  >
-                    <Text style={styles.linkBtnText}>+ Add</Text>
-                  </TouchableOpacity>
-                </View>
-              ))}
+                ))
+              )}
             </ScrollView>
           </View>
         </View>

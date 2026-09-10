@@ -40,7 +40,9 @@ export function useNotices() {
   return {
     notices: noticesQuery.data || [],
     isLoading: noticesQuery.isLoading,
+    isError: noticesQuery.isError,
     error: noticesQuery.error,
+    refetch: noticesQuery.refetch,
     triggerSOS: triggerSOSMutation.mutateAsync,
     isTriggeringSOS: triggerSOSMutation.isPending,
   };

@@ -13,6 +13,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Colors } from "../../src/theme/colors";
 import { useHelpdesk, TicketItem } from "../../src/hooks/useHelpdesk";
+import { QueryErrorView } from "../../src/components/QueryErrorView";
 
 const CATEGORIES = [
   { id: "plumbing", label: "Plumbing", icon: "🚰" },
@@ -25,7 +26,7 @@ const CATEGORIES = [
 ];
 
 export default function ResidentHelpdeskScreen() {
-  const { tickets, isLoading, refetch, createTicket, addComment, rateTicket } = useHelpdesk();
+  const { tickets, isLoading, isError, error, refetch, createTicket, addComment, rateTicket } = useHelpdesk();
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState("plumbing");
   const [priority, setPriority] = useState<"low" | "normal" | "high" | "urgent">("normal");
@@ -66,8 +67,7 @@ export default function ResidentHelpdeskScreen() {
       setTitle("");
       setDescription("");
     } catch (e: any) {
-      Alert.alert("Submitted", "Ticket recorded on society helpdesk.");
-      setIsAddModalOpen(false);
+      Alert.alert("Failed to Raise Ticket", e?.message || "Could not submit complaint. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -80,9 +80,8 @@ export default function ResidentHelpdeskScreen() {
       Alert.alert("Message Sent", "Your note has been posted to maintenance staff.");
       setReplyMessage("");
       setSelectedTicket(null);
-    } catch (e) {
-      Alert.alert("Sent", "Message recorded.");
-      setSelectedTicket(null);
+    } catch (e: any) {
+      Alert.alert("Failed to Send Message", e?.message || "Could not send comment.");
     }
   };
 
@@ -92,9 +91,8 @@ export default function ResidentHelpdeskScreen() {
       await rateTicket({ ticketId: selectedTicket.id, rating: ratingVal });
       Alert.alert("Thank you!", "Your feedback has closed this ticket.");
       setSelectedTicket(null);
-    } catch (e) {
-      Alert.alert("Feedback Saved", "Ticket closed.");
-      setSelectedTicket(null);
+    } catch (e: any) {
+      Alert.alert("Failed to Close Ticket", e?.message || "Could not submit rating.");
     }
   };
 
@@ -157,52 +155,64 @@ export default function ResidentHelpdeskScreen() {
 
         <Text style={styles.sectionHeading}>My Unit Complaints ({displayTickets.length})</Text>
 
-        {displayTickets.map((ticket) => {
-          const colors = getStatusColor(ticket.status);
-          const catObj = CATEGORIES.find((c) => c.id === ticket.category);
+        {isError ? (
+          <QueryErrorView
+            error={error}
+            message="Failed to load maintenance tickets."
+            onRetry={refetch}
+          />
+        ) : displayTickets.length === 0 && !isLoading ? (
+          <View style={styles.card}>
+            <Text style={styles.ticketDesc}>No maintenance complaints raised yet.</Text>
+          </View>
+        ) : (
+          displayTickets.map((ticket) => {
+            const colors = getStatusColor(ticket.status);
+            const catObj = CATEGORIES.find((c) => c.id === ticket.category);
 
-          return (
-            <TouchableOpacity
-              key={ticket.id}
-              style={styles.card}
-              activeOpacity={0.85}
-              onPress={() => setSelectedTicket(ticket)}
-            >
-              <View style={styles.cardHeader}>
-                <View style={styles.catIconCircle}>
-                  <Text style={styles.catIconText}>{catObj?.icon || "🔧"}</Text>
+            return (
+              <TouchableOpacity
+                key={ticket.id}
+                style={styles.card}
+                activeOpacity={0.85}
+                onPress={() => setSelectedTicket(ticket)}
+              >
+                <View style={styles.cardHeader}>
+                  <View style={styles.catIconCircle}>
+                    <Text style={styles.catIconText}>{catObj?.icon || "🔧"}</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.ticketTitle}>{ticket.title}</Text>
+                    <Text style={styles.ticketCategory}>
+                      {catObj?.label || ticket.category} • Priority: {ticket.priority.toUpperCase()}
+                    </Text>
+                  </View>
+                  <View
+                    style={[
+                      styles.statusBadge,
+                      { backgroundColor: colors.bg, borderColor: colors.border },
+                    ]}
+                  >
+                    <Text style={[styles.statusBadgeText, { color: colors.text }]}>
+                      {ticket.status.replace("_", " ")}
+                    </Text>
+                  </View>
                 </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.ticketTitle}>{ticket.title}</Text>
-                  <Text style={styles.ticketCategory}>
-                    {catObj?.label || ticket.category} • Priority: {ticket.priority.toUpperCase()}
-                  </Text>
-                </View>
-                <View
-                  style={[
-                    styles.statusBadge,
-                    { backgroundColor: colors.bg, borderColor: colors.border },
-                  ]}
-                >
-                  <Text style={[styles.statusBadgeText, { color: colors.text }]}>
-                    {ticket.status.replace("_", " ")}
-                  </Text>
-                </View>
-              </View>
 
-              <Text style={styles.ticketDesc} numberOfLines={2}>
-                {ticket.description}
-              </Text>
-
-              <View style={styles.cardFooter}>
-                <Text style={styles.assigneeText}>
-                  {ticket.assignee_name ? `👷 ${ticket.assignee_name}` : "⏳ Awaiting Technician"}
+                <Text style={styles.ticketDesc} numberOfLines={2}>
+                  {ticket.description}
                 </Text>
-                <Text style={styles.viewThreadText}>Discussion &rarr;</Text>
-              </View>
-            </TouchableOpacity>
-          );
-        })}
+
+                <View style={styles.cardFooter}>
+                  <Text style={styles.assigneeText}>
+                    {ticket.assignee_name ? `👷 ${ticket.assignee_name}` : "⏳ Awaiting Technician"}
+                  </Text>
+                  <Text style={styles.viewThreadText}>Discussion &rarr;</Text>
+                </View>
+              </TouchableOpacity>
+            );
+          })
+        )}
       </ScrollView>
 
       {/* New Ticket Modal */}
