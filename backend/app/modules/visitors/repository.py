@@ -1,6 +1,6 @@
 import uuid
 from typing import List, Optional
-from sqlalchemy import select
+from sqlalchemy import select, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -52,10 +52,12 @@ class VisitorRepository:
         query = select(VisitorPass).where(VisitorPass.society_id == society_id).options(
             selectinload(VisitorPass.unit), selectinload(VisitorPass.issuer)
         )
-        if qr_token:
-            query = query.where(VisitorPass.qr_token == qr_token)
+        if qr_token and pin_code:
+            query = query.where(or_(VisitorPass.qr_token == qr_token, VisitorPass.pass_code == pin_code))
+        elif qr_token:
+            query = query.where(or_(VisitorPass.qr_token == qr_token, VisitorPass.pass_code == qr_token))
         elif pin_code:
-            query = query.where(VisitorPass.pass_code == pin_code)
+            query = query.where(or_(VisitorPass.pass_code == pin_code, VisitorPass.qr_token == pin_code))
         else:
             return None
             

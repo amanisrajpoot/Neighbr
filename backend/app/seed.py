@@ -206,9 +206,10 @@ async def seed_database():
                 visitor_name="Ananya Roy",
                 visitor_phone="+919876530099",
                 vehicle_number="KA01AB1234",
+                pass_code="889922",
                 qr_token="NBR-TOKEN-ANANYA",
                 valid_from=now - timedelta(hours=1),
-                valid_until=now + timedelta(hours=8),
+                valid_until=now + timedelta(days=30),
                 status="APPROVED",
                 purpose="Dinner visit",
             )

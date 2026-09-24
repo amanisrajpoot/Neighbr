@@ -120,3 +120,64 @@ async def society_sync_pull(
         "since_seq": since_seq,
         "events": []
     }
+
+@router.get("/sync/guard-pull")
+@router.get("/societies/{society_id}/sync/guard-pull")
+async def guard_pull_cache(
+    society_id: uuid.UUID,
+    gate_id: uuid.UUID | None = None,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    from sqlalchemy import select
+    from sqlalchemy.orm import selectinload
+    from app.modules.visitors.models import VisitorPass
+    from app.modules.societies.models import Unit
+
+    # 1. Fetch relevant active passes for this society
+    pass_res = await db.execute(
+        select(VisitorPass)
+        .where(
+            VisitorPass.society_id == society_id,
+            VisitorPass.status.in_(["APPROVED", "WAITING_APPROVAL", "CHECKED_IN"]),
+        )
+        .order_by(VisitorPass.valid_from.desc())
+        .limit(200)
+    )
+    passes = pass_res.scalars().all()
+
+    # 2. Fetch units with building info
+    unit_res = await db.execute(
+        select(Unit)
+        .where(Unit.society_id == society_id, Unit.is_active.is_(True))
+        .options(selectinload(Unit.building))
+        .order_by(Unit.unit_number)
+    )
+    units = unit_res.scalars().all()
+
+    return {
+        "passes": [
+            {
+                "id": str(p.id),
+                "qr_token": p.qr_token,
+                "pass_code": p.pass_code,
+                "visitor_name": p.visitor_name,
+                "visitor_phone": p.visitor_phone,
+                "unit_id": str(p.unit_id),
+                "valid_from": p.valid_from.isoformat() if p.valid_from else None,
+                "valid_until": p.valid_until.isoformat() if p.valid_until else None,
+                "status": p.status,
+            }
+            for p in passes
+        ],
+        "units": [
+            {
+                "id": str(u.id),
+                "unit_number": u.unit_number,
+                "building_name": u.building.name if u.building else "",
+                "unit_type": u.unit_type,
+            }
+            for u in units
+        ],
+    }
+

@@ -18,6 +18,7 @@ import { useAuthStore } from "../../src/store/authStore";
 import { useBilling, InvoiceItem } from "../../src/hooks/useBilling";
 import { useVehicles } from "../../src/hooks/useVehicles";
 import { useStaff } from "../../src/hooks/useStaff";
+import { useFamilyMembers } from "../../src/hooks/useFamilyMembers";
 import { QueryErrorView } from "../../src/components/QueryErrorView";
 
 export default function ResidentMyFlatScreen() {
@@ -25,6 +26,7 @@ export default function ResidentMyFlatScreen() {
   const { invoices, isLoading: isLoadingBilling, isError: isErrorBilling, error: errorBilling, refetch: refetchBilling, payInvoice } = useBilling();
   const { vehicles, isLoading: isLoadingVehicles, isError: isErrorVehicles, error: errorVehicles, refetch: refetchVehicles, registerVehicle } = useVehicles();
   const { unitStaff, isLoadingUnitStaff, isErrorUnitStaff, errorUnitStaff, refetchUnitStaff } = useStaff();
+  const { familyMembers, isLoading: isLoadingFamily, isError: isErrorFamily, error: errorFamily, refetch: refetchFamily, addFamilyMember } = useFamilyMembers();
 
   const [activeTab, setActiveTab] = useState<"overview" | "family" | "vehicles" | "billing">("overview");
   const [refreshing, setRefreshing] = useState(false);
@@ -36,14 +38,11 @@ export default function ResidentMyFlatScreen() {
   const [isSubmittingPay, setIsSubmittingPay] = useState(false);
 
   // Family Members states
-  const [familyList, setFamilyList] = useState([
-    { id: "fm-1", name: "Pooja Verma", relation: "Spouse", phone: "+91 98765 00002", badge: "Co-Owner", access: "Full Access" },
-    { id: "fm-2", name: "Aarav Verma", relation: "Son", phone: "Child / Minor", badge: "Resident", access: "Gate & Amenities" },
-  ]);
   const [isAddFamilyOpen, setIsAddFamilyOpen] = useState(false);
   const [newFamilyName, setNewFamilyName] = useState("");
   const [newFamilyRelation, setNewFamilyRelation] = useState("Spouse");
   const [newFamilyPhone, setNewFamilyPhone] = useState("");
+  const [isSubmittingFamily, setIsSubmittingFamily] = useState(false);
 
   // Vehicle states
   const [isAddVehicleOpen, setIsAddVehicleOpen] = useState(false);
@@ -56,9 +55,18 @@ export default function ResidentMyFlatScreen() {
   const displayInvoices = invoices || [];
   const currentUnpaid = displayInvoices.find((i) => i.status === "UNPAID" || i.status === "OVERDUE");
 
+  const displayFamily = familyMembers.map((fm) => ({
+    id: fm.id,
+    name: fm.name,
+    relation: fm.relation || "Family",
+    phone: fm.phone || "Family Member",
+    badge: "Resident",
+    access: "Gate & Amenities",
+  }));
+
   const onRefresh = async () => {
     setRefreshing(true);
-    await Promise.all([refetchBilling(), refetchVehicles(), refetchUnitStaff()]);
+    await Promise.all([refetchBilling(), refetchVehicles(), refetchUnitStaff(), refetchFamily()]);
     setRefreshing(false);
   };
 
@@ -81,25 +89,30 @@ export default function ResidentMyFlatScreen() {
     }
   };
 
-  const handleAddFamilyMember = () => {
+  const handleAddFamilyMember = async () => {
     if (!newFamilyName.trim()) {
       Alert.alert("Required", "Please enter family member's name.");
       return;
     }
-    const newMember = {
-      id: `fm-${Date.now()}`,
-      name: newFamilyName.trim(),
-      relation: newFamilyRelation,
-      phone: newFamilyPhone.trim() || "+91 98765 00000",
-      badge: "Family Member",
-      access: "Gate & Amenities",
-    };
-    setFamilyList((prev) => [...prev, newMember]);
-    Alert.alert("Member Added! 👨‍👩‍👦", `${newFamilyName} is now registered under Flat ${user?.unitNumber || "Villa-42"}.`);
-    setIsAddFamilyOpen(false);
-    setNewFamilyName("");
-    setNewFamilyPhone("");
+    try {
+      setIsSubmittingFamily(true);
+      await addFamilyMember({
+        name: newFamilyName.trim(),
+        relation: newFamilyRelation,
+        phone: newFamilyPhone.trim() || undefined,
+        age_group: newFamilyRelation === "Son" || newFamilyRelation === "Daughter" ? "child" : "adult",
+      });
+      Alert.alert("Member Added! 👨‍👩‍👦", `${newFamilyName} is now registered under Flat ${user?.unitNumber || "Villa-42"}.`);
+      setIsAddFamilyOpen(false);
+      setNewFamilyName("");
+      setNewFamilyPhone("");
+    } catch (e: any) {
+      Alert.alert("Error Adding Family Member", e?.message || "Could not save family member to database.");
+    } finally {
+      setIsSubmittingFamily(false);
+    }
   };
+
 
   const handleRegisterVehicle = async () => {
     if (!newVehNumber.trim()) {
@@ -172,7 +185,7 @@ export default function ResidentMyFlatScreen() {
           style={[styles.tabBtn, activeTab === "family" && styles.tabBtnActive]}
           onPress={() => setActiveTab("family")}
         >
-          <Text style={[styles.tabText, activeTab === "family" && styles.tabTextActive]}>Family ({familyList.length})</Text>
+          <Text style={[styles.tabText, activeTab === "family" && styles.tabTextActive]}>Family ({displayFamily.length})</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -290,23 +303,33 @@ export default function ResidentMyFlatScreen() {
               </TouchableOpacity>
             </View>
 
-            {familyList.map((m) => (
-              <View key={m.id} style={styles.memberCard}>
-                <View style={styles.memberAvatar}>
-                  <Text style={styles.memberAvatarText}>👨‍👩‍👧</Text>
-                </View>
-                <View style={{ flex: 1 }}>
-                  <View style={styles.memberNameRow}>
-                    <Text style={styles.memberName}>{m.name}</Text>
-                    <View style={styles.relationBadge}>
-                      <Text style={styles.relationBadgeText}>{m.relation}</Text>
-                    </View>
+            {displayFamily.length > 0 ? (
+              displayFamily.map((m) => (
+                <View key={m.id} style={styles.memberCard}>
+                  <View style={styles.memberAvatar}>
+                    <Text style={styles.memberAvatarText}>👨‍👩‍👧</Text>
                   </View>
-                  <Text style={styles.memberPhone}>{m.phone}</Text>
-                  <Text style={styles.memberAccess}>🔑 {m.access}</Text>
+                  <View style={{ flex: 1 }}>
+                    <View style={styles.memberNameRow}>
+                      <Text style={styles.memberName}>{m.name}</Text>
+                      <View style={styles.relationBadge}>
+                        <Text style={styles.relationBadgeText}>{m.relation}</Text>
+                      </View>
+                    </View>
+                    <Text style={styles.memberPhone}>{m.phone}</Text>
+                    <Text style={styles.memberAccess}>🔑 {m.access}</Text>
+                  </View>
+                </View>
+              ))
+            ) : (
+              <View style={styles.emptyCard}>
+                <Text style={styles.emptyCardIcon}>👨‍👩‍👧</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.emptyCardTitle}>No Family Members Listed</Text>
+                  <Text style={styles.emptyCardSub}>Add spouse, children or parents residing in flat {user?.unitNumber || "Villa-42"}.</Text>
                 </View>
               </View>
-            ))}
+            )}
           </>
         )}
 

@@ -17,18 +17,40 @@ import { Colors } from "../../src/theme/colors";
 import { syncEngine } from "../../src/sync/syncEngine";
 import { OfflineBanner } from "../../src/components/OfflineBanner";
 import { useAuthStore } from "../../src/store/authStore";
-import { visitorApi } from "../../src/api/client";
+import { visitorApi, societyApi } from "../../src/api/client";
 
 export default function GuardScanScreen() {
   const router = useRouter();
   const user = useAuthStore((state) => state.user);
   const societyId = user?.societyId || "34090e70-34f9-4cdd-9522-e2098982a5ed";
-  const gateId = "6a8c2ff3-bd7c-4e19-9637-55f7f6be4332"; // Main North Gate
+  const [gates, setGates] = useState<any[]>([]);
+  const [selectedGateId, setSelectedGateId] = useState<string>(
+    user?.gateId || "b878246e-d891-4cd9-b4af-c917cd3bd163"
+  );
+
+  useEffect(() => {
+    societyApi
+      .getGates(societyId)
+      .then((data) => {
+        if (data && data.length > 0) {
+          setGates(data);
+          if (!user?.gateId) {
+            setSelectedGateId(data[0].id);
+          }
+        }
+      })
+      .catch((err) => console.log("Failed to fetch gates:", err));
+  }, [societyId, user?.gateId]);
+
+  const activeGateName =
+    gates.find((g) => g.id === selectedGateId)?.name || user?.gateName || "Security Gate";
 
   const [permission, requestPermission] = useCameraPermissions();
   const [torchEnabled, setTorchEnabled] = useState(false);
   const [facing, setFacing] = useState<"back" | "front">("back");
-  const [activeTab, setActiveTab] = useState<"camera" | "manual">("camera");
+  const [activeTab, setActiveTab] = useState<"camera" | "manual">(
+    Platform.OS === "web" ? "manual" : "camera"
+  );
 
   const [manualCode, setManualCode] = useState("");
   const [isValidating, setIsValidating] = useState(false);
@@ -52,12 +74,33 @@ export default function GuardScanScreen() {
     setIsValidating(true);
     setScanError(null);
     setScanSuccessMessage(null);
+    const cleanToken = token.trim();
     try {
-      // 1. Validate with backend (handles QR token or 6-digit PIN)
-      const res = await visitorApi.scanPass(societyId, gateId, token.trim());
+      // 1. Validate with backend (handles QR token or PIN)
+      const res = await visitorApi.scanPass(societyId, selectedGateId, cleanToken);
       setScannedPass(res);
       setScanSuccessMessage(`Verified: ${res.visitor_name || "Guest"}`);
     } catch (e: any) {
+      // 2. If network fails or backend unreachable, fallback to local SQLite cache
+      try {
+        const { localDb } = await import("../../src/database/sqlite");
+        const cachedPass = await localDb.findPassByToken(cleanToken);
+        if (cachedPass) {
+          setScannedPass({
+            id: cachedPass.id,
+            visitor_name: cachedPass.visitor_name,
+            visitor_phone: cachedPass.visitor_phone,
+            unit_id: cachedPass.unit_id,
+            pass_type: "Guest",
+            is_offline_verified: true,
+          });
+          setScanSuccessMessage(`Verified Offline via Gate Cache: ${cachedPass.visitor_name}`);
+          return;
+        }
+      } catch (localErr) {
+        console.warn("Offline pass check fallback error:", localErr);
+      }
+
       const msg = e.message || "Invalid pass or expired token";
       console.log("Scan error:", msg);
       setScanError(msg);
@@ -71,25 +114,31 @@ export default function GuardScanScreen() {
 
     try {
       setIsValidating(true);
-      // 1. Record live in backend PostgreSQL
-      await visitorApi.gateCheckIn(societyId, gateId, {
-        pass_id: scannedPass.id,
-        visitor_name: scannedPass.visitor_name,
-        visitor_phone: scannedPass.visitor_phone,
-        unit_id: scannedPass.unit_id,
-        vehicle_number: scannedPass.vehicle_number,
-        idempotency_key: `chk-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-      }).catch((err) => console.log("Backend check-in sync:", err));
+      const actualGateId = selectedGateId || gates[0]?.id || "b878246e-d891-4cd9-b4af-c917cd3bd163";
 
-      // 2. Log in local SQLite sync engine
-      await syncEngine.logCheckIn(scannedPass.visitor_name || "Guest", gateId, {
-        pass_id: scannedPass.id,
-        visitor_name: scannedPass.visitor_name,
-        visitor_phone: scannedPass.visitor_phone,
-        unit: scannedPass.unit?.unit_number || "Villa-42",
-        type: scannedPass.pass_type || "Guest",
-        vehicle: scannedPass.vehicle_number,
-      });
+      // 1. Record live in backend PostgreSQL
+      let onlineSuccess = false;
+      try {
+        await visitorApi.gateCheckIn(societyId, actualGateId, {
+          pass_id: scannedPass.id,
+          visitor_name: scannedPass.visitor_name,
+          visitor_phone: scannedPass.visitor_phone,
+          unit_id: scannedPass.unit_id,
+          vehicle_number: scannedPass.vehicle_number,
+          idempotency_key: `chk-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        });
+        onlineSuccess = true;
+      } catch (backendErr) {
+        console.warn("Backend direct check-in failed, queueing offline:", backendErr);
+        // 2. Queue in SQLite offline sync engine
+        await syncEngine.logCheckIn(scannedPass.id, actualGateId, {
+          visitor_name: scannedPass.visitor_name,
+          visitor_phone: scannedPass.visitor_phone,
+          unit: scannedPass.unit?.unit_number || "Villa-42",
+          type: scannedPass.pass_type || "Guest",
+          vehicle: scannedPass.vehicle_number,
+        });
+      }
 
       if (Platform.OS === "web" && typeof window !== "undefined") {
         window.alert(`✅ Entry Authorized: Gate barrier opened for ${scannedPass.visitor_name}. Resident notified & logged in society registry.`);
@@ -123,7 +172,7 @@ export default function GuardScanScreen() {
         </TouchableOpacity>
         <View style={{ alignItems: "center" }}>
           <Text style={styles.headerTitle}>Gate QR Pass Scanner</Text>
-          <Text style={styles.headerSub}>Main North Gate Checkpoint</Text>
+          <Text style={styles.headerSub}>{activeGateName}</Text>
         </View>
         <View style={{ width: 40 }} />
       </View>
@@ -334,6 +383,44 @@ export default function GuardScanScreen() {
                 <Text style={styles.verifyButtonText}>Verify & Authorize Pass</Text>
               )}
             </TouchableOpacity>
+
+            {/* Quick Test Presets */}
+            <View style={{ marginTop: 24, paddingTop: 16, borderTopWidth: 1, borderTopColor: "#e2e8f0" }}>
+              <Text style={{ fontSize: 12, fontWeight: "700", color: "#64748b", marginBottom: 10, textTransform: "uppercase" }}>
+                Quick Test Gate Passes
+              </Text>
+              <View style={{ gap: 8 }}>
+                <TouchableOpacity
+                  onPress={() => {
+                    setManualCode("NBR-TOKEN-ANANYA");
+                    processQrToken("NBR-TOKEN-ANANYA");
+                  }}
+                  style={{ backgroundColor: "#f8fafc", padding: 12, borderRadius: 10, borderWidth: 1, borderColor: "#e2e8f0" }}
+                >
+                  <Text style={{ fontSize: 13, fontWeight: "700", color: Colors.primary }}>
+                    🎟️ Ananya Roy (Pre-approved Guest QR)
+                  </Text>
+                  <Text style={{ fontSize: 11, color: "#64748b", marginTop: 2 }}>
+                    Token: NBR-TOKEN-ANANYA • Unit Villa-42
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={() => {
+                    setManualCode("889922");
+                    processQrToken("889922");
+                  }}
+                  style={{ backgroundColor: "#f8fafc", padding: 12, borderRadius: 10, borderWidth: 1, borderColor: "#e2e8f0" }}
+                >
+                  <Text style={{ fontSize: 13, fontWeight: "700", color: Colors.primary }}>
+                    🔢 Standard PIN Verification (889922)
+                  </Text>
+                  <Text style={{ fontSize: 11, color: "#64748b", marginTop: 2 }}>
+                    PIN: 889922 • 6-Digit Gate Passcode
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
           </View>
         )}
       </ScrollView>

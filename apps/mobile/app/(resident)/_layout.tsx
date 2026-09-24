@@ -1,7 +1,13 @@
 import React from "react";
 import { Tabs } from "expo-router";
-import { View, Text } from "react-native";
 import { Colors } from "../../src/theme/colors";
+import {
+  HomeTabIcon,
+  GateTabIcon,
+  CommunityTabIcon,
+  ServicesTabIcon,
+  FlatTabIcon,
+} from "../../src/components/icons/TabIcons";
 
 export default function ResidentLayout() {
   return (
@@ -19,7 +25,7 @@ export default function ResidentLayout() {
         },
         tabBarLabelStyle: {
           fontSize: 11,
-          fontWeight: "600",
+          fontWeight: "700",
         },
       }}
     >
@@ -28,7 +34,9 @@ export default function ResidentLayout() {
         options={{
           title: "Home",
           tabBarLabel: "Home",
-          tabBarIcon: ({ color }) => <Text style={{ fontSize: 18 }}>🏠</Text>,
+          tabBarIcon: ({ color, focused }) => (
+            <HomeTabIcon color={String(color)} size={22} focused={focused} />
+          ),
         }}
       />
       <Tabs.Screen
@@ -36,7 +44,9 @@ export default function ResidentLayout() {
         options={{
           title: "My Gate",
           tabBarLabel: "My Gate",
-          tabBarIcon: ({ color }) => <Text style={{ fontSize: 18 }}>🛡️</Text>,
+          tabBarIcon: ({ color, focused }) => (
+            <GateTabIcon color={String(color)} size={22} focused={focused} />
+          ),
         }}
       />
       <Tabs.Screen
@@ -44,7 +54,9 @@ export default function ResidentLayout() {
         options={{
           title: "Community",
           tabBarLabel: "Community",
-          tabBarIcon: ({ color }) => <Text style={{ fontSize: 18 }}>💬</Text>,
+          tabBarIcon: ({ color, focused }) => (
+            <CommunityTabIcon color={String(color)} size={22} focused={focused} />
+          ),
         }}
       />
       <Tabs.Screen
@@ -52,7 +64,9 @@ export default function ResidentLayout() {
         options={{
           title: "Services",
           tabBarLabel: "Services",
-          tabBarIcon: ({ color }) => <Text style={{ fontSize: 18 }}>🏊</Text>,
+          tabBarIcon: ({ color, focused }) => (
+            <ServicesTabIcon color={String(color)} size={22} focused={focused} />
+          ),
         }}
       />
       <Tabs.Screen
@@ -60,7 +74,9 @@ export default function ResidentLayout() {
         options={{
           title: "My Flat",
           tabBarLabel: "My Flat",
-          tabBarIcon: ({ color }) => <Text style={{ fontSize: 18 }}>🏢</Text>,
+          tabBarIcon: ({ color, focused }) => (
+            <FlatTabIcon color={String(color)} size={22} focused={focused} />
+          ),
         }}
       />
       <Tabs.Screen

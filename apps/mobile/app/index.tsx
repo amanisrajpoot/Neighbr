@@ -13,36 +13,49 @@ import { useAuthStore } from "../src/store/authStore";
 
 export default function AppEntryScreen() {
   const router = useRouter();
-  const { isAuthenticated, user, login } = useAuthStore();
+  const { isAuthenticated, user, login, authenticatePersona } = useAuthStore();
+  const [isLaunching, setIsLaunching] = React.useState(false);
 
-  const launchResident = () => {
-    login("mock-access-token", {
-      id: "u-resident-01",
-      phone: "+919876530002",
-      name: "Siddharth Verma",
-      role: "resident",
-      societyId: "34090e70-34f9-4cdd-9522-e2098982a5ed",
-      societyName: "Greenwood Palms Heights",
-      unitNumber: "Villa-42",
-    });
-    router.replace("/(resident)");
+  useEffect(() => {
+    // If user already has an active authenticated session, auto-navigate
+    const state = useAuthStore.getState();
+    if (state.isAuthenticated && state.user && state.accessToken) {
+      if (state.user.role === "guard") {
+        router.replace("/(guard)");
+      } else {
+        router.replace("/(resident)");
+      }
+    }
+  }, [router]);
+
+  const launchResident = async () => {
+    try {
+      setIsLaunching(true);
+      await authenticatePersona("resident");
+      router.replace("/(resident)");
+    } catch {
+      router.replace("/(resident)");
+    } finally {
+      setIsLaunching(false);
+    }
   };
 
-  const launchGuard = () => {
-    login("mock-access-token", {
-      id: "u-guard-01",
-      phone: "+919876530003",
-      name: "Jagdish R. (Guard)",
-      role: "guard",
-      societyId: "34090e70-34f9-4cdd-9522-e2098982a5ed",
-      societyName: "Greenwood Palms Heights",
-    });
-    router.replace("/(guard)");
+  const launchGuard = async () => {
+    try {
+      setIsLaunching(true);
+      await authenticatePersona("guard");
+      router.replace("/(guard)");
+    } catch {
+      router.replace("/(guard)");
+    } finally {
+      setIsLaunching(false);
+    }
   };
 
   const launchAuth = () => {
     router.push("/(auth)/login");
   };
+
 
   return (
     <SafeAreaView style={styles.container}>

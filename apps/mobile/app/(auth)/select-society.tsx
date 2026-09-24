@@ -1,53 +1,94 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
   TouchableOpacity,
   StyleSheet,
   ScrollView,
+  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Colors } from "../../src/theme/colors";
 import { useAuthStore } from "../../src/store/authStore";
 import { SearchablePicker } from "../../src/components/SearchablePicker";
-
-const AVAILABLE_SOCIETIES = [
-  { id: "34090e70-34f9-4cdd-9522-e2098982a5ed", label: "Greenwood Palms Heights", subLabel: "42 Varthur Road, Whitefield, Bengaluru", badge: "Primary", icon: "🏢" },
-  { id: "soc-002", label: "Prestige Silver Oak Residency", subLabel: "Marathahalli-Sarjapur Outer Ring Rd, Bengaluru", badge: "Active", icon: "🏡" },
-  { id: "soc-003", label: "Sobha Dream Acres", subLabel: "Balagere, Panathur, Bengaluru", badge: "Active", icon: "🌴" },
-  { id: "soc-004", label: "Godrej United Luxury Towers", subLabel: "Hoodi Main Road, Mahadevapura, Bengaluru", badge: "Active", icon: "🏰" },
-];
+import { societyApi } from "../../src/api/client";
 
 export default function SelectSocietyScreen() {
   const router = useRouter();
   const user = useAuthStore((state) => state.user);
+  const switchSociety = useAuthStore((state) => state.switchSociety);
   const login = useAuthStore((state) => state.login);
-  const [selectedSociety, setSelectedSociety] = useState(AVAILABLE_SOCIETIES[0]);
+  const accessToken = useAuthStore((state) => state.accessToken);
+
+  const [societies, setSocieties] = useState<any[]>([
+    { id: "34090e70-34f9-4cdd-9522-e2098982a5ed", label: "Greenwood Palms Heights", subLabel: "42 Varthur Road, Whitefield, Bengaluru", badge: "Primary", icon: "🏢" },
+  ]);
+  const [memberships, setMemberships] = useState<any[]>([]);
+  const [selectedSociety, setSelectedSociety] = useState(societies[0]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    async function loadData() {
+      try {
+        setIsLoading(true);
+        // Load societies
+        const socList = await societyApi.listSocieties().catch(() => []);
+        if (socList && socList.length > 0) {
+          const formatted = socList.map((s: any, idx: number) => ({
+            id: s.id,
+            label: s.name,
+            subLabel: `${s.city || "Bengaluru"}, ${s.address_line1 || ""}`.trim(),
+            badge: idx === 0 ? "Primary" : "Active",
+            icon: "🏢",
+          }));
+          setSocieties(formatted);
+          if (!selectedSociety || !formatted.find((f: any) => f.id === selectedSociety.id)) {
+            setSelectedSociety(formatted[0]);
+          }
+        }
+
+        // Load memberships
+        const memList = await societyApi.getMyMemberships().catch(() => []);
+        if (memList && memList.length > 0) {
+          setMemberships(memList);
+        }
+      } catch (e) {
+        console.warn("Failed to load societies/memberships:", e);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    loadData();
+  }, []);
+
+  const residentMem = memberships.find((m) => m.role === "resident" || m.role === "society_admin") || memberships[0];
+  const guardMem = memberships.find((m) => m.role === "guard");
 
   const selectResidentRole = () => {
-    login("mock-access-token", {
-      id: "u-resident-01",
-      phone: "+919876530002",
-      name: "Siddharth Verma",
-      role: "resident",
-      societyId: selectedSociety.id,
-      societyName: selectedSociety.label,
-      unitNumber: "Villa-42",
-    });
+    if (user) {
+      switchSociety(
+        selectedSociety.id,
+        selectedSociety.label,
+        residentMem?.unit_number || user.unitNumber || "Villa-42",
+        residentMem?.unit_id || user.unitId || "0be0d1a7-8a9c-46bf-9677-fa36679e01bd",
+        residentMem?.id
+      );
+    }
     router.replace("/(resident)");
   };
 
   const selectGuardRole = () => {
-    login("mock-access-token", {
-      id: "u-guard-01",
-      phone: "+919876530003",
-      name: "Jagdish R. (Guard)",
-      role: "guard",
-      societyId: selectedSociety.id,
-      societyName: selectedSociety.label,
-      unitNumber: undefined,
-    });
+    if (user) {
+      login(accessToken || "dev-token", {
+        ...user,
+        role: "guard",
+        societyId: selectedSociety.id,
+        societyName: selectedSociety.label,
+        gateId: guardMem?.gate_id || "6a8c2ff3-bd7c-4e19-9637-55f7f6be4332",
+        gateName: guardMem?.gate_name || "Main North Gate",
+      });
+    }
     router.replace("/(guard)");
   };
 
@@ -55,21 +96,25 @@ export default function SelectSocietyScreen() {
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.header}>
-          <Text style={styles.greeting}>Welcome, {user?.name || "Siddharth"}</Text>
+          <Text style={styles.greeting}>Welcome, {user?.name || "Resident"}</Text>
           <Text style={styles.subtitle}>Select your society property and active terminal</Text>
         </View>
 
         {/* Searchable Society Property Selector */}
         <View style={styles.pickerSection}>
           <Text style={styles.sectionLabel}>Select Gated Community Property</Text>
-          <SearchablePicker
-            title="Select Gated Community"
-            placeholder="Search society name or location..."
-            searchPlaceholder="Type society name (e.g. Greenwood, Sobha, Prestige)..."
-            selectedId={selectedSociety.id}
-            onSelect={(item) => setSelectedSociety(item as any)}
-            items={AVAILABLE_SOCIETIES}
-          />
+          {isLoading ? (
+            <ActivityIndicator size="small" color={Colors.primary} style={{ marginVertical: 12 }} />
+          ) : (
+            <SearchablePicker
+              title="Select Gated Community"
+              placeholder="Search society name or location..."
+              searchPlaceholder="Type society name (e.g. Greenwood, Sobha, Prestige)..."
+              selectedId={selectedSociety?.id}
+              onSelect={(item) => setSelectedSociety(item as any)}
+              items={societies}
+            />
+          )}
         </View>
 
         <View style={styles.cardList}>
@@ -82,8 +127,8 @@ export default function SelectSocietyScreen() {
               </View>
             </View>
 
-            <Text style={styles.societyTitle}>{selectedSociety.label}</Text>
-            <Text style={styles.roleMeta}>Unit: Villa-42 • Owner Membership</Text>
+            <Text style={styles.societyTitle}>{selectedSociety?.label || "Society"}</Text>
+            <Text style={styles.roleMeta}>Unit: {residentMem?.unit_number || user?.unitNumber || "Villa-42"} • Owner Membership</Text>
             <Text style={styles.actionPrompt}>Open Resident Gate Pass & Approvals →</Text>
           </TouchableOpacity>
 
@@ -96,8 +141,9 @@ export default function SelectSocietyScreen() {
               </View>
             </View>
 
-            <Text style={styles.societyTitle}>{selectedSociety.label}</Text>
-            <Text style={styles.roleMeta}>Terminal: Main North Gate (GATE-01) • Morning Shift</Text>
+            <Text style={styles.societyTitle}>{selectedSociety?.label || "Society"}</Text>
+            <Text style={styles.roleMeta}>Terminal: {guardMem?.gate_name || "Main North Gate"} (GATE-01) • Morning Shift</Text>
+
             <Text style={styles.actionPrompt}>Open Guard QR Scanner & Gate Console →</Text>
           </TouchableOpacity>
         </View>

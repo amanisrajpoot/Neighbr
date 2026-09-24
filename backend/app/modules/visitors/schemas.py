@@ -16,8 +16,10 @@ class VisitorProfileOut(BaseModel):
     created_at: datetime
 
 class CreateVisitorPassRequest(BaseModel):
+    model_config = ConfigDict(extra="ignore")
     unit_id: uuid.UUID
     pass_type: str = "guest"  # guest, delivery, cab, service, staff, recurring
+    visitor_type: str | None = None
     visitor_name: str = Field(..., min_length=1, max_length=255)
     visitor_phone: str | None = None
     visitor_company: str | None = None

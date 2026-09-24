@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -7,30 +7,108 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
+  RefreshControl,
+  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Colors } from "../../src/theme/colors";
 import { syncEngine } from "../../src/sync/syncEngine";
 import { OfflineBanner } from "../../src/components/OfflineBanner";
 import { useStaff } from "../../src/hooks/useStaff";
-
-const INITIAL_INSIDE = [
-  { id: "ins-1", visitor: "Ananya Roy", type: "Guest", unit: "Villa-42", host: "Siddharth Verma", vehicle: "KA01AB1234", checkIn: "10:14 AM" },
-  { id: "ins-2", visitor: "Amazon Delivery Agent", type: "Delivery", unit: "A-302", host: "Vikram Sethi", vehicle: "—", checkIn: "10:30 AM" },
-  { id: "ins-3", visitor: "Deepak (AC Technician)", type: "Service", unit: "A-101", host: "Aman Sharma", vehicle: "KA04XY7788", checkIn: "10:45 AM" },
-];
-
-const INITIAL_STAFF_INSIDE = [
-  { id: "st-1", name: "Laxmi Bai", role: "House Maid & Cook", pass_code: "STF-8821", unit: "Villa-42 & A-102", checkIn: "07:32 AM", phone: "+91 98765 40099" },
-  { id: "st-2", name: "Mohan Lal", role: "Car Cleaner", pass_code: "STF-1923", unit: "Tower A & B Basement", checkIn: "06:15 AM", phone: "+91 98765 40077" },
-];
+import { useAuthStore } from "../../src/store/authStore";
+import { visitorApi } from "../../src/api/client";
 
 export default function GuardInsideScreen() {
+  const queryClient = useQueryClient();
+  const user = useAuthStore((state) => state.user);
+  const societyId = user?.societyId || "34090e70-34f9-4cdd-9522-e2098982a5ed";
+  const gateId = user?.gateId || "b878246e-d891-4cd9-b4af-c917cd3bd163";
+
   const [activeTab, setActiveTab] = useState<"visitors" | "staff">("visitors");
-  const [visitors, setVisitors] = useState(INITIAL_INSIDE);
-  const [staffInside, setStaffInside] = useState(INITIAL_STAFF_INSIDE);
   const [search, setSearch] = useState("");
-  const { staffCheckOut } = useStaff();
+  const [refreshing, setRefreshing] = useState(false);
+  const [offlinePendingVisitors, setOfflinePendingVisitors] = useState<any[]>([]);
+  const { allStaff, refetchAllStaff, staffCheckOut } = useStaff();
+
+  // Load any locally queued offline check-ins
+  useEffect(() => {
+    (async () => {
+      try {
+        const { localDb } = await import("../../src/database/sqlite");
+        const ops = await localDb.getPendingOperations();
+        const pendingCheckIns = ops
+          .filter((op) => op.operation_type === "CHECK_IN")
+          .map((op) => {
+            try {
+              const p = typeof op.payload === "string" ? JSON.parse(op.payload) : op.payload;
+              return {
+                id: op.id,
+                visitor: p.visitor_name || "Guest (Offline)",
+                type: p.type || "Guest",
+                unit: p.unit || "Villa-42",
+                host: "Resident",
+                vehicle: p.vehicle || "—",
+                checkIn: "Just now (Offline)",
+                isOfflinePending: true,
+              };
+            } catch {
+              return null;
+            }
+          })
+          .filter(Boolean);
+        setOfflinePendingVisitors(pendingCheckIns);
+      } catch (e) {
+        // Ignore sqlite read err
+      }
+    })();
+  }, [refreshing]);
+
+  // 1. Fetch Live Inside Visitors from DB
+  const {
+    data: insideVisitors = [],
+    isLoading: isLoadingVisitors,
+    refetch: refetchVisitors,
+  } = useQuery({
+    queryKey: ["insideVisitors", societyId],
+    queryFn: async () => {
+      if (!societyId) return [];
+      return visitorApi.getInsideVisitors(societyId).catch(() => []);
+    },
+    enabled: Boolean(societyId),
+  });
+
+  const visitors = [
+    ...offlinePendingVisitors,
+    ...insideVisitors.map((p: any) => ({
+      id: p.id,
+      visitor: p.visitor_name || "Visitor",
+      type: p.pass_type || "Guest",
+      unit: p.unit?.unit_number || p.unit_number || "Villa-42",
+      host: p.unit?.resident_name || "Resident",
+      vehicle: p.vehicle_number || "—",
+      checkIn: p.valid_from ? new Date(p.valid_from).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "Today",
+    })),
+  ];
+
+  // 2. Filter Staff with status INSIDE or active attendance
+  const staffInside = (allStaff || [])
+    .filter((s: any) => s.status === "INSIDE" || s.is_active)
+    .map((s: any) => ({
+      id: s.id,
+      name: s.name,
+      role: s.role || s.staff_type || "Staff",
+      pass_code: s.pass_code || "STF-101",
+      unit: s.unit_number || "All Units",
+      checkIn: s.last_entry || "Active Today",
+      phone: s.phone || "+91 98765 40000",
+    }));
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await Promise.all([refetchVisitors(), refetchAllStaff()]);
+    setRefreshing(false);
+  };
 
   const filteredVisitors = visitors.filter(
     (v) =>
@@ -52,9 +130,17 @@ export default function GuardInsideScreen() {
       {
         text: "Check-Out",
         onPress: async () => {
-          await syncEngine.logCheckOut(id, "gate-01");
-          setVisitors(visitors.filter((v) => v.id !== id));
-          Alert.alert("Checked Out", `${name} logged as departed.`);
+          try {
+            await visitorApi.gateCheckOut(societyId, gateId, {
+              pass_id: id,
+              idempotency_key: `chk-out-${id}-${Date.now()}`,
+            });
+            await syncEngine.logCheckOut(id, gateId);
+            queryClient.invalidateQueries({ queryKey: ["insideVisitors"] });
+            Alert.alert("Checked Out", `${name} logged as departed.`);
+          } catch (e: any) {
+            Alert.alert("Check-Out Failed", e?.message || "Could not log departure.");
+          }
         },
       },
     ]);
@@ -68,8 +154,8 @@ export default function GuardInsideScreen() {
         onPress: async () => {
           try {
             await staffCheckOut({ staffId: id });
-            setStaffInside((prev) => prev.filter((s) => s.id !== id));
-            Alert.alert("Staff Exit Logged", `${name} exit recorded at Gate 1.`);
+            refetchAllStaff();
+            Alert.alert("Staff Exit Logged", `${name} exit recorded at Gate.`);
           } catch (e: any) {
             Alert.alert("Exit Logging Failed", e?.message || "Could not log staff departure.");
           }
@@ -77,6 +163,7 @@ export default function GuardInsideScreen() {
       },
     ]);
   };
+
 
   return (
     <SafeAreaView style={styles.container}>

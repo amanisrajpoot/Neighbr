@@ -54,6 +54,42 @@ export function usePasses() {
     },
   });
 
+  const approvePassMutation = useMutation({
+    mutationFn: async (passId: string) => {
+      if (!user?.societyId) throw new Error("No active society");
+      return apiClient<VisitorPassItem>(`/societies/${user.societyId}/visitors/passes/${passId}/approve`, {
+        method: "POST",
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["passes"] });
+    },
+  });
+
+  const rejectPassMutation = useMutation({
+    mutationFn: async (passId: string) => {
+      if (!user?.societyId) throw new Error("No active society");
+      return apiClient<VisitorPassItem>(`/societies/${user.societyId}/visitors/passes/${passId}/reject`, {
+        method: "POST",
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["passes"] });
+    },
+  });
+
+  const revokePassMutation = useMutation({
+    mutationFn: async (passId: string) => {
+      if (!user?.societyId) throw new Error("No active society");
+      return apiClient<VisitorPassItem>(`/societies/${user.societyId}/visitors/passes/${passId}/revoke`, {
+        method: "POST",
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["passes"] });
+    },
+  });
+
   return {
     passes: passesQuery.data || [],
     isLoading: passesQuery.isLoading,
@@ -62,5 +98,12 @@ export function usePasses() {
     refetch: passesQuery.refetch,
     createPass: createPassMutation.mutateAsync,
     isCreating: createPassMutation.isPending,
+    approvePass: approvePassMutation.mutateAsync,
+    isApproving: approvePassMutation.isPending,
+    rejectPass: rejectPassMutation.mutateAsync,
+    isRejecting: rejectPassMutation.isPending,
+    revokePass: revokePassMutation.mutateAsync,
+    isRevoking: revokePassMutation.isPending,
   };
 }
+

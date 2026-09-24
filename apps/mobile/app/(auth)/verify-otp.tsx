@@ -43,30 +43,65 @@ export default function VerifyOtpScreen() {
       });
 
       const isGuard = phone.includes("30003");
-      let jwtToken = "verified-jwt-token";
+      let jwtToken = "dev-token";
+      let userId = isGuard ? "e97e82e4-ab50-4a91-b55d-53f748dd3a78" : "35f84c33-268a-4073-b52e-f0b780785d7b";
+      let userName = isGuard ? "Jagdish R. (Guard)" : "Siddharth Verma";
+      let userRole: "guard" | "resident" = isGuard ? "guard" : "resident";
+      let societyId = "34090e70-34f9-4cdd-9522-e2098982a5ed";
+      let societyName = "Greenwood Palms Heights";
+      let unitId: string | undefined = isGuard ? undefined : "0be0d1a7-8a9c-46bf-9677-fa36679e01bd";
+      let unitNumber: string | undefined = isGuard ? undefined : "Villa-42";
+      let membershipId: string | undefined;
+      let gateId: string | undefined = isGuard ? "6a8c2ff3-bd7c-4e19-9637-55f7f6be4332" : undefined;
+      let gateName: string | undefined = isGuard ? "Main North Gate" : undefined;
 
       if (res.ok) {
         const data = await res.json();
         jwtToken = data.access_token || jwtToken;
+        if (data.user?.id) userId = data.user.id;
+        if (data.user?.full_name) userName = data.user.full_name;
+
+        // Fetch user memberships to get real society & unit
+        const memRes = await fetch(`${baseUrl}/societies/my-memberships`, {
+          headers: { Authorization: `Bearer ${jwtToken}` },
+        }).catch(() => null);
+
+        if (memRes && memRes.ok) {
+          const memberships = await memRes.json().catch(() => []);
+          const activeMem = memberships[0];
+          if (activeMem) {
+            societyId = activeMem.society_id;
+            societyName = activeMem.society_name || societyName;
+            membershipId = activeMem.id;
+            userRole = (activeMem.role === "guard" ? "guard" : "resident") as any;
+            if (activeMem.unit_id) unitId = activeMem.unit_id;
+            if (activeMem.unit_number) unitNumber = activeMem.unit_number;
+            if (activeMem.gate_id) gateId = activeMem.gate_id;
+            if (activeMem.gate_name) gateName = activeMem.gate_name;
+          }
+        }
       }
 
       login(jwtToken, {
-        id: isGuard ? "u-guard-01" : "35f84c33-268a-4073-b52e-f0b780785d7b",
+        id: userId,
         phone,
-        name: isGuard ? "Jagdish R. (Guard)" : "Siddharth Verma",
-        role: isGuard ? "guard" : "resident",
-        societyId: "34090e70-34f9-4cdd-9522-e2098982a5ed",
-        societyName: "Greenwood Palms Heights",
-        unitId: isGuard ? undefined : "0be0d1a7-8a9c-46bf-9677-fa36679e01bd",
-        unitNumber: isGuard ? undefined : "Villa-42",
+        name: userName,
+        role: userRole,
+        societyId,
+        societyName,
+        unitId,
+        unitNumber,
+        membershipId,
+        gateId,
+        gateName,
       });
 
       router.replace("/(auth)/select-society");
     } catch (err) {
       // Offline fallback
       const isGuard = phone.includes("30003");
-      login("mock-access-token", {
-        id: isGuard ? "u-guard-01" : "35f84c33-268a-4073-b52e-f0b780785d7b",
+      login("dev-token", {
+        id: isGuard ? "e97e82e4-ab50-4a91-b55d-53f748dd3a78" : "35f84c33-268a-4073-b52e-f0b780785d7b",
         phone,
         name: isGuard ? "Jagdish R. (Guard)" : "Siddharth Verma",
         role: isGuard ? "guard" : "resident",
@@ -80,6 +115,7 @@ export default function VerifyOtpScreen() {
       setIsLoading(false);
     }
   };
+
 
   return (
     <SafeAreaView style={styles.container}>

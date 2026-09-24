@@ -103,35 +103,76 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
-  // Load existing session from localStorage on mount
+  // Load existing session from localStorage on mount & listen to auth synchronization events
   useEffect(() => {
-    try {
-      const storedToken = localStorage.getItem("neighbr_admin_token");
-      const storedUser = localStorage.getItem("neighbr_admin_user");
-      const storedRole = localStorage.getItem("neighbr_active_role") as RoleType | null;
+    let isMounted = true;
 
-      if (storedRole && ALL_ROLES.some((r) => r.id === storedRole)) {
-        setActiveRole(storedRole);
-      }
+    const loadAuthSession = async () => {
+      try {
+        let storedToken = localStorage.getItem("neighbr_admin_token");
+        let storedUser = localStorage.getItem("neighbr_admin_user");
+        const storedRole = localStorage.getItem("neighbr_active_role") as RoleType | null;
 
-      if (storedToken && storedUser) {
-        setToken(storedToken);
-        setUser(JSON.parse(storedUser));
-      } else if (storedToken) {
-        const fallbackUser: UserProfile = {
-          id: "u-admin-01",
-          phone: "+919876500001",
-          full_name: "Aman Sharma",
-          role: "society_admin",
-        };
-        setUser(fallbackUser);
-        localStorage.setItem("neighbr_admin_user", JSON.stringify(fallbackUser));
+        if (storedRole && ALL_ROLES.some((r) => r.id === storedRole)) {
+          setActiveRole(storedRole);
+        }
+
+        if (storedToken && storedUser) {
+          if (isMounted) {
+            setToken(storedToken);
+            setUser(JSON.parse(storedUser));
+            setIsLoading(false);
+          }
+          return;
+        }
+
+        // If no stored token or incomplete session, auto-authenticate with backend
+        const { authenticateAdmin } = await import("@/lib/api");
+        const freshToken = await authenticateAdmin();
+        if (freshToken && isMounted) {
+          setToken(freshToken);
+          const adminUser: UserProfile = {
+            id: "u-admin-01",
+            phone: "+919876500001",
+            full_name: "Aman Sharma (Admin)",
+            role: "society_admin",
+          };
+          setUser(adminUser);
+          localStorage.setItem("neighbr_admin_user", JSON.stringify(adminUser));
+        }
+      } catch (err) {
+        console.warn("Failed to load stored auth session:", err);
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
-    } catch (err) {
-      console.warn("Failed to load stored auth session:", err);
-    } finally {
-      setIsLoading(false);
-    }
+    };
+
+    loadAuthSession();
+
+    // Listen to token updates from API client (e.g. 401 recovery)
+    const handleAuthSync = () => {
+      const currentToken = localStorage.getItem("neighbr_admin_token");
+      const currentUser = localStorage.getItem("neighbr_admin_user");
+      if (currentToken) {
+        setToken(currentToken);
+        if (currentUser) {
+          try {
+            setUser(JSON.parse(currentUser));
+          } catch {}
+        }
+      }
+    };
+
+    window.addEventListener("storage", handleAuthSync);
+    window.addEventListener("neighbr_auth_sync", handleAuthSync);
+
+    return () => {
+      isMounted = false;
+      window.removeEventListener("storage", handleAuthSync);
+      window.removeEventListener("neighbr_auth_sync", handleAuthSync);
+    };
   }, []);
 
   const switchRole = (newRole: RoleType) => {

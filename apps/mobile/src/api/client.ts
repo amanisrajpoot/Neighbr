@@ -31,7 +31,7 @@ export const getServerHost = () => {
   }
 
   // Common local Wi-Fi LAN IP fallback for mobile dev
-  const defaultLanIp = "192.168.1.19";
+  const defaultLanIp = "192.168.1.48";
 
   // Android emulator fallback
   if (Platform.OS === "android") {
@@ -73,12 +73,34 @@ export const getWsUrl = () => {
   return `ws://${host}/api/v1/notifications/ws`;
 };
 
+let isRefreshing = false;
+let refreshSubscribers: ((token: string) => void)[] = [];
+
+function subscribeTokenRefresh(cb: (token: string) => void) {
+  refreshSubscribers.push(cb);
+}
+
+function onRefreshed(token: string) {
+  refreshSubscribers.forEach((cb) => cb(token));
+  refreshSubscribers = [];
+}
+
 export async function apiClient<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
-  const token = useAuthStore.getState().accessToken;
+  let token = useAuthStore.getState().accessToken;
   const baseUrl = getBaseUrl();
+
+  // If token is missing, attempt silent restore if user profile or savedPersona exists
+  if (!token) {
+    const state = useAuthStore.getState();
+    const persona = state.savedPersona || (state.user?.role === "guard" ? "guard" : "resident");
+    if (state.isAuthenticated && persona) {
+      await state.authenticatePersona(persona).catch(() => {});
+      token = useAuthStore.getState().accessToken;
+    }
+  }
 
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -89,10 +111,47 @@ export async function apiClient<T>(
     headers["Authorization"] = `Bearer ${token}`;
   }
 
-  const response = await fetch(`${baseUrl}${endpoint}`, {
+  let response = await fetch(`${baseUrl}${endpoint}`, {
     ...options,
     headers,
   });
+
+  // If 401 Unauthorized: recover automatically without kicking user to login!
+  if (response.status === 401) {
+    const state = useAuthStore.getState();
+    const persona = state.savedPersona || (state.user?.role === "guard" ? "guard" : "resident");
+
+    if (persona) {
+      let newToken: string | null = null;
+      if (!isRefreshing) {
+        isRefreshing = true;
+        try {
+          newToken = await state.authenticatePersona(persona);
+          isRefreshing = false;
+          if (newToken) {
+            onRefreshed(newToken);
+          }
+        } catch (e) {
+          isRefreshing = false;
+          onRefreshed("");
+        }
+      } else {
+        // Wait for active refresh to complete
+        newToken = await new Promise<string>((resolve) => {
+          subscribeTokenRefresh((refreshedToken) => resolve(refreshedToken));
+        });
+      }
+
+      const refreshedToken = newToken || useAuthStore.getState().accessToken;
+      if (refreshedToken) {
+        headers["Authorization"] = `Bearer ${refreshedToken}`;
+        response = await fetch(`${baseUrl}${endpoint}`, {
+          ...options,
+          headers,
+        });
+      }
+    }
+  }
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
@@ -145,11 +204,7 @@ export const visitorApi = {
     let bodyPayload: any = {};
     if (typeof query === "string") {
       const trimmed = query.trim();
-      if (/^\d{6}$/.test(trimmed)) {
-        bodyPayload = { pin_code: trimmed };
-      } else {
-        bodyPayload = { qr_token: trimmed };
-      }
+      bodyPayload = { qr_token: trimmed, pin_code: trimmed };
     } else {
       bodyPayload = query;
     }
@@ -176,7 +231,50 @@ export const visitorApi = {
       body: JSON.stringify(payload),
     });
   },
-  listPasses: async (societyId: string) => {
-    return apiClient<any[]>(`/societies/${societyId}/visitors/passes`);
+  listPasses: async (societyId: string, unitId?: string) => {
+    const endpoint = unitId
+      ? `/societies/${societyId}/visitors/passes?unit_id=${unitId}`
+      : `/societies/${societyId}/visitors/passes`;
+    return apiClient<any[]>(endpoint);
+  },
+  getInsideVisitors: async (societyId: string) => {
+    return apiClient<any[]>(`/societies/${societyId}/visitors/inside`);
+  },
+  approvePass: async (societyId: string, passId: string) => {
+    return apiClient<any>(`/societies/${societyId}/visitors/passes/${passId}/approve`, {
+      method: "POST",
+    });
+  },
+  rejectPass: async (societyId: string, passId: string) => {
+    return apiClient<any>(`/societies/${societyId}/visitors/passes/${passId}/reject`, {
+      method: "POST",
+    });
+  },
+  revokePass: async (societyId: string, passId: string) => {
+    return apiClient<any>(`/societies/${societyId}/visitors/passes/${passId}/revoke`, {
+      method: "POST",
+    });
   },
 };
+
+export const societyApi = {
+  listSocieties: async () => {
+    return apiClient<any[]>("/societies");
+  },
+  getMyMemberships: async () => {
+    return apiClient<any[]>("/societies/my-memberships");
+  },
+  getGates: async (societyId: string) => {
+    return apiClient<any[]>(`/societies/${societyId}/gates`);
+  },
+  getUnits: async (societyId: string, buildingId?: string) => {
+    const endpoint = buildingId
+      ? `/societies/${societyId}/units?building_id=${buildingId}`
+      : `/societies/${societyId}/units`;
+    return apiClient<any[]>(endpoint);
+  },
+  getEmergencyContacts: async (societyId: string) => {
+    return apiClient<any[]>(`/societies/${societyId}/emergency-contacts`);
+  },
+};
+

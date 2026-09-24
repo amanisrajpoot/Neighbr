@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -14,49 +14,95 @@ import { Colors } from "../../src/theme/colors";
 import { syncEngine } from "../../src/sync/syncEngine";
 import { OfflineBanner } from "../../src/components/OfflineBanner";
 import { SearchablePicker } from "../../src/components/SearchablePicker";
+import { useAuthStore } from "../../src/store/authStore";
+import { societyApi, visitorApi } from "../../src/api/client";
 
 const CATEGORIES = ["Delivery", "Guest", "Cab", "Service / Repair", "Other"];
 
 export default function GuardWalkInScreen() {
   const router = useRouter();
+  const user = useAuthStore((state) => state.user);
+  const societyId = user?.societyId || "34090e70-34f9-4cdd-9522-e2098982a5ed";
+
   const [visitorName, setVisitorName] = useState("");
   const [phone, setPhone] = useState("");
   const [destinationUnit, setDestinationUnit] = useState("");
   const [vehicle, setVehicle] = useState("");
   const [category, setCategory] = useState("Delivery");
+  const [units, setUnits] = useState<any[]>([]);
+  const [gates, setGates] = useState<any[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    async function loadData() {
+      const [uList, gList] = await Promise.all([
+        societyApi.getUnits(societyId).catch(() => []),
+        societyApi.getGates(societyId).catch(() => []),
+      ]);
+      if (uList && uList.length > 0) {
+        setUnits(uList);
+        setDestinationUnit(uList[0].id);
+      }
+      if (gList && gList.length > 0) {
+        setGates(gList);
+      }
+    }
+    loadData();
+  }, [societyId]);
 
   const handleSubmitWalkIn = async () => {
-    if (!visitorName || !destinationUnit) {
-      Alert.alert("Required Fields", "Please enter visitor name and destination flat number.");
+    if (!visitorName.trim() || !destinationUnit) {
+      Alert.alert("Required Fields", "Please enter visitor name and select destination flat.");
       return;
     }
 
-    await syncEngine.logWalkIn({
-      visitor_name: visitorName,
-      visitor_phone: phone,
-      unit_id: destinationUnit,
-      visitor_type: category,
-      vehicle_number: vehicle,
-      gate_id: "gate-01",
-    });
+    const activeGateId = user?.gateId || (gates[0]?.id) || "6a8c2ff3-bd7c-4e19-9637-55f7f6be4332";
+    const selectedUnitObj = units.find((u) => u.id === destinationUnit);
+    const unitLabel = selectedUnitObj ? `Flat ${selectedUnitObj.unit_number}` : "Destination Unit";
 
-    Alert.alert(
-      "Walk-in Request Logged",
-      `Resident of ${destinationUnit} has been notified and entry is logged in local sync queue.`,
-      [
-        {
-          text: "OK",
-          onPress: () => {
-            setVisitorName("");
-            setPhone("");
-            setDestinationUnit("");
-            setVehicle("");
-            router.push("/(guard)/inside");
+    try {
+      setIsSubmitting(true);
+      // 1. Live Check-In to Backend
+      await visitorApi.gateCheckIn(societyId, activeGateId, {
+        visitor_name: visitorName.trim(),
+        visitor_phone: phone.trim() || undefined,
+        unit_id: destinationUnit,
+        vehicle_number: vehicle.trim() || undefined,
+        idempotency_key: `walkin-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      }).catch((e) => console.log("Live walk-in sync error:", e));
+
+      // 2. Queue in local sync engine
+      await syncEngine.logWalkIn({
+        visitor_name: visitorName.trim(),
+        visitor_phone: phone.trim() || undefined,
+        unit_id: destinationUnit,
+        visitor_type: category,
+        vehicle_number: vehicle.trim() || undefined,
+        gate_id: activeGateId,
+      });
+
+      Alert.alert(
+        "Walk-in Request Logged ✅",
+        `Resident of ${unitLabel} has been notified and entry is recorded at the gate.`,
+        [
+          {
+            text: "OK",
+            onPress: () => {
+              setVisitorName("");
+              setPhone("");
+              setVehicle("");
+              router.push("/(guard)/inside");
+            },
           },
-        },
-      ]
-    );
+        ]
+      );
+    } catch (e: any) {
+      Alert.alert("Submission Failed", e?.message || "Could not log walk-in entry.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
+
 
   return (
     <SafeAreaView style={styles.container}>
@@ -108,14 +154,20 @@ export default function GuardWalkInScreen() {
               searchPlaceholder="Type flat number (e.g. 42) or name..."
               selectedId={destinationUnit}
               onSelect={(item) => setDestinationUnit(item.id)}
-              items={[
-                { id: "Villa-42", label: "Villa-42 (Tower A)", subLabel: "Siddharth Verma • Owner", badge: "Villa", icon: "🏡" },
-                { id: "A-101", label: "Flat A-101 (Tower A, 1st Floor)", subLabel: "Aman Sharma • Resident", badge: "Apartment", icon: "🏢" },
-                { id: "A-102", label: "Flat A-102 (Tower A, 1st Floor)", subLabel: "Pooja Reddy • Resident", badge: "Apartment", icon: "🏢" },
-                { id: "A-302", label: "Flat A-302 (Tower A, 3rd Floor)", subLabel: "Vikram Sethi • Resident", badge: "Apartment", icon: "🏢" },
-                { id: "B-204", label: "Flat B-204 (Tower B, 2nd Floor)", subLabel: "Rahul Dravid • Resident", badge: "Apartment", icon: "🏢" },
-                { id: "Clubhouse", label: "Clubhouse Administration Office", subLabel: "Estate Facility Manager", badge: "Common", icon: "🏊" },
-              ]}
+              items={
+                units.length > 0
+                  ? units.map((u) => ({
+                      id: u.id,
+                      label: `Flat ${u.unit_number}`,
+                      subLabel: `${u.unit_type || "Apartment"} • ${u.is_occupied ? "Occupied" : "Vacant"}`,
+                      badge: u.unit_type || "Unit",
+                      icon: "🏢",
+                    }))
+                  : [
+                      { id: "0be0d1a7-8a9c-46bf-9677-fa36679e01bd", label: "Villa-42 (Tower A)", subLabel: "Siddharth Verma • Owner", badge: "Villa", icon: "🏡" },
+                      { id: "a101-dummy", label: "Flat A-101 (Tower A, 1st Floor)", subLabel: "Aman Sharma • Resident", badge: "Apartment", icon: "🏢" },
+                    ]
+              }
             />
           </View>
 

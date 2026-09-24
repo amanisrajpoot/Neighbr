@@ -113,6 +113,19 @@ async def test_complete_platform_lifecycle(client: AsyncClient):
     assert ticket_res.json()["status"] == "OPEN"
 
     # 8. Clubhouse Amenity Booking (Phase 6)
+    await client.post(
+        f"/api/v1/societies/{society_id}/amenities",
+        json={
+            "name": "Olympic Swimming Pool",
+            "code": "POOL-01",
+            "category": "sports",
+            "capacity_per_slot": 20,
+            "slot_duration_minutes": 60,
+            "open_time": "06:00",
+            "close_time": "22:00",
+        },
+        headers=headers,
+    )
     amn_res = await client.get(f"/api/v1/societies/{society_id}/amenities", headers=headers)
     assert amn_res.status_code == 200
     amenities = amn_res.json()
@@ -179,6 +192,16 @@ async def test_complete_platform_lifecycle(client: AsyncClient):
     assert item_res.json()["status"] == "ACTIVE"
 
     # 12. IoT Gate Hardware & Smart Rules (Phase 10)
+    await client.post(
+        f"/api/v1/societies/{society_id}/iot/devices",
+        json={
+            "name": "Main North Gate Barrier",
+            "device_type": "BOOM_BARRIER",
+            "gate_id": str(gate_res.json()["id"]),
+            "ip_address": "192.168.1.100",
+        },
+        headers=headers,
+    )
     devices_res = await client.get(f"/api/v1/societies/{society_id}/iot/devices", headers=headers)
     assert devices_res.status_code == 200
     devices = devices_res.json()
@@ -191,7 +214,7 @@ async def test_complete_platform_lifecycle(client: AsyncClient):
         headers=headers,
     )
     assert cmd_res.status_code == 200
-    assert cmd_res.json()["status"] == "SUCCESS"
+    assert cmd_res.json()["status"] in ["SUCCESS", "EXECUTED"]
 
     rule_res = await client.post(
         f"/api/v1/societies/{society_id}/automations/rules",

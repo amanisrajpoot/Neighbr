@@ -37,6 +37,77 @@ async def list_societies(
     service = SocietyService(db)
     return await service.list_societies()
 
+@router.get("/my-memberships")
+async def list_my_memberships(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    from sqlalchemy import select
+    from sqlalchemy.orm import selectinload
+    from app.modules.societies.models import UnitMembership
+    from app.modules.gates.models import GuardProfile, GuardAssignment, Gate
+
+    # 1. Resident / Admin memberships
+    res = await db.execute(
+        select(UnitMembership)
+        .where(UnitMembership.user_id == user.id, UnitMembership.is_active.is_(True))
+        .options(
+            selectinload(UnitMembership.society),
+            selectinload(UnitMembership.unit),
+            selectinload(UnitMembership.role),
+        )
+        .order_by(UnitMembership.is_primary.desc())
+    )
+    memberships = res.scalars().all()
+
+    items = [
+        {
+            "id": str(m.id),
+            "society_id": str(m.society_id),
+            "society_name": m.society.name if m.society else "",
+            "role": m.role.code if m.role else "resident",
+            "role_display": m.role.display_name if m.role else "Resident",
+            "unit_id": str(m.unit_id) if m.unit_id else None,
+            "unit_number": m.unit.unit_number if m.unit else None,
+            "membership_type": m.membership_type,
+            "is_primary": m.is_primary,
+        }
+        for m in memberships
+    ]
+
+    # 2. Guard assignments if guard profile exists
+    guard_res = await db.execute(
+        select(GuardProfile)
+        .where(GuardProfile.user_id == user.id, GuardProfile.is_active.is_(True))
+        .options(selectinload(GuardProfile.society))
+    )
+    guard_profiles = guard_res.scalars().all()
+    for gp in guard_profiles:
+        # Check active gate assignment
+        assign_res = await db.execute(
+            select(GuardAssignment)
+            .where(GuardAssignment.guard_id == gp.id, GuardAssignment.society_id == gp.society_id)
+            .options(selectinload(GuardAssignment.gate))
+        )
+        assign = assign_res.scalars().first()
+        items.append({
+            "id": str(gp.id),
+            "society_id": str(gp.society_id),
+            "society_name": gp.society.name if gp.society else "Security Operations",
+            "role": "guard",
+            "role_display": "Security Guard",
+            "unit_id": None,
+            "unit_number": None,
+            "membership_type": "guard",
+            "is_primary": True,
+            "gate_id": str(assign.gate_id) if assign else None,
+            "gate_name": assign.gate.name if (assign and assign.gate) else "Main Gate",
+            "employee_id": gp.employee_id,
+        })
+
+    return items
+
+
 @router.get("/slug/{slug}", response_model=SocietyOut)
 async def get_society_by_slug(
     slug: str,
@@ -166,6 +237,34 @@ async def add_member(
 ):
     service = SocietyService(db)
     return await service.add_member(society_id, payload, user)
+
+@router.post("/{society_id}/units/{unit_id}/memberships", response_model=MembershipOut, status_code=status.HTTP_201_CREATED)
+async def add_unit_membership(
+    society_id: uuid.UUID,
+    unit_id: uuid.UUID,
+    payload: dict,
+    user: User = Depends(get_current_user),
+    _auth = RequireSocietyAdmin,
+    db: AsyncSession = Depends(get_db),
+):
+    service = SocietyService(db)
+    target_user = None
+    target_user_id = payload.get("user_id")
+    if target_user_id:
+        target_user = await db.get(User, uuid.UUID(str(target_user_id)))
+    if not target_user:
+        target_user = user
+
+    role_code = payload.get("role") or payload.get("role_code") or "resident"
+    membership_req = AddMemberRequest(
+        phone=target_user.phone,
+        full_name=payload.get("full_name") or target_user.full_name,
+        unit_id=unit_id,
+        role_code=role_code,
+        membership_type=payload.get("membership_type", "owner"),
+        is_primary=payload.get("is_primary", True),
+    )
+    return await service.add_member(society_id, membership_req, user)
 
 @router.get("/{society_id}/members", response_model=list[MembershipOut])
 @router.get("/{society_id}/residents", response_model=list[MembershipOut])

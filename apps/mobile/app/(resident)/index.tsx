@@ -25,7 +25,7 @@ export default function ResidentHomeScreen() {
   const router = useRouter();
   const user = useAuthStore((state) => state.user);
   const { notices, triggerSOS, isError: isErrorNotices, error: errorNotices, refetch: refetchNotices } = useNotices();
-  const { passes } = usePasses();
+  const { passes, approvePass, rejectPass, refetch: refetchPasses } = usePasses();
   const { unitStaff, isErrorUnitStaff, errorUnitStaff, refetchUnitStaff } = useStaff();
   const { myBookings, isErrorBookings, errorBookings, refetchBookings } = useAmenities();
 
@@ -47,21 +47,33 @@ export default function ResidentHomeScreen() {
       }
     : null;
 
-  const handleApprove = (id: string) => {
+  const handleApprove = async (id: string) => {
     setDismissedVisitorIds((prev) => [...prev, id]);
-    if (Platform.OS === "web" && typeof window !== "undefined") {
-      window.alert("✅ Approved: Gate pass issued! Guard has been signaled to grant entry.");
-    } else {
-      Alert.alert("Approved", "Gate pass issued! Guard has been signaled to grant entry.");
+    try {
+      await approvePass(id);
+      await refetchPasses();
+      if (Platform.OS === "web" && typeof window !== "undefined") {
+        window.alert("✅ Approved: Gate pass issued! Guard has been signaled to grant entry.");
+      } else {
+        Alert.alert("Approved", "Gate pass issued! Guard has been signaled to grant entry.");
+      }
+    } catch (e: any) {
+      Alert.alert("Approval Failed", e?.message || "Could not approve pass on server.");
     }
   };
 
-  const handleReject = (id: string) => {
+  const handleReject = async (id: string) => {
     setDismissedVisitorIds((prev) => [...prev, id]);
-    if (Platform.OS === "web" && typeof window !== "undefined") {
-      window.alert("❌ Declined: Entry request declined. Guard notified.");
-    } else {
-      Alert.alert("Declined", "Entry request declined. Guard notified.");
+    try {
+      await rejectPass(id);
+      await refetchPasses();
+      if (Platform.OS === "web" && typeof window !== "undefined") {
+        window.alert("❌ Declined: Entry request declined. Guard notified.");
+      } else {
+        Alert.alert("Declined", "Entry request declined. Guard notified.");
+      }
+    } catch (e: any) {
+      Alert.alert("Decline Failed", e?.message || "Could not decline pass on server.");
     }
   };
 

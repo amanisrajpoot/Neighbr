@@ -105,6 +105,7 @@ export class SyncEngine {
 
     useSyncStore.getState().setSyncing(true);
 
+    let allSucceeded = true;
     for (const op of pendingOps) {
       try {
         const payload = JSON.parse(op.payload);
@@ -124,10 +125,15 @@ export class SyncEngine {
 
         await localDb.markOperationSynced(op.id);
       } catch (err: any) {
+        allSucceeded = false;
         await localDb.markOperationFailed(op.id, err.message || "Network error");
         useSyncStore.getState().setOnline(false);
         break; // Stop queue processing if connection is down
       }
+    }
+
+    if (allSucceeded) {
+      useSyncStore.getState().setOnline(true);
     }
 
     useSyncStore.getState().setSyncing(false);

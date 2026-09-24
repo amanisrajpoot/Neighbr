@@ -9,6 +9,7 @@ from app.core.errors import AppException
 from app.core.events import event_bus, DomainEvent
 from app.modules.auth.models import User
 from app.modules.societies.models import UnitMembership, Unit
+from app.modules.gates.models import Gate
 from app.modules.visitors.models import VisitorProfile, VisitorPass, VisitorEvent, Blacklist
 from app.modules.visitors.repository import VisitorRepository
 from app.modules.visitors.schemas import (
@@ -37,7 +38,18 @@ class VisitorService:
         self, society_id: uuid.UUID, payload: CreateVisitorPassRequest, issuer: User
     ) -> VisitorPass:
         pass_id = uuid.uuid4()
-        pass_code = f"{secrets.randbelow(900000) + 100000}"  # Secure 6-digit numeric PIN
+        type_str = (payload.visitor_type or payload.pass_type or "guest").upper()
+        if "GUEST" in type_str:
+            prefix = "GST"
+        elif "DELIV" in type_str:
+            prefix = "DEL"
+        elif "CAB" in type_str:
+            prefix = "CAB"
+        elif "SERV" in type_str:
+            prefix = "SVC"
+        else:
+            prefix = type_str[:3]
+        pass_code = f"{prefix}-{secrets.randbelow(9000) + 1000}"
         qr_token = _generate_qr_token(pass_id, str(society_id))
 
         visitor_profile = None
@@ -293,6 +305,16 @@ class VisitorService:
         if evt:
             return evt
 
+        # Ensure gate_id exists in society, otherwise fallback to first active gate
+        target_gate = await self.db.get(Gate, gate_id) if gate_id else None
+        if not target_gate or target_gate.society_id != society_id:
+            gate_res = await self.db.execute(
+                select(Gate.id).where(Gate.society_id == society_id, Gate.is_active.is_(True)).limit(1)
+            )
+            fallback_gate = gate_res.scalar_one_or_none()
+            if fallback_gate:
+                gate_id = fallback_gate
+
         visitor_pass = None
         if payload.qr_token:
             visitor_pass = await self.scan_pass(society_id, payload.qr_token, gate_id)
@@ -345,6 +367,16 @@ class VisitorService:
         evt = await self.repo.get_event_by_idempotency_key(payload.idempotency_key)
         if evt:
             return evt
+
+        # Ensure gate_id exists in society, otherwise fallback to first active gate
+        target_gate = await self.db.get(Gate, gate_id) if gate_id else None
+        if not target_gate or target_gate.society_id != society_id:
+            gate_res = await self.db.execute(
+                select(Gate.id).where(Gate.society_id == society_id, Gate.is_active.is_(True)).limit(1)
+            )
+            fallback_gate = gate_res.scalar_one_or_none()
+            if fallback_gate:
+                gate_id = fallback_gate
 
         visitor_pass = None
         if payload.pass_id:

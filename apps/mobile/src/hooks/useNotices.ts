@@ -11,6 +11,16 @@ export interface NoticeItem {
   published_at: string;
 }
 
+export interface EmergencyContactItem {
+  id: string;
+  society_id: string;
+  name: string;
+  phone: string;
+  designation?: string;
+  category?: string;
+  is_active: boolean;
+}
+
 export function useNotices() {
   const user = useAuthStore((state) => state.user);
 
@@ -19,6 +29,15 @@ export function useNotices() {
     queryFn: async () => {
       if (!user?.societyId) return [];
       return apiClient<NoticeItem[]>(`/societies/${user.societyId}/notices`);
+    },
+    enabled: !!user?.societyId,
+  });
+
+  const emergencyContactsQuery = useQuery({
+    queryKey: ["emergencyContacts", user?.societyId],
+    queryFn: async () => {
+      if (!user?.societyId) return [];
+      return apiClient<EmergencyContactItem[]>(`/societies/${user.societyId}/emergency-contacts`);
     },
     enabled: !!user?.societyId,
   });
@@ -43,7 +62,11 @@ export function useNotices() {
     isError: noticesQuery.isError,
     error: noticesQuery.error,
     refetch: noticesQuery.refetch,
+    emergencyContacts: emergencyContactsQuery.data || [],
+    isLoadingContacts: emergencyContactsQuery.isLoading,
+    refetchContacts: emergencyContactsQuery.refetch,
     triggerSOS: triggerSOSMutation.mutateAsync,
     isTriggeringSOS: triggerSOSMutation.isPending,
   };
 }
+

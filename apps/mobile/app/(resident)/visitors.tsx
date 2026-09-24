@@ -14,14 +14,16 @@ import { Colors } from "../../src/theme/colors";
 import { usePasses, VisitorPassItem } from "../../src/hooks/usePasses";
 import { useAuthStore } from "../../src/store/authStore";
 import { QRCodeView } from "../../src/components/QRCodeView";
+import { QueryErrorView } from "../../src/components/QueryErrorView";
 
 export default function ResidentVisitorsScreen() {
   const router = useRouter();
   const { user } = useAuthStore();
-  const { passes, isLoading, refetch } = usePasses();
+  const { passes, isLoading, isError, error, refetch, revokePass, isRevoking } = usePasses();
   const [activeFilter, setActiveFilter] = useState<"ALL" | "ACTIVE" | "PAST">("ALL");
   const [selectedPass, setSelectedPass] = useState<VisitorPassItem | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+
 
   const filteredPasses = passes.filter((p: VisitorPassItem) => {
     if (activeFilter === "ACTIVE") return p.status === "APPROVED" || p.status === "CHECKED_IN";
@@ -161,9 +163,28 @@ export default function ResidentVisitorsScreen() {
                 showShareButton={true}
               />
 
-              <TouchableOpacity style={styles.doneButton} onPress={() => setSelectedPass(null)}>
-                <Text style={styles.doneButtonText}>Done</Text>
-              </TouchableOpacity>
+              <View style={{ flexDirection: "row", gap: 10, marginTop: 14 }}>
+                {["APPROVED", "WAITING_APPROVAL", "CREATED"].includes(selectedPass.status) && (
+                  <TouchableOpacity
+                    style={[styles.revokeButton, isRevoking && { opacity: 0.6 }]}
+                    disabled={isRevoking}
+                    onPress={async () => {
+                      try {
+                        await revokePass(selectedPass.id);
+                        setSelectedPass(null);
+                      } catch (e: any) {
+                        alert("Revocation Failed: " + (e?.message || "Could not revoke pass."));
+                      }
+                    }}
+                  >
+                    <Text style={styles.revokeButtonText}>{isRevoking ? "Revoking..." : "Revoke Pass"}</Text>
+                  </TouchableOpacity>
+                )}
+
+                <TouchableOpacity style={[styles.doneButton, { flex: 1, marginTop: 0 }]} onPress={() => setSelectedPass(null)}>
+                  <Text style={styles.doneButtonText}>Done</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
         </Modal>
@@ -171,6 +192,23 @@ export default function ResidentVisitorsScreen() {
     </SafeAreaView>
   );
 }
+
+const extraStyles = StyleSheet.create({
+  revokeBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 14,
+    backgroundColor: "#fee2e2",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  revokeBtnText: {
+    color: "#dc2626",
+    fontWeight: "700",
+    fontSize: 14,
+  },
+});
+
 
 const styles = StyleSheet.create({
   container: {
@@ -406,4 +444,17 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "800",
   },
+  revokeButton: {
+    backgroundColor: "#fee2e2",
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: "center",
+  },
+  revokeButtonText: {
+    color: "#dc2626",
+    fontSize: 13,
+    fontWeight: "800",
+  },
 });
+
