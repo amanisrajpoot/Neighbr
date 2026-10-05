@@ -51,9 +51,13 @@ async def guard_push_single_or_batch(
     society_id_str = data.get("society_id") or "34090e70-34f9-4cdd-9522-e2098982a5ed"
     society_id = uuid.UUID(society_id_str)
     
+    op_type = data.get("operation_type", "check_in")
+    if isinstance(op_type, str):
+        op_type = op_type.lower()
+
     op_item = SyncOperationItem(
         operation_id=data.get("operation_id", str(uuid.uuid4())),
-        operation_type=data.get("operation_type", "check_in"),
+        operation_type=op_type,
         entity_type=data.get("entity_type", "visitor"),
         idempotency_key=idempotency_key,
         local_created_at=datetime.now(timezone.utc),
@@ -139,7 +143,7 @@ async def guard_pull_cache(
         select(VisitorPass)
         .where(
             VisitorPass.society_id == society_id,
-            VisitorPass.status.in_(["APPROVED", "WAITING_APPROVAL", "CHECKED_IN"]),
+            VisitorPass.status.in_(["APPROVED", "APPROVAL_PENDING", "WAITING_APPROVAL", "CHECKED_IN"]),
         )
         .order_by(VisitorPass.valid_from.desc())
         .limit(200)

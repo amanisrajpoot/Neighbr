@@ -37,9 +37,13 @@ class SocietyRepository:
         res = await self.db.execute(select(SocietySettings).where(SocietySettings.society_id == society_id))
         return res.scalar_one_or_none()
 
-    # Roles
+    # Roles & Users
     async def get_role_by_code(self, code: str) -> Optional[Role]:
         res = await self.db.execute(select(Role).where(Role.code == code))
+        return res.scalar_one_or_none()
+
+    async def get_user_by_phone(self, phone: str) -> Optional[User]:
+        res = await self.db.execute(select(User).where(User.phone == phone))
         return res.scalar_one_or_none()
 
     # Buildings & Floors

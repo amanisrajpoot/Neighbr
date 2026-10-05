@@ -1,5 +1,5 @@
 import uuid
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, status, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -24,12 +24,37 @@ from app.modules.societies.schemas import (
     MembershipOut,
     FamilyMemberCreate,
     FamilyMemberOut,
+    SocietyOnboardRequest,
+    SocietyOnboardResponse,
+    BulkResidentCSVResponse,
 )
 from app.modules.societies.service import SocietyService
 
 router = APIRouter(prefix="/societies", tags=["Societies"])
 
 # Society Management
+@router.post("/onboard", response_model=SocietyOnboardResponse, status_code=status.HTTP_201_CREATED)
+async def onboard_society(
+    payload: SocietyOnboardRequest,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    service = SocietyService(db)
+    return await service.onboard_society(payload, user)
+
+@router.post("/{society_id}/residents/bulk-csv", response_model=BulkResidentCSVResponse)
+async def bulk_onboard_residents_csv(
+    society_id: uuid.UUID,
+    file: UploadFile = File(...),
+    user: User = Depends(get_current_user),
+    _auth = RequireSocietyAdmin,
+    db: AsyncSession = Depends(get_db),
+):
+    content = await file.read()
+    csv_text = content.decode("utf-8", errors="ignore")
+    service = SocietyService(db)
+    return await service.bulk_onboard_residents_csv(society_id, csv_text, user)
+
 @router.get("", response_model=list[SocietyOut])
 async def list_societies(
     db: AsyncSession = Depends(get_db),

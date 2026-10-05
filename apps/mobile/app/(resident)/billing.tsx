@@ -15,7 +15,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Colors } from "../../src/theme/colors";
 import { useAuthStore } from "../../src/store/authStore";
-import { useBilling, InvoiceItem } from "../../src/hooks/useBilling";
+import { useBilling, InvoiceItem, TransactionItem, PaymentOrderSession } from "../../src/hooks/useBilling";
 import { useVehicles } from "../../src/hooks/useVehicles";
 import { useStaff } from "../../src/hooks/useStaff";
 import { useFamilyMembers } from "../../src/hooks/useFamilyMembers";
@@ -23,7 +23,16 @@ import { QueryErrorView } from "../../src/components/QueryErrorView";
 
 export default function ResidentMyFlatScreen() {
   const { user } = useAuthStore();
-  const { invoices, isLoading: isLoadingBilling, isError: isErrorBilling, error: errorBilling, refetch: refetchBilling, payInvoice } = useBilling();
+  const {
+    invoices,
+    isLoading: isLoadingBilling,
+    isError: isErrorBilling,
+    error: errorBilling,
+    refetch: refetchBilling,
+    payInvoice,
+    initiatePayment,
+    verifyPayment,
+  } = useBilling();
   const { vehicles, isLoading: isLoadingVehicles, isError: isErrorVehicles, error: errorVehicles, refetch: refetchVehicles, registerVehicle } = useVehicles();
   const { unitStaff, isLoadingUnitStaff, isErrorUnitStaff, errorUnitStaff, refetchUnitStaff } = useStaff();
   const { familyMembers, isLoading: isLoadingFamily, isError: isErrorFamily, error: errorFamily, refetch: refetchFamily, addFamilyMember } = useFamilyMembers();
@@ -36,6 +45,9 @@ export default function ResidentMyFlatScreen() {
   const [isPayModalOpen, setIsPayModalOpen] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<"UPI" | "CARD" | "NETBANKING">("UPI");
   const [isSubmittingPay, setIsSubmittingPay] = useState(false);
+  const [cashfreeOrder, setCashfreeOrder] = useState<PaymentOrderSession | null>(null);
+  const [isInitiatingCashfree, setIsInitiatingCashfree] = useState(false);
+  const [receiptModal, setReceiptModal] = useState<TransactionItem | null>(null);
 
   // Family Members states
   const [isAddFamilyOpen, setIsAddFamilyOpen] = useState(false);
@@ -70,18 +82,47 @@ export default function ResidentMyFlatScreen() {
     setRefreshing(false);
   };
 
+  const openPaymentFlow = async (inv: InvoiceItem) => {
+    setSelectedInvoice(inv);
+    setIsPayModalOpen(true);
+    setCashfreeOrder(null);
+    try {
+      setIsInitiatingCashfree(true);
+      const session = await initiatePayment({
+        invoiceId: inv.id,
+        amount: inv.total_amount,
+      });
+      setCashfreeOrder(session);
+    } catch (err: any) {
+      console.warn("Could not initiate Cashfree order session:", err?.message);
+    } finally {
+      setIsInitiatingCashfree(false);
+    }
+  };
+
   const handlePay = async () => {
     if (!selectedInvoice) return;
     try {
       setIsSubmittingPay(true);
-      const res = await payInvoice({
-        invoiceId: selectedInvoice.id,
-        paymentMethod,
-        amount: selectedInvoice.total_amount,
-      });
-      Alert.alert("Payment Successful! 🎉", `Receipt ${res.receipt_number} generated for ${selectedInvoice.billing_period}.`);
+      let res: TransactionItem;
+      if (cashfreeOrder) {
+        res = await verifyPayment({
+          invoiceId: selectedInvoice.id,
+          orderId: cashfreeOrder.order_id,
+          paymentMethod,
+          paymentRef: `CF-TXN-${Date.now().toString().slice(-6)}`,
+        });
+      } else {
+        res = await payInvoice({
+          invoiceId: selectedInvoice.id,
+          paymentMethod,
+          amount: selectedInvoice.total_amount,
+        });
+      }
       setIsPayModalOpen(false);
       setSelectedInvoice(null);
+      setCashfreeOrder(null);
+      setReceiptModal(res);
     } catch (e: any) {
       Alert.alert("Payment Failed", e?.message || "Could not process payment transaction. Please try again.");
     } finally {
@@ -414,10 +455,7 @@ export default function ResidentMyFlatScreen() {
                   <TouchableOpacity
                     style={styles.payNowBtn}
                     activeOpacity={0.85}
-                    onPress={() => {
-                      setSelectedInvoice(currentUnpaid);
-                      setIsPayModalOpen(true);
-                    }}
+                    onPress={() => openPaymentFlow(currentUnpaid)}
                   >
                     <Text style={styles.payNowBtnText}>Pay ₹{currentUnpaid.total_amount.toLocaleString()} Online &rarr;</Text>
                   </TouchableOpacity>
@@ -467,10 +505,7 @@ export default function ResidentMyFlatScreen() {
                         <Text style={styles.paidDateText}>Paid on {inv.paid_at ? inv.paid_at.slice(0, 10) : "Receipt Confirmed"}</Text>
                       ) : (
                         <TouchableOpacity
-                          onPress={() => {
-                            setSelectedInvoice(inv);
-                            setIsPayModalOpen(true);
-                          }}
+                          onPress={() => openPaymentFlow(inv)}
                           style={styles.payMiniBtn}
                         >
                           <Text style={styles.payMiniBtnText}>Pay Now</Text>
@@ -500,10 +535,35 @@ export default function ResidentMyFlatScreen() {
                 </TouchableOpacity>
               </View>
 
+              <View style={styles.cfBanner}>
+                <Text style={styles.cfBannerIcon}>🔒</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.cfBannerTitle}>Secured by Cashfree PG</Text>
+                  <Text style={styles.cfBannerSub}>
+                    {isInitiatingCashfree
+                      ? "Generating session token..."
+                      : cashfreeOrder
+                      ? `Order: ${cashfreeOrder.order_id}`
+                      : "Direct Express Checkout"}
+                  </Text>
+                </View>
+              </View>
+
               <View style={styles.payAmountBox}>
                 <Text style={styles.payAmountLabel}>Total Amount Payable</Text>
                 <Text style={styles.payAmountValue}>₹{selectedInvoice.total_amount.toLocaleString()}</Text>
               </View>
+
+              {selectedInvoice.line_items && selectedInvoice.line_items.length > 0 && (
+                <View style={[styles.breakdownBox, { marginBottom: 14 }]}>
+                  {selectedInvoice.line_items.map((item, idx) => (
+                    <View key={idx} style={styles.breakdownRow}>
+                      <Text style={styles.breakdownTitle}>{item.title}</Text>
+                      <Text style={styles.breakdownValue}>₹{item.amount.toFixed(2)}</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
 
               <Text style={styles.inputLabel}>Choose Payment Mode</Text>
               <View style={styles.methodsRow}>
@@ -522,14 +582,65 @@ export default function ResidentMyFlatScreen() {
 
               <TouchableOpacity
                 style={styles.confirmPayBtn}
-                disabled={isSubmittingPay}
+                disabled={isSubmittingPay || isInitiatingCashfree}
                 onPress={handlePay}
               >
                 {isSubmittingPay ? (
                   <ActivityIndicator color="#ffffff" />
                 ) : (
-                  <Text style={styles.confirmPayBtnText}>Authorize Payment (₹{selectedInvoice.total_amount.toLocaleString()})</Text>
+                  <Text style={styles.confirmPayBtnText}>
+                    Pay via Cashfree (₹{selectedInvoice.total_amount.toLocaleString()})
+                  </Text>
                 )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      )}
+
+      {/* Official Receipt Modal */}
+      {receiptModal && (
+        <Modal visible={Boolean(receiptModal)} animationType="slide" transparent>
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <View style={{ alignItems: "center", marginBottom: 16 }}>
+                <Text style={{ fontSize: 36, marginBottom: 6 }}>🧾</Text>
+                <Text style={styles.modalTitle}>Payment Confirmed!</Text>
+                <Text style={styles.modalSub}>Official Society Maintenance Receipt</Text>
+              </View>
+
+              <View style={styles.receiptContainer}>
+                <View style={styles.receiptRow}>
+                  <Text style={styles.receiptLabel}>Receipt Number</Text>
+                  <Text style={styles.receiptValueBold}>{receiptModal.receipt_number}</Text>
+                </View>
+                <View style={styles.receiptRow}>
+                  <Text style={styles.receiptLabel}>Transaction Ref</Text>
+                  <Text style={styles.receiptValue}>{receiptModal.transaction_ref}</Text>
+                </View>
+                <View style={styles.receiptRow}>
+                  <Text style={styles.receiptLabel}>Amount Paid</Text>
+                  <Text style={styles.receiptAmount}>₹{receiptModal.amount.toLocaleString()}</Text>
+                </View>
+                <View style={styles.receiptRow}>
+                  <Text style={styles.receiptLabel}>Payment Method</Text>
+                  <Text style={styles.receiptValue}>{receiptModal.payment_method}</Text>
+                </View>
+                <View style={styles.receiptRow}>
+                  <Text style={styles.receiptLabel}>Status</Text>
+                  <Text style={[styles.receiptValue, { color: "#059669", fontWeight: "800" }]}>SUCCESS</Text>
+                </View>
+                <View style={styles.receiptRow}>
+                  <Text style={styles.receiptLabel}>Date & Time</Text>
+                  <Text style={styles.receiptValue}>{new Date(receiptModal.paid_at).toLocaleString()}</Text>
+                </View>
+              </View>
+
+              <TouchableOpacity
+                style={[styles.confirmPayBtn, { backgroundColor: "#059669", marginTop: 14 }]}
+                onPress={() => setReceiptModal(null)}
+              >
+                <Text style={styles.confirmPayBtnText}>Done</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -1315,5 +1426,66 @@ const styles = StyleSheet.create({
     color: "#ffffff",
     fontSize: 13,
     fontWeight: "800",
+  },
+  cfBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#f0fdf4",
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: "#bbf7d0",
+    marginBottom: 14,
+    gap: 10,
+  },
+  cfBannerIcon: {
+    fontSize: 20,
+  },
+  cfBannerTitle: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: "#166534",
+  },
+  cfBannerSub: {
+    fontSize: 10,
+    color: "#15803d",
+    marginTop: 1,
+  },
+  receiptContainer: {
+    backgroundColor: "#f8fafc",
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    gap: 12,
+  },
+  receiptRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f1f5f9",
+  },
+  receiptLabel: {
+    fontSize: 12,
+    color: "#64748b",
+    fontWeight: "600",
+  },
+  receiptValue: {
+    fontSize: 12,
+    color: Colors.text,
+    fontWeight: "700",
+  },
+  receiptValueBold: {
+    fontSize: 13,
+    color: Colors.primaryDark,
+    fontWeight: "900",
+    letterSpacing: 0.5,
+  },
+  receiptAmount: {
+    fontSize: 16,
+    color: Colors.text,
+    fontWeight: "900",
   },
 });

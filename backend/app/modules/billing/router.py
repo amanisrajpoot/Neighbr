@@ -1,14 +1,20 @@
+import json
 import uuid
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.dependencies import get_current_user
+from app.core.errors import AppException
+from app.core.payments import cashfree_service
 from app.modules.auth.models import User
 from app.modules.billing.permissions import RequireBillingAdmin, RequireResident
 from app.modules.billing.schemas import (
     BatchInvoiceCreate,
     PayInvoiceRequest,
+    PaymentInitiateRequest,
+    PaymentInitiateResponse,
+    PaymentVerifyRequest,
     InvoiceOut,
     TransactionOut,
     LedgerSummary,
@@ -16,6 +22,7 @@ from app.modules.billing.schemas import (
 from app.modules.billing.service import BillingService
 
 router = APIRouter(prefix="/societies/{society_id}/billing", tags=["Society Billing & Maintenance"])
+webhook_router = APIRouter(prefix="/billing", tags=["Billing Webhooks"])
 
 def _format_invoice(inv) -> InvoiceOut:
     return InvoiceOut(
@@ -32,6 +39,8 @@ def _format_invoice(inv) -> InvoiceOut:
         total_amount=float(inv.total_amount),
         paid_amount=float(inv.paid_amount),
         status=inv.status,
+        cashfree_order_id=inv.cashfree_order_id,
+        payment_session_id=inv.payment_session_id,
         line_items=inv.line_items or [],
         created_at=inv.created_at,
         paid_at=inv.paid_at,
@@ -124,3 +133,85 @@ async def get_ledger_summary(
 ):
     service = BillingService(db)
     return await service.get_ledger_summary(society_id)
+
+@router.post("/invoices/{invoice_id}/initiate-payment", response_model=PaymentInitiateResponse, status_code=status.HTTP_200_OK)
+async def initiate_payment(
+    society_id: uuid.UUID,
+    invoice_id: uuid.UUID,
+    payload: PaymentInitiateRequest,
+    user: User = Depends(get_current_user),
+    _auth = RequireResident,
+    db: AsyncSession = Depends(get_db),
+):
+    service = BillingService(db)
+    return await service.initiate_payment(society_id, invoice_id, payload, user)
+
+@router.post("/invoices/{invoice_id}/verify-payment", response_model=TransactionOut, status_code=status.HTTP_200_OK)
+async def verify_payment(
+    society_id: uuid.UUID,
+    invoice_id: uuid.UUID,
+    payload: PaymentVerifyRequest,
+    user: User = Depends(get_current_user),
+    _auth = RequireResident,
+    db: AsyncSession = Depends(get_db),
+):
+    service = BillingService(db)
+    t = await service.complete_payment_from_order(
+        order_id=payload.order_id,
+        payment_method=payload.payment_method,
+        payment_ref=payload.payment_ref,
+        user_id=user.id,
+    )
+    return TransactionOut(
+        id=t.id,
+        society_id=t.society_id,
+        invoice_id=t.invoice_id,
+        unit_id=t.unit_id,
+        user_id=t.user_id,
+        user_name=user.full_name,
+        transaction_ref=t.transaction_ref,
+        receipt_number=t.receipt_number,
+        payment_method=t.payment_method,
+        amount=float(t.amount),
+        status=t.status,
+        paid_at=t.paid_at,
+    )
+
+@webhook_router.post("/webhook/cashfree")
+async def cashfree_webhook(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    raw_body = await request.body()
+    signature = request.headers.get("x-webhook-signature", "")
+    timestamp = request.headers.get("x-webhook-timestamp", "")
+
+    if not cashfree_service.verify_webhook_signature(raw_body, timestamp, signature):
+        raise AppException(code="INVALID_SIGNATURE", message="Invalid Cashfree webhook signature", status_code=400)
+
+    try:
+        payload = json.loads(raw_body.decode("utf-8")) if raw_body else {}
+    except Exception:
+        raise AppException(code="INVALID_PAYLOAD", message="Invalid JSON payload", status_code=400)
+
+    data = payload.get("data", {})
+    order = data.get("order", {})
+    payment = data.get("payment", {})
+
+    order_id = order.get("order_id") or data.get("order_id")
+    payment_status = payment.get("payment_status", "").upper()
+
+    if order_id and payment_status in ("SUCCESS", "PAID"):
+        service = BillingService(db)
+        amount = float(payment.get("payment_amount", 0.0)) or None
+        payment_method = payment.get("payment_group", "ONLINE")
+        payment_ref = payment.get("cf_payment_id") or payment.get("bank_reference")
+        await service.complete_payment_from_order(
+            order_id=order_id,
+            payment_method=payment_method,
+            payment_ref=str(payment_ref) if payment_ref else None,
+            amount=amount,
+        )
+
+    return {"status": "ok"}
+

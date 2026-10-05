@@ -209,3 +209,32 @@ class AuthService:
 
     async def logout(self, user_id: uuid.UUID, device_id: uuid.UUID | None = None):
         await self.repo.revoke_sessions(user_id, device_id)
+
+    async def update_device_push_token(
+        self,
+        user_id: uuid.UUID,
+        device_id: str,
+        push_token: str,
+        platform: str = "android",
+        device_name: str | None = None,
+    ) -> bool:
+        device = await self.repo.get_device(user_id, device_id)
+        now = datetime.now(timezone.utc)
+        if not device:
+            device = UserDevice(
+                user_id=user_id,
+                device_id=device_id,
+                device_name=device_name,
+                platform=platform,
+                push_token=push_token,
+                last_active_at=now,
+            )
+            await self.repo.save(device)
+        else:
+            device.push_token = push_token
+            device.is_active = True
+            device.last_active_at = now
+            if device_name:
+                device.device_name = device_name
+            await self.repo.save(device)
+        return True

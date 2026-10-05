@@ -14,8 +14,28 @@ from httpx import AsyncClient, ASGITransport
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from sqlalchemy.pool import StaticPool
 
-from app.main import app
+import app.database as app_db
+from app.main import app as fastapi_app
 from app.database import Base, get_db
+
+import app.modules.auth.models
+import app.modules.societies.models
+import app.modules.gates.models
+import app.modules.visitors.models
+import app.modules.notifications.models
+import app.modules.staff.models
+import app.modules.vehicles.models
+import app.modules.notices.models
+import app.modules.audit.models
+import app.modules.helpdesk.models
+import app.modules.amenities.models
+import app.modules.billing.models
+import app.modules.community.models
+import app.modules.marketplace.models
+import app.modules.iot.models
+import app.modules.automations.models
+
+app = fastapi_app
 
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
 
@@ -33,6 +53,9 @@ TestingSessionLocal = async_sessionmaker(
     autoflush=False,
 )
 
+app_db.engine = test_engine
+app_db.AsyncSessionLocal = TestingSessionLocal
+
 async def override_get_db():
     async with TestingSessionLocal() as session:
         try:
@@ -40,7 +63,7 @@ async def override_get_db():
         finally:
             await session.close()
 
-app.dependency_overrides[get_db] = override_get_db
+fastapi_app.dependency_overrides[get_db] = override_get_db
 
 @pytest.fixture(autouse=True)
 async def setup_db():
@@ -52,5 +75,5 @@ async def setup_db():
 
 @pytest.fixture
 async def client():
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+    async with AsyncClient(transport=ASGITransport(app=fastapi_app), base_url="http://test") as c:
         yield c

@@ -13,25 +13,102 @@ import { Colors } from "../../src/theme/colors";
 import { useAuthStore } from "../../src/store/authStore";
 import { useSyncStore, syncEngine } from "../../src/sync/syncEngine";
 import { OfflineBanner } from "../../src/components/OfflineBanner";
+import { useRealtime } from "../../src/hooks/useRealtime";
+
+import { useQuery } from "@tanstack/react-query";
+import { societyApi, visitorApi, apiClient } from "../../src/api/client";
 
 export default function GuardConsoleScreen() {
   const router = useRouter();
+  const user = useAuthStore((state) => state.user);
+  const societyId = user?.societyId || "34090e70-34f9-4cdd-9522-e2098982a5ed";
   const [isOnDuty, setIsOnDuty] = useState(true);
   const { isOnline, pendingCount } = useSyncStore();
+  const { isConnected, on } = useRealtime();
+  const [activeSOSAlert, setActiveSOSAlert] = useState<{ title: string; body: string } | null>(null);
 
   useEffect(() => {
     syncEngine.init().catch(() => {});
   }, []);
 
+  useEffect(() => {
+    const unsub = on("NOTIFICATION", (notif: any) => {
+      if (notif?.category === "emergency" || notif?.category === "security") {
+        setActiveSOSAlert({
+          title: notif.title || "EMERGENCY ALARM",
+          body: notif.body || "SOS alert broadcasted",
+        });
+      }
+    });
+    return unsub;
+  }, [on]);
+
+  const handleGuardGatePanic = () => {
+    Alert.alert(
+      "🚨 Trigger Gate Lockdown / Panic Alarm?",
+      "This will sound the emergency alarm, notify all estate guards, and broadcast emergency SOS notifications to all residents.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "LOCKDOWN & ALARM",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await apiClient(`/societies/${societyId}/sos`, {
+                method: "POST",
+                body: JSON.stringify({
+                  sos_type: "gate_lockdown",
+                  message: `GATE EMERGENCY: Security lockdown triggered at ${user?.gateName || "Main Gate"} by Officer ${user?.name || ""}`,
+                }),
+              });
+              setActiveSOSAlert({
+                title: "GATE EMERGENCY LOCKDOWN",
+                body: "Lockdown broadcasted to all guards and residents.",
+              });
+              Alert.alert("🚨 Alarm Sounded", "Emergency broadcast delivered across the society.");
+            } catch (err: any) {
+              Alert.alert("Error", err?.message || "Could not broadcast emergency lockdown.");
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  // Fetch live statistics
+  const { data: insideList = [], refetch: refetchInside } = useQuery({
+    queryKey: ["guardInsideStats", societyId],
+    queryFn: async () => {
+      if (!societyId) return [];
+      return visitorApi.getInsideVisitors(societyId).catch(() => []);
+    },
+    enabled: Boolean(societyId),
+    refetchInterval: 10000,
+  });
+
+  const { data: passesList = [], refetch: refetchPasses } = useQuery({
+    queryKey: ["guardPassesStats", societyId],
+    queryFn: async () => {
+      if (!societyId) return [];
+      return apiClient<any[]>(`/societies/${societyId}/visitors/passes`).catch(() => []);
+    },
+    enabled: Boolean(societyId),
+    refetchInterval: 10000,
+  });
+
+  const currentlyInsideCount = insideList.length;
+  const preApprovedCount = passesList.filter((p: any) => p.status === "APPROVED" || p.status === "CREATED").length;
+  const checkedInTodayCount = passesList.filter((p: any) => p.status === "CHECKED_IN" || p.status === "CHECKED_OUT").length;
+
   const toggleDuty = () => {
     if (isOnDuty) {
-      Alert.alert("Duty Check-Out", "End your active shift at Main North Gate?", [
+      Alert.alert("Duty Check-Out", `End your active shift at ${user?.gateName || "Security Gate"}?`, [
         { text: "Cancel", style: "cancel" },
         { text: "Confirm Off-Duty", onPress: () => setIsOnDuty(false) },
       ]);
     } else {
       setIsOnDuty(true);
-      Alert.alert("Checked In", "You are now active on duty at Main North Gate!");
+      Alert.alert("Checked In", `You are now active on duty at ${user?.gateName || "Security Gate"}!`);
     }
   };
 
@@ -46,14 +123,16 @@ export default function GuardConsoleScreen() {
     }
   };
 
+  const guardInitial = (user?.name || "J").charAt(0).toUpperCase();
+
   return (
     <SafeAreaView style={styles.container}>
       <OfflineBanner />
       {/* Top Gate & Sync Status Bar */}
       <View style={styles.statusBar}>
         <View style={styles.gateInfo}>
-          <Text style={styles.gateName}>Main North Gate</Text>
-          <Text style={styles.terminalCode}>TERMINAL: GATE-01 • GreenWood Palms</Text>
+          <Text style={styles.gateName}>{user?.gateName || "Main Security Gate"}</Text>
+          <Text style={styles.terminalCode}>TERMINAL: GATE-01 • {user?.societyName || "Greenwood Palms"}</Text>
         </View>
 
         <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
@@ -78,16 +157,32 @@ export default function GuardConsoleScreen() {
         </View>
       </View>
 
+      {/* Real-time Active SOS Emergency Alert HUD */}
+      {activeSOSAlert && (
+        <View style={styles.emergencyHud}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.emergencyHudTitle}>🚨 CRISIS ALARM: {activeSOSAlert.title}</Text>
+            <Text style={styles.emergencyHudBody}>{activeSOSAlert.body}</Text>
+          </View>
+          <TouchableOpacity
+            style={styles.emergencyAcknowledgeBtn}
+            onPress={() => setActiveSOSAlert(null)}
+          >
+            <Text style={styles.emergencyAcknowledgeText}>DISMISS</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {/* Guard Profile & Duty Toggle Card */}
         <View style={styles.dutyCard}>
           <View style={styles.guardRow}>
             <View style={styles.avatar}>
-              <Text style={styles.avatarText}>J</Text>
+              <Text style={styles.avatarText}>{guardInitial}</Text>
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.guardName}>Jagdish R.</Text>
-              <Text style={styles.guardBadge}>Badge #SEC-101 • Morning Shift (06:00 - 14:00)</Text>
+              <Text style={styles.guardName}>{user?.name || "Security Officer"}</Text>
+              <Text style={styles.guardBadge}>Badge #SEC-101 • {isOnDuty ? "Active Shift (On-Duty)" : "Off Shift"}</Text>
             </View>
           </View>
 
@@ -122,19 +217,36 @@ export default function GuardConsoleScreen() {
           </TouchableOpacity>
         </View>
 
+        {/* Gate Panic Alarm Trigger */}
+        <TouchableOpacity
+          style={styles.panicBtn}
+          activeOpacity={0.85}
+          onPress={handleGuardGatePanic}
+        >
+          <Text style={styles.panicEmoji}>🚨</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.panicTitle}>Gate Lockdown & Emergency Alarm</Text>
+            <Text style={styles.panicSub}>Broadcasts security alert to guards, residents, and police</Text>
+          </View>
+          <Text style={styles.panicArrow}>→</Text>
+        </TouchableOpacity>
+
         {/* Real-time Gate Statistics */}
         <Text style={styles.sectionTitle}>Today's Gate Traffic</Text>
         <View style={styles.statsGrid}>
           <View style={styles.statTile}>
-            <Text style={styles.statValue}>48</Text>
+            <Text style={styles.statValue}>{checkedInTodayCount}</Text>
             <Text style={styles.statLabel}>Checked-In Today</Text>
           </View>
+          <TouchableOpacity
+            onPress={() => router.push("/(guard)/inside")}
+            style={[styles.statTile, { backgroundColor: "#1e293b", borderWidth: 1, borderColor: "#38bdf8" }]}
+          >
+            <Text style={[styles.statValue, { color: "#38bdf8" }]}>{currentlyInsideCount}</Text>
+            <Text style={styles.statLabel}>Currently Inside →</Text>
+          </TouchableOpacity>
           <View style={styles.statTile}>
-            <Text style={styles.statValue}>18</Text>
-            <Text style={styles.statLabel}>Currently Inside</Text>
-          </View>
-          <View style={styles.statTile}>
-            <Text style={styles.statValue}>32</Text>
+            <Text style={styles.statValue}>{preApprovedCount}</Text>
             <Text style={styles.statLabel}>Pre-approved Passes</Text>
           </View>
         </View>
@@ -339,5 +451,66 @@ const styles = StyleSheet.create({
     marginTop: 4,
     textAlign: "center",
     fontWeight: "600",
+  },
+  emergencyHud: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#7f1d1d",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 2,
+    borderBottomColor: "#ef4444",
+    gap: 12,
+  },
+  emergencyHudTitle: {
+    fontSize: 12,
+    fontWeight: "900",
+    color: "#fecaca",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  emergencyHudBody: {
+    fontSize: 11,
+    color: "#ffffff",
+    marginTop: 2,
+  },
+  emergencyAcknowledgeBtn: {
+    backgroundColor: "#ef4444",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  emergencyAcknowledgeText: {
+    color: "#ffffff",
+    fontSize: 10,
+    fontWeight: "900",
+  },
+  panicBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#450a0a",
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1.5,
+    borderColor: "#dc2626",
+    gap: 12,
+  },
+  panicEmoji: {
+    fontSize: 28,
+  },
+  panicTitle: {
+    fontSize: 14,
+    fontWeight: "900",
+    color: "#fecaca",
+  },
+  panicSub: {
+    fontSize: 11,
+    color: "#fca5a5",
+    marginTop: 2,
+  },
+  panicArrow: {
+    fontSize: 18,
+    fontWeight: "900",
+    color: "#f87171",
   },
 });

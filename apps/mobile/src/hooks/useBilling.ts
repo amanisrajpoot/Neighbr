@@ -33,6 +33,17 @@ export interface InvoiceItem {
   transactions: TransactionItem[];
 }
 
+export interface PaymentOrderSession {
+  invoice_id: string;
+  order_id: string;
+  cf_order_id?: string;
+  payment_session_id: string;
+  order_amount: number;
+  order_currency: string;
+  customer_name: string;
+  customer_phone: string;
+}
+
 export interface LedgerStats {
   total_billed: number;
   total_collected: number;
@@ -65,7 +76,7 @@ export function useBilling() {
     enabled: Boolean(societyId),
   });
 
-  // Mutation: Pay invoice
+  // Mutation: Pay invoice (Direct)
   const payInvoiceMutation = useMutation({
     mutationFn: async ({
       invoiceId,
@@ -90,6 +101,59 @@ export function useBilling() {
     },
   });
 
+  // Mutation: Initiate Cashfree Payment Order
+  const initiatePaymentMutation = useMutation({
+    mutationFn: async ({
+      invoiceId,
+      amount,
+      returnUrl,
+    }: {
+      invoiceId: string;
+      amount?: number;
+      returnUrl?: string;
+    }) => {
+      if (!societyId) throw new Error("Missing society context");
+      return apiClient<PaymentOrderSession>(
+        `/societies/${societyId}/billing/invoices/${invoiceId}/initiate-payment`,
+        {
+          method: "POST",
+          body: JSON.stringify({ amount, return_url: returnUrl }),
+        }
+      );
+    },
+  });
+
+  // Mutation: Verify Cashfree Payment
+  const verifyPaymentMutation = useMutation({
+    mutationFn: async ({
+      invoiceId,
+      orderId,
+      paymentMethod = "UPI",
+      paymentRef,
+    }: {
+      invoiceId: string;
+      orderId: string;
+      paymentMethod?: string;
+      paymentRef?: string;
+    }) => {
+      if (!societyId) throw new Error("Missing society context");
+      return apiClient<TransactionItem>(
+        `/societies/${societyId}/billing/invoices/${invoiceId}/verify-payment`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            order_id: orderId,
+            payment_method: paymentMethod,
+            payment_ref: paymentRef,
+          }),
+        }
+      );
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["invoices", societyId] });
+    },
+  });
+
   return {
     invoices,
     isLoading,
@@ -97,5 +161,8 @@ export function useBilling() {
     error,
     refetch,
     payInvoice: payInvoiceMutation.mutateAsync,
+    initiatePayment: initiatePaymentMutation.mutateAsync,
+    verifyPayment: verifyPaymentMutation.mutateAsync,
   };
 }
+

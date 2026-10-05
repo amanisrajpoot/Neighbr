@@ -9,6 +9,7 @@ import {
   RefreshControl,
   Linking,
   Platform,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Colors } from "../../src/theme/colors";
@@ -16,10 +17,37 @@ import { useNotices, NoticeItem, EmergencyContactItem } from "../../src/hooks/us
 import { QueryErrorView } from "../../src/components/QueryErrorView";
 
 export default function ResidentNoticesScreen() {
-  const { notices, emergencyContacts, isLoading, isError, error, refetch, refetchContacts } = useNotices();
+  const { notices, emergencyContacts, isLoading, isError, error, refetch, refetchContacts, triggerSOS, isTriggeringSOS } = useNotices();
   const [activeTab, setActiveTab] = useState<"notices" | "emergency">("notices");
   const [selectedNotice, setSelectedNotice] = useState<NoticeItem | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [activeSOSAlert, setActiveSOSAlert] = useState<string | null>(null);
+
+  const handleSOSConfirm = (type: string, label: string) => {
+    Alert.alert(
+      `🚨 Trigger ${label}?`,
+      `This will immediately alert Gate Security, Guards on duty, and dispatch push notifications to the society crisis team.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Confirm Alarm",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await triggerSOS({
+                sos_type: type,
+                message: `${label} reported by flat resident`,
+              });
+              setActiveSOSAlert(`${label} broadcasted! Security team has been notified.`);
+              Alert.alert("🚨 SOS Broadcast Sent!", "Guards and estate response team have been notified.");
+            } catch (err: any) {
+              Alert.alert("SOS Failed", err?.message || "Could not broadcast SOS signal.");
+            }
+          },
+        },
+      ]
+    );
+  };
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -121,25 +149,89 @@ export default function ResidentNoticesScreen() {
             </View>
           )
         ) : (
-          defaultContacts.map((contact) => (
-            <View key={contact.id} style={styles.contactCard}>
-              <View style={styles.contactIcon}>
-                <Text style={{ fontSize: 22 }}>☎️</Text>
+          <>
+            {activeSOSAlert && (
+              <View style={styles.activeAlertCard}>
+                <Text style={styles.activeAlertText}>{activeSOSAlert}</Text>
+                <TouchableOpacity onPress={() => setActiveSOSAlert(null)}>
+                  <Text style={styles.activeAlertDismiss}>✕</Text>
+                </TouchableOpacity>
               </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.contactName}>{contact.name}</Text>
-                <Text style={styles.contactDesignation}>{contact.designation || "Emergency Response"}</Text>
-                <Text style={styles.contactPhone}>{contact.phone}</Text>
+            )}
+
+            <View style={styles.sosCard}>
+              <View style={styles.sosHeader}>
+                <Text style={styles.sosTitle}>🚨 Instant SOS Emergency Alarm</Text>
+                <Text style={styles.sosSub}>Broadcasts priority distress signal to Security Gates & Management</Text>
               </View>
-              <TouchableOpacity
-                onPress={() => handleCall(contact.phone)}
-                style={styles.callButton}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.callButtonText}>Call</Text>
-              </TouchableOpacity>
+
+              <View style={styles.sosGrid}>
+                <TouchableOpacity
+                  style={[styles.sosBtn, { borderColor: "#ef4444" }]}
+                  disabled={isTriggeringSOS}
+                  onPress={() => handleSOSConfirm("security", "Security Alert")}
+                >
+                  <Text style={styles.sosEmoji}>🚨</Text>
+                  <Text style={styles.sosBtnTitle}>Security Alert</Text>
+                  <Text style={styles.sosBtnSub}>Intruder / Threat</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.sosBtn, { borderColor: "#f97316" }]}
+                  disabled={isTriggeringSOS}
+                  onPress={() => handleSOSConfirm("fire", "Fire Emergency")}
+                >
+                  <Text style={styles.sosEmoji}>🔥</Text>
+                  <Text style={styles.sosBtnTitle}>Fire Alarm</Text>
+                  <Text style={styles.sosBtnSub}>Smoke / Fire</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.sosBtn, { borderColor: "#3b82f6" }]}
+                  disabled={isTriggeringSOS}
+                  onPress={() => handleSOSConfirm("medical", "Medical Emergency")}
+                >
+                  <Text style={styles.sosEmoji}>🚑</Text>
+                  <Text style={styles.sosBtnTitle}>Medical Care</Text>
+                  <Text style={styles.sosBtnSub}>Ambulance SOS</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.sosBtn, { borderColor: "#8b5cf6" }]}
+                  disabled={isTriggeringSOS}
+                  onPress={() => handleSOSConfirm("lift", "Lift Trapped")}
+                >
+                  <Text style={styles.sosEmoji}>🛗</Text>
+                  <Text style={styles.sosBtnTitle}>Lift Stuck</Text>
+                  <Text style={styles.sosBtnSub}>Elevator Crisis</Text>
+                </TouchableOpacity>
+              </View>
             </View>
-          ))
+
+            <Text style={{ fontSize: 13, fontWeight: "800", color: Colors.text, marginVertical: 10, textTransform: "uppercase", letterSpacing: 0.5 }}>
+              Speed-Dial Contacts
+            </Text>
+
+            {defaultContacts.map((contact) => (
+              <View key={contact.id} style={styles.contactCard}>
+                <View style={styles.contactIcon}>
+                  <Text style={{ fontSize: 22 }}>☎️</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.contactName}>{contact.name}</Text>
+                  <Text style={styles.contactDesignation}>{contact.designation || "Emergency Response"}</Text>
+                  <Text style={styles.contactPhone}>{contact.phone}</Text>
+                </View>
+                <TouchableOpacity
+                  onPress={() => handleCall(contact.phone)}
+                  style={styles.callButton}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.callButtonText}>Call</Text>
+                </TouchableOpacity>
+              </View>
+            ))}
+          </>
         )}
       </ScrollView>
 
@@ -402,5 +494,83 @@ const styles = StyleSheet.create({
     color: Colors.textMuted,
     textAlign: "center",
   },
+  activeAlertCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#fef2f2",
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 1.5,
+    borderColor: "#ef4444",
+    marginBottom: 12,
+  },
+  activeAlertText: {
+    flex: 1,
+    fontSize: 12,
+    fontWeight: "800",
+    color: "#b91c1c",
+  },
+  activeAlertDismiss: {
+    fontSize: 16,
+    color: "#ef4444",
+    fontWeight: "900",
+    paddingLeft: 8,
+  },
+  sosCard: {
+    backgroundColor: "#ffffff",
+    borderRadius: 20,
+    padding: 16,
+    borderWidth: 1.5,
+    borderColor: "#fecaca",
+    marginBottom: 16,
+    shadowColor: "#ef4444",
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 3,
+  },
+  sosHeader: {
+    marginBottom: 12,
+  },
+  sosTitle: {
+    fontSize: 15,
+    fontWeight: "900",
+    color: "#dc2626",
+  },
+  sosSub: {
+    fontSize: 11,
+    color: "#64748b",
+    marginTop: 2,
+  },
+  sosGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  sosBtn: {
+    flex: 1,
+    minWidth: "46%",
+    backgroundColor: "#fef2f2",
+    borderRadius: 14,
+    borderWidth: 1.5,
+    paddingVertical: 12,
+    paddingHorizontal: 10,
+    alignItems: "center",
+  },
+  sosEmoji: {
+    fontSize: 26,
+    marginBottom: 4,
+  },
+  sosBtnTitle: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: "#1e293b",
+  },
+  sosBtnSub: {
+    fontSize: 10,
+    color: "#64748b",
+    marginTop: 1,
+  },
 });
+
 

@@ -7,7 +7,10 @@ settings = get_settings()
 
 is_sqlite = "sqlite" in settings.DATABASE_URL
 engine_kwargs = {"echo": settings.DEBUG, "future": True}
-if not is_sqlite:
+if is_sqlite:
+    from sqlalchemy.pool import StaticPool
+    engine_kwargs.update({"connect_args": {"check_same_thread": False}, "poolclass": StaticPool})
+else:
     engine_kwargs.update({"pool_size": 20, "max_overflow": 10})
 
 engine = create_async_engine(

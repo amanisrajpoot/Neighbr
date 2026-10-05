@@ -16,7 +16,11 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 
+import { useSociety } from "@/context/SocietyContext";
+import { api } from "@/lib/api";
+
 export default function SocietyOnboardingWizardPage() {
+  const { refreshSocieties, selectSociety } = useSociety();
   const [currentStep, setCurrentStep] = useState(1);
   const [societyData, setSocietyData] = useState({
     name: "Greenwood Palms Heights",
@@ -39,8 +43,12 @@ export default function SocietyOnboardingWizardPage() {
   ]);
 
   const [csvUploaded, setCsvUploaded] = useState(false);
+  const [parsedResidents, setParsedResidents] = useState<any[]>([]);
+  const [csvFileName, setCsvFileName] = useState("residents.csv");
   const [isActivating, setIsActivating] = useState(false);
   const [activated, setActivated] = useState(false);
+  const [resultSummary, setResultSummary] = useState<any | null>(null);
+  const [activationError, setActivationError] = useState<string | null>(null);
 
   const addTower = () => {
     setTowers([
@@ -64,12 +72,97 @@ export default function SocietyOnboardingWizardPage() {
     setGates(gates.filter((g) => g.id !== id));
   };
 
-  const handleActivateSociety = () => {
+  const handleDownloadSampleCsv = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const csvContent =
+      "Flat,Tower,Name,Phone,Email,Type\n" +
+      "101,Tower A (Orchid),Aman Sharma,+919876543201,aman@example.com,owner\n" +
+      "102,Tower A (Orchid),Priya Verma,+919876543202,priya@example.com,tenant\n" +
+      "103,Tower B (Lotus),Vikram Malhotra,+919876543203,vikram@example.com,owner\n";
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", "sample_residents_template.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleCsvFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setCsvFileName(file.name);
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const text = event.target?.result as string;
+      if (!text) return;
+      const lines = text.split("\n").filter((l) => l.trim().length > 0);
+      const headers = lines[0].split(",").map((h) => h.trim().toLowerCase());
+      const residents = [];
+      for (let i = 1; i < lines.length; i++) {
+        const parts = lines[i].split(",").map((p) => p.trim());
+        if (parts.length >= 3) {
+          residents.push({
+            flat_number: parts[0] || "101",
+            tower_name: parts[1] || towers[0]?.name || "Tower A",
+            name: parts[2] || "Resident",
+            phone: parts[3] || `+9198765${10000 + i}`,
+            email: parts[4] || undefined,
+            membership_type: (parts[5] || "owner").toLowerCase(),
+          });
+        }
+      }
+      setParsedResidents(residents);
+      setCsvUploaded(true);
+    };
+    reader.readAsText(file);
+  };
+
+  const handleActivateSociety = async () => {
     setIsActivating(true);
-    setTimeout(() => {
-      setIsActivating(false);
+    setActivationError(null);
+    try {
+      const payload = {
+        name: societyData.name,
+        address_line1: societyData.address,
+        city: societyData.city || "Bengaluru",
+        state: "Karnataka",
+        pincode: societyData.pincode || "560103",
+        country: "IN",
+        towers: towers.map((t) => ({
+          name: t.name,
+          floors: Number(t.floors),
+          units_per_floor: Number(t.unitsPerFloor),
+        })),
+        gates: gates.map((g) => ({
+          name: g.name,
+          code: g.code,
+          gate_type: g.type,
+        })),
+        residents: parsedResidents.length > 0 ? parsedResidents : [
+          {
+            name: "Initial Resident",
+            phone: "+919876500002",
+            flat_number: "101",
+            tower_name: towers[0]?.name,
+            membership_type: "owner",
+          }
+        ],
+      };
+
+      const res = await api.onboardSociety(payload);
+      setResultSummary(res);
+      await refreshSocieties();
+      if (res?.society?.id) {
+        selectSociety(res.society.id);
+      }
       setActivated(true);
-    }, 1500);
+    } catch (err: any) {
+      setActivationError(err?.message || "Failed to provision society");
+    } finally {
+      setIsActivating(false);
+    }
   };
 
   const totalCalculatedUnits = towers.reduce((acc, t) => acc + t.floors * t.unitsPerFloor, 0);
@@ -323,8 +416,16 @@ export default function SocietyOnboardingWizardPage() {
             Upload a CSV containing unit assignments, resident names, mobile numbers, and ownership types.
           </p>
 
+          <input
+            id="csv-file-input"
+            type="file"
+            accept=".csv"
+            onChange={handleCsvFileSelect}
+            className="hidden"
+          />
+
           <div
-            onClick={() => setCsvUploaded(true)}
+            onClick={() => document.getElementById("csv-file-input")?.click()}
             className={`border-2 border-dashed rounded-2xl p-8 text-center cursor-pointer transition-colors ${
               csvUploaded
                 ? "border-emerald-500/60 bg-emerald-500/10"
@@ -334,9 +435,9 @@ export default function SocietyOnboardingWizardPage() {
             {csvUploaded ? (
               <div className="space-y-2">
                 <CheckCircle2 className="w-10 h-10 text-emerald-600 dark:text-emerald-400 mx-auto" />
-                <h3 className="font-bold text-sm text-emerald-950 dark:text-emerald-300">society_residents_greenwood.csv loaded</h3>
+                <h3 className="font-bold text-sm text-emerald-950 dark:text-emerald-300">{csvFileName} parsed</h3>
                 <p className="text-xs text-emerald-700 dark:text-emerald-400 font-medium">
-                  112 resident records parsed & validated with zero syntax errors.
+                  {parsedResidents.length} resident records parsed & validated. Tap to select another file.
                 </p>
               </div>
             ) : (
@@ -345,31 +446,66 @@ export default function SocietyOnboardingWizardPage() {
                 <div>
                   <p className="font-bold text-xs text-slate-900 dark:text-white">Click to upload or drag & drop CSV</p>
                   <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                    Columns: UnitNumber, Tower, ResidentName, Phone, Role (Owner/Tenant)
+                    Columns: Flat, Tower, Name, Phone, Email, Type (Owner/Tenant)
                   </p>
                 </div>
-                <span className="inline-block px-3 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 text-xs font-semibold rounded-lg shadow-2xs">
+                <button
+                  type="button"
+                  onClick={handleDownloadSampleCsv}
+                  className="inline-block px-3 py-1 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 text-xs font-semibold rounded-lg shadow-2xs transition"
+                >
                   Download Sample CSV Template
-                </span>
+                </button>
               </div>
             )}
           </div>
 
-          {csvUploaded && (
-            <div className="p-4 rounded-xl bg-slate-900 dark:bg-slate-950 border border-slate-800 text-slate-100 flex items-center justify-between">
-              <div>
-                <p className="font-bold text-xs text-white">Ready to Activate Community</p>
-                <p className="text-[11px] text-slate-400">All modules, database schemas, and gate tokens will be provisioned.</p>
-              </div>
-              <button
-                onClick={handleActivateSociety}
-                disabled={isActivating || activated}
-                className="px-5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs transition-colors cursor-pointer"
-              >
-                {isActivating ? "Provisioning..." : activated ? "✓ Activated" : "Activate Society"}
-              </button>
+          {activationError && (
+            <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-600 text-xs font-semibold">
+              ⚠️ {activationError}
             </div>
           )}
+
+          {activated && resultSummary && (
+            <div className="p-5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-950 dark:text-emerald-200 space-y-2">
+              <div className="flex items-center gap-2 font-bold text-sm text-emerald-700 dark:text-emerald-400">
+                <CheckCircle2 className="w-5 h-5" />
+                <span>{resultSummary.society?.name} Provisioned Successfully!</span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 text-xs font-medium">
+                <div className="p-2.5 rounded-xl bg-white/60 dark:bg-slate-900/60 border border-emerald-500/20">
+                  <span className="text-[10px] uppercase text-slate-400 block font-bold">Towers</span>
+                  <span className="text-base font-black text-slate-900 dark:text-white">{resultSummary.towers_created}</span>
+                </div>
+                <div className="p-2.5 rounded-xl bg-white/60 dark:bg-slate-900/60 border border-emerald-500/20">
+                  <span className="text-[10px] uppercase text-slate-400 block font-bold">Total Units</span>
+                  <span className="text-base font-black text-slate-900 dark:text-white">{resultSummary.units_created}</span>
+                </div>
+                <div className="p-2.5 rounded-xl bg-white/60 dark:bg-slate-900/60 border border-emerald-500/20">
+                  <span className="text-[10px] uppercase text-slate-400 block font-bold">Active Gates</span>
+                  <span className="text-base font-black text-slate-900 dark:text-white">{resultSummary.gates_created}</span>
+                </div>
+                <div className="p-2.5 rounded-xl bg-white/60 dark:bg-slate-900/60 border border-emerald-500/20">
+                  <span className="text-[10px] uppercase text-slate-400 block font-bold">Residents</span>
+                  <span className="text-base font-black text-slate-900 dark:text-white">{resultSummary.residents_onboarded}</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="p-4 rounded-xl bg-slate-900 dark:bg-slate-950 border border-slate-800 text-slate-100 flex flex-col sm:flex-row gap-3 items-center justify-between">
+            <div>
+              <p className="font-bold text-xs text-white">Ready to Provision Community</p>
+              <p className="text-[11px] text-slate-400">Database architecture, unit trees, gate tokens, and resident directory will be created.</p>
+            </div>
+            <button
+              onClick={handleActivateSociety}
+              disabled={isActivating || activated}
+              className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 disabled:opacity-60 text-white font-bold text-xs transition-colors cursor-pointer"
+            >
+              {isActivating ? "Provisioning..." : activated ? "✓ Fully Activated" : "Activate Society"}
+            </button>
+          </div>
         </div>
       )}
 

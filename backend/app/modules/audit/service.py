@@ -1,4 +1,5 @@
 import uuid
+from typing import Any
 from datetime import datetime, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -37,8 +38,8 @@ class AuditService:
 
     async def log(
         self,
-        society_id: str | None,
-        actor_user_id: str | None,
+        society_id: str | uuid.UUID | None,
+        actor_user_id: str | uuid.UUID | None,
         event_type: str,
         entity_type: str,
         entity_id: str | None = None,
@@ -46,13 +47,23 @@ class AuditService:
         device_id: str | None = None,
         source: str = "api",
     ):
+        def _to_uuid(val: Any) -> uuid.UUID | None:
+            if not val:
+                return None
+            if isinstance(val, uuid.UUID):
+                return val
+            try:
+                return uuid.UUID(str(val))
+            except (ValueError, TypeError):
+                return None
+
         event = AuditEvent(
-            society_id=uuid.UUID(society_id) if society_id else None,
-            actor_user_id=uuid.UUID(actor_user_id) if actor_user_id else None,
+            society_id=_to_uuid(society_id),
+            actor_user_id=_to_uuid(actor_user_id),
             device_id=device_id,
             event_type=event_type,
             entity_type=entity_type,
-            entity_id=entity_id,
+            entity_id=str(entity_id) if entity_id is not None else None,
             payload=payload or {},
             occurred_at=datetime.now(timezone.utc),
             source=source,

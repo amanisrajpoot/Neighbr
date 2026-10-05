@@ -7,7 +7,7 @@ from sqlalchemy.orm import selectinload
 from app.database import get_db
 from app.dependencies import get_current_user
 from app.core.errors import AppException
-from app.modules.auth.models import User
+from app.modules.auth.models import User, Role
 from app.modules.societies.models import UnitMembership
 
 async def verify_society_access(
@@ -25,7 +25,10 @@ async def verify_society_access(
             UnitMembership.user_id == user.id,
             UnitMembership.is_active.is_(True),
         )
-        .options(selectinload(UnitMembership.role), selectinload(UnitMembership.unit))
+        .options(
+            selectinload(UnitMembership.role).selectinload(Role.permissions),
+            selectinload(UnitMembership.unit),
+        )
     )
     membership = result.scalars().first()
 
@@ -60,3 +63,32 @@ def require_roles(allowed_roles: list[str]):
             )
         return True
     return role_checker
+
+def require_permission(permission_code: str, fallback_roles: list[str] | None = None):
+    async def permission_checker(
+        membership: UnitMembership | None = Depends(require_society_membership),
+        user: User = Depends(get_current_user),
+    ):
+        if user.is_platform_admin:
+            return True
+        if not membership or not membership.role:
+            raise AppException(
+                code="INSUFFICIENT_PERMISSIONS",
+                message=f"Action requires permission: {permission_code}",
+                status_code=403,
+            )
+        if membership.role.code in ("society_admin", "super_admin"):
+            return True
+
+        if fallback_roles and membership.role.code in fallback_roles:
+            return True
+
+        user_perms = {p.code for p in (membership.role.permissions or [])}
+        if permission_code not in user_perms:
+            raise AppException(
+                code="INSUFFICIENT_PERMISSIONS",
+                message=f"Action requires permission: {permission_code}",
+                status_code=403,
+            )
+        return True
+    return permission_checker

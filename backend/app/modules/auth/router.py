@@ -12,6 +12,7 @@ from app.modules.auth.schemas import (
     RefreshTokenRequest,
     UserOut,
     UserProfileUpdate,
+    DevicePushTokenUpdate,
 )
 from app.modules.auth.service import AuthService
 
@@ -69,3 +70,19 @@ async def update_profile(
     await db.commit()
     await db.refresh(user)
     return user
+
+@router.post("/device/push-token", status_code=status.HTTP_200_OK)
+async def update_push_token(
+    payload: DevicePushTokenUpdate,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    service = AuthService(db)
+    await service.update_device_push_token(
+        user_id=user.id,
+        device_id=payload.device_id,
+        push_token=payload.push_token,
+        platform=payload.platform,
+        device_name=payload.device_name,
+    )
+    return {"status": "success", "message": "Push token registered successfully"}

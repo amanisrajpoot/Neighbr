@@ -19,15 +19,17 @@ import { QueryErrorView } from "../../src/components/QueryErrorView";
 export default function ResidentVisitorsScreen() {
   const router = useRouter();
   const { user } = useAuthStore();
-  const { passes, isLoading, isError, error, refetch, revokePass, isRevoking } = usePasses();
-  const [activeFilter, setActiveFilter] = useState<"ALL" | "ACTIVE" | "PAST">("ALL");
+  const { passes, isLoading, isError, error, refetch, revokePass, isRevoking, approvePass, rejectPass, isApproving, isRejecting } = usePasses();
+  const [activeFilter, setActiveFilter] = useState<"ALL" | "PENDING" | "ACTIVE" | "PAST">("ALL");
   const [selectedPass, setSelectedPass] = useState<VisitorPassItem | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
+  const pendingPassesCount = passes.filter((p) => p.status === "APPROVAL_PENDING" || p.status === "WAITING_APPROVAL").length;
 
   const filteredPasses = passes.filter((p: VisitorPassItem) => {
+    if (activeFilter === "PENDING") return p.status === "APPROVAL_PENDING" || p.status === "WAITING_APPROVAL";
     if (activeFilter === "ACTIVE") return p.status === "APPROVED" || p.status === "CHECKED_IN";
-    if (activeFilter === "PAST") return p.status === "CHECKED_OUT" || p.status === "EXPIRED";
+    if (activeFilter === "PAST") return ["CHECKED_OUT", "EXPIRED", "REJECTED", "CANCELLED"].includes(p.status);
     return true;
   });
 
@@ -35,6 +37,26 @@ export default function ResidentVisitorsScreen() {
     setRefreshing(true);
     await refetch();
     setRefreshing(false);
+  };
+
+  const handleApproveFromList = async (id: string) => {
+    try {
+      await approvePass(id);
+      await refetch();
+      if (selectedPass?.id === id) setSelectedPass(null);
+    } catch (e: any) {
+      alert("Approval Failed: " + (e?.message || "Could not approve pass."));
+    }
+  };
+
+  const handleRejectFromList = async (id: string) => {
+    try {
+      await rejectPass(id);
+      await refetch();
+      if (selectedPass?.id === id) setSelectedPass(null);
+    } catch (e: any) {
+      alert("Decline Failed: " + (e?.message || "Could not decline pass."));
+    }
   };
 
   return (
@@ -55,16 +77,27 @@ export default function ResidentVisitorsScreen() {
 
       {/* Filter Tabs */}
       <View style={styles.filterRow}>
-        {(["ALL", "ACTIVE", "PAST"] as const).map((tab) => {
+        {(["ALL", "PENDING", "ACTIVE", "PAST"] as const).map((tab) => {
           const isSelected = activeFilter === tab;
+          let label = tab === "ALL" ? `All (${passes.length})` : tab === "PENDING" ? `Pending (${pendingPassesCount})` : tab === "ACTIVE" ? "Active / Inside" : "Past History";
           return (
             <TouchableOpacity
               key={tab}
               onPress={() => setActiveFilter(tab)}
-              style={[styles.filterTab, isSelected && styles.filterTabActive]}
+              style={[
+                styles.filterTab,
+                isSelected && styles.filterTabActive,
+                tab === "PENDING" && pendingPassesCount > 0 && !isSelected && styles.filterTabPendingAlert,
+              ]}
             >
-              <Text style={[styles.filterText, isSelected && styles.filterTextActive]}>
-                {tab === "ALL" ? `All (${passes.length})` : tab === "ACTIVE" ? "Active / Inside" : "Past History"}
+              <Text
+                style={[
+                  styles.filterText,
+                  isSelected && styles.filterTextActive,
+                  tab === "PENDING" && pendingPassesCount > 0 && !isSelected && styles.filterTextPendingAlert,
+                ]}
+              >
+                {label}
               </Text>
             </TouchableOpacity>
           );
@@ -79,10 +112,11 @@ export default function ResidentVisitorsScreen() {
         {filteredPasses.length > 0 ? (
           filteredPasses.map((pass) => {
             const isApproved = pass.status === "APPROVED" || pass.status === "CHECKED_IN";
+            const isPending = pass.status === "APPROVAL_PENDING" || pass.status === "WAITING_APPROVAL";
             return (
               <TouchableOpacity
                 key={pass.id}
-                style={styles.card}
+                style={[styles.card, isPending && styles.cardPendingBorder]}
                 activeOpacity={0.85}
                 onPress={() => setSelectedPass(pass)}
               >
@@ -97,19 +131,39 @@ export default function ResidentVisitorsScreen() {
                   <View
                     style={[
                       styles.statusBadge,
-                      isApproved ? styles.statusSuccess : styles.statusMuted,
+                      isPending ? styles.statusPending : isApproved ? styles.statusSuccess : styles.statusMuted,
                     ]}
                   >
                     <Text
                       style={[
                         styles.statusText,
-                        isApproved ? styles.statusTextSuccess : styles.statusTextMuted,
+                        isPending ? styles.statusTextPending : isApproved ? styles.statusTextSuccess : styles.statusTextMuted,
                       ]}
                     >
-                      ● {pass.status}
+                      ● {isPending ? "APPROVAL PENDING" : pass.status}
                     </Text>
                   </View>
                 </View>
+
+                {/* Quick Card Action Buttons for Pending Passes */}
+                {isPending && (
+                  <View style={styles.cardQuickActions}>
+                    <TouchableOpacity
+                      style={styles.cardApproveBtn}
+                      disabled={isApproving}
+                      onPress={() => handleApproveFromList(pass.id)}
+                    >
+                      <Text style={styles.cardApproveBtnText}>{isApproving ? "Approving..." : "✓ Approve Entry"}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.cardDeclineBtn}
+                      disabled={isRejecting}
+                      onPress={() => handleRejectFromList(pass.id)}
+                    >
+                      <Text style={styles.cardDeclineBtnText}>{isRejecting ? "Declining..." : "✕ Decline"}</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
 
                 {/* Clean Pass Details */}
                 <View style={styles.cardFooter}>
@@ -127,7 +181,9 @@ export default function ResidentVisitorsScreen() {
             <Text style={styles.emptyEmoji}>🎟️</Text>
             <Text style={styles.emptyTitle}>No Visitor Passes Found</Text>
             <Text style={styles.emptySubtitle}>
-              {activeFilter === "ACTIVE"
+              {activeFilter === "PENDING"
+                ? "No pending approvals right now. When a walk-in visitor arrives, you can approve them here."
+                : activeFilter === "ACTIVE"
                 ? "No active visitor passes right now. Pre-approve a guest or delivery."
                 : "Create a visitor pass to share a digital QR & PIN with your guests."}
             </Text>
@@ -163,28 +219,48 @@ export default function ResidentVisitorsScreen() {
                 showShareButton={true}
               />
 
-              <View style={{ flexDirection: "row", gap: 10, marginTop: 14 }}>
-                {["APPROVED", "WAITING_APPROVAL", "CREATED"].includes(selectedPass.status) && (
+              {/* Pending Approval Primary Actions in Modal */}
+              {(selectedPass.status === "APPROVAL_PENDING" || selectedPass.status === "WAITING_APPROVAL") ? (
+                <View style={{ width: "100%", gap: 8, marginTop: 14 }}>
                   <TouchableOpacity
-                    style={[styles.revokeButton, isRevoking && { opacity: 0.6 }]}
-                    disabled={isRevoking}
-                    onPress={async () => {
-                      try {
-                        await revokePass(selectedPass.id);
-                        setSelectedPass(null);
-                      } catch (e: any) {
-                        alert("Revocation Failed: " + (e?.message || "Could not revoke pass."));
-                      }
-                    }}
+                    style={[styles.modalApproveBtn, isApproving && { opacity: 0.6 }]}
+                    disabled={isApproving}
+                    onPress={() => handleApproveFromList(selectedPass.id)}
                   >
-                    <Text style={styles.revokeButtonText}>{isRevoking ? "Revoking..." : "Revoke Pass"}</Text>
+                    <Text style={styles.modalApproveBtnText}>{isApproving ? "Approving Entry..." : "✓ Approve Entry Pass"}</Text>
                   </TouchableOpacity>
-                )}
+                  <TouchableOpacity
+                    style={[styles.modalDeclineBtn, isRejecting && { opacity: 0.6 }]}
+                    disabled={isRejecting}
+                    onPress={() => handleRejectFromList(selectedPass.id)}
+                  >
+                    <Text style={styles.modalDeclineBtnText}>{isRejecting ? "Declining..." : "✕ Decline Entry"}</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <View style={{ flexDirection: "row", gap: 10, marginTop: 14 }}>
+                  {["APPROVED", "CREATED"].includes(selectedPass.status) && (
+                    <TouchableOpacity
+                      style={[styles.revokeButton, isRevoking && { opacity: 0.6 }]}
+                      disabled={isRevoking}
+                      onPress={async () => {
+                        try {
+                          await revokePass(selectedPass.id);
+                          setSelectedPass(null);
+                        } catch (e: any) {
+                          alert("Revocation Failed: " + (e?.message || "Could not revoke pass."));
+                        }
+                      }}
+                    >
+                      <Text style={styles.revokeButtonText}>{isRevoking ? "Revoking..." : "Revoke Pass"}</Text>
+                    </TouchableOpacity>
+                  )}
 
-                <TouchableOpacity style={[styles.doneButton, { flex: 1, marginTop: 0 }]} onPress={() => setSelectedPass(null)}>
-                  <Text style={styles.doneButtonText}>Done</Text>
-                </TouchableOpacity>
-              </View>
+                  <TouchableOpacity style={[styles.doneButton, { flex: 1, marginTop: 0 }]} onPress={() => setSelectedPass(null)}>
+                    <Text style={styles.doneButtonText}>Done</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
             </View>
           </View>
         </Modal>
@@ -454,6 +530,82 @@ const styles = StyleSheet.create({
   revokeButtonText: {
     color: "#dc2626",
     fontSize: 13,
+    fontWeight: "800",
+  },
+  cardPendingBorder: {
+    borderColor: "#f59e0b",
+    borderWidth: 1.5,
+  },
+  statusPending: {
+    backgroundColor: "rgba(245, 158, 11, 0.12)",
+    borderColor: "#f59e0b",
+  },
+  statusTextPending: {
+    color: "#d97706",
+  },
+  filterTabPendingAlert: {
+    borderColor: "#f59e0b",
+    borderWidth: 1,
+    backgroundColor: "rgba(245, 158, 11, 0.08)",
+  },
+  filterTextPendingAlert: {
+    color: "#d97706",
+    fontWeight: "800",
+  },
+  cardQuickActions: {
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: "#f1f5f9",
+  },
+  cardApproveBtn: {
+    flex: 1,
+    backgroundColor: "#10b981",
+    paddingVertical: 9,
+    borderRadius: 10,
+    alignItems: "center",
+  },
+  cardApproveBtnText: {
+    color: "#ffffff",
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  cardDeclineBtn: {
+    flex: 1,
+    backgroundColor: "#fee2e2",
+    paddingVertical: 9,
+    borderRadius: 10,
+    alignItems: "center",
+  },
+  cardDeclineBtnText: {
+    color: "#dc2626",
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  modalApproveBtn: {
+    backgroundColor: "#10b981",
+    paddingVertical: 13,
+    borderRadius: 12,
+    alignItems: "center",
+    width: "100%",
+  },
+  modalApproveBtnText: {
+    color: "#ffffff",
+    fontSize: 14,
+    fontWeight: "800",
+  },
+  modalDeclineBtn: {
+    backgroundColor: "#fee2e2",
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: "center",
+    width: "100%",
+  },
+  modalDeclineBtnText: {
+    color: "#dc2626",
+    fontSize: 14,
     fontWeight: "800",
   },
 });

@@ -1,8 +1,12 @@
 import uuid
+from typing import Any
 from datetime import datetime, timezone
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.errors import AppException
 from app.modules.auth.models import User
+from app.modules.gates.models import Gate
 from app.modules.visitors.service import VisitorService
 from app.modules.visitors.schemas import GateCheckInRequest, GateCheckOutRequest
 from app.modules.gates.service import GateService
@@ -27,8 +31,25 @@ class SyncService:
         for op in payload.operations:
             try:
                 entity_id = None
-                if op.operation_type in ("check_in", "walk_in"):
-                    gate_id = payload.gate_id or uuid.UUID(op.payload.get("gate_id"))
+                op_type = (op.operation_type or "").lower().strip()
+
+                # Helper to safely resolve gate_id
+                async def _resolve_gate(raw_id: Any) -> uuid.UUID:
+                    if raw_id:
+                        try:
+                            return uuid.UUID(str(raw_id))
+                        except Exception:
+                            pass
+                    res = await self.db.execute(
+                        select(Gate.id).where(Gate.society_id == payload.society_id, Gate.is_active.is_(True)).limit(1)
+                    )
+                    fallback = res.scalar_one_or_none()
+                    if fallback:
+                        return fallback
+                    raise AppException(code="GATE_NOT_FOUND", message="No active gate found for sync operation", status_code=400)
+
+                if op_type in ("check_in", "walk_in"):
+                    gate_id = await _resolve_gate(payload.gate_id or op.payload.get("gate_id"))
                     pass_id_str = op.payload.get("pass_id")
                     unit_id_str = op.payload.get("unit_id")
                     
@@ -49,8 +70,8 @@ class SyncService:
                     )
                     entity_id = str(event.id)
 
-                elif op.operation_type == "check_out":
-                    gate_id = payload.gate_id or uuid.UUID(op.payload.get("gate_id"))
+                elif op_type == "check_out":
+                    gate_id = await _resolve_gate(payload.gate_id or op.payload.get("gate_id"))
                     pass_id_str = op.payload.get("pass_id")
                     check_out_req = GateCheckOutRequest(
                         pass_id=uuid.UUID(pass_id_str) if pass_id_str else None,
@@ -62,9 +83,9 @@ class SyncService:
                     )
                     entity_id = str(event.id)
 
-                elif op.operation_type == "guard_check_in":
-                    guard_id = uuid.UUID(op.payload.get("guard_id"))
-                    gate_id = payload.gate_id or uuid.UUID(op.payload.get("gate_id"))
+                elif op_type == "guard_check_in":
+                    guard_id = uuid.UUID(str(op.payload.get("guard_id")))
+                    gate_id = await _resolve_gate(payload.gate_id or op.payload.get("gate_id"))
                     att = await self.gate_service.check_in_duty(
                         payload.society_id,
                         guard_id,
@@ -72,8 +93,8 @@ class SyncService:
                     )
                     entity_id = str(att.id)
 
-                elif op.operation_type == "guard_check_out":
-                    guard_id = uuid.UUID(op.payload.get("guard_id"))
+                elif op_type == "guard_check_out":
+                    guard_id = uuid.UUID(str(op.payload.get("guard_id")))
                     att = await self.gate_service.check_out_duty(
                         payload.society_id,
                         guard_id,

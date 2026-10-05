@@ -198,3 +198,51 @@ class FamilyMemberOut(BaseModel):
     photo_url: str | None = None
     is_active: bool
     created_at: datetime
+
+# Society Onboarding Schemas
+class TowerOnboardItem(BaseModel):
+    name: str
+    code: str | None = None
+    floors: int = Field(default=1, ge=1)
+    units_per_floor: int = Field(default=4, ge=1)
+    unit_type: str = "apartment"
+
+class GateOnboardItem(BaseModel):
+    name: str
+    code: str | None = None
+    gate_type: str = "entry_exit"
+
+class ResidentOnboardItem(BaseModel):
+    name: str
+    phone: str
+    flat_number: str
+    tower_name: str | None = None
+    email: str | None = None
+    membership_type: str = "owner"
+
+class SocietyOnboardRequest(BaseModel):
+    name: str = Field(..., min_length=1, max_length=255)
+    slug: str | None = None
+    address_line1: str | None = None
+    city: str = Field(..., min_length=1, max_length=100)
+    state: str = Field(..., min_length=1, max_length=100)
+    pincode: str = Field(..., min_length=1, max_length=20)
+    country: str = "IN"
+    towers: list[TowerOnboardItem] = Field(default_factory=list)
+    gates: list[GateOnboardItem] = Field(default_factory=list)
+    residents: list[ResidentOnboardItem] = Field(default_factory=list)
+
+class SocietyOnboardResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    society: SocietyOut
+    towers_created: int
+    units_created: int
+    gates_created: int
+    residents_onboarded: int
+
+class BulkResidentCSVResponse(BaseModel):
+    total_rows_processed: int
+    residents_onboarded: int
+    unmatched_flats: list[str] = Field(default_factory=list)
+

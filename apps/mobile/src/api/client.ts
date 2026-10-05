@@ -7,10 +7,6 @@ import Constants from "expo-constants";
 import { useAuthStore } from "../store/authStore";
 
 export const getServerHost = () => {
-  if (Platform.OS === "web" && typeof window !== "undefined") {
-    return window.location.hostname ? `${window.location.hostname}:8000` : "localhost:8000";
-  }
-
   if (process.env.EXPO_PUBLIC_API_URL) {
     try {
       const url = new URL(process.env.EXPO_PUBLIC_API_URL);
@@ -20,12 +16,16 @@ export const getServerHost = () => {
     }
   }
 
+  if (Platform.OS === "web" && typeof window !== "undefined") {
+    return window.location.hostname ? `${window.location.hostname}:8000` : "localhost:8000";
+  }
+
   // On physical device / Expo Go: extract dev machine IP from hostUri
   const hostUri = Constants.expoConfig?.hostUri;
   if (hostUri) {
     const rawHost = hostUri.split(":")[0];
     // If not localhost and not an ngrok/exp.direct tunnel domain
-    if (rawHost && rawHost !== "localhost" && rawHost !== "127.0.0.1" && !rawHost.includes("exp.direct") && !rawHost.includes("ngrok")) {
+    if (rawHost && rawHost !== "localhost" && rawHost !== "127.0.0.1" && !rawHost.includes("exp.direct") && !rawHost.includes("ngrok") && !rawHost.includes("trycloudflare.com")) {
       return `${rawHost}:8000`;
     }
   }
@@ -46,16 +46,16 @@ export const getServerHost = () => {
 };
 
 export const getBaseUrl = () => {
-  if (Platform.OS === "web" && typeof window !== "undefined") {
-    const host = window.location.hostname || "localhost";
-    return `http://${host}:8000/api/v1`;
-  }
   if (process.env.EXPO_PUBLIC_API_URL) {
     let url = process.env.EXPO_PUBLIC_API_URL.replace(/\/+$/, "");
     if (!url.endsWith("/api/v1")) {
       url += "/api/v1";
     }
     return url;
+  }
+  if (Platform.OS === "web" && typeof window !== "undefined") {
+    const host = window.location.hostname || "localhost";
+    return `http://${host}:8000/api/v1`;
   }
   const host = getServerHost();
   return `http://${host}/api/v1`;
@@ -275,6 +275,59 @@ export const societyApi = {
   },
   getEmergencyContacts: async (societyId: string) => {
     return apiClient<any[]>(`/societies/${societyId}/emergency-contacts`);
+  },
+};
+
+export interface FileUploadResult {
+  url: string;
+  key: string;
+  storage_type: string;
+  filename: string;
+  content_type: string;
+  size_bytes: number;
+}
+
+export const storageApi = {
+  uploadFile: async (
+    fileUri: string,
+    filename: string,
+    mimeType: string = "image/jpeg",
+    folder: string = "general"
+  ): Promise<FileUploadResult> => {
+    const formData = new FormData();
+    formData.append("folder", folder);
+
+    if (Platform.OS === "web") {
+      const res = await fetch(fileUri);
+      const blob = await res.blob();
+      formData.append("file", blob, filename);
+    } else {
+      formData.append("file", {
+        uri: fileUri,
+        name: filename,
+        type: mimeType,
+      } as any);
+    }
+
+    const token = useAuthStore.getState().accessToken;
+    const baseUrl = getBaseUrl();
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(`${baseUrl}/storage/upload`, {
+      method: "POST",
+      headers,
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.detail || "Failed to upload media file");
+    }
+
+    return response.json();
   },
 };
 

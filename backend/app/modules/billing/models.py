@@ -41,6 +41,8 @@ class Invoice(Base):
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     paid_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    cashfree_order_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    payment_session_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     unit: Mapped["Unit"] = relationship("Unit", lazy="selectin")
     transactions: Mapped[list["PaymentTransaction"]] = relationship("PaymentTransaction", back_populates="invoice", cascade="all, delete-orphan", lazy="selectin")

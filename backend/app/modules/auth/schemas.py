@@ -49,3 +49,10 @@ class UserProfileUpdate(BaseModel):
     full_name: str | None = None
     email: str | None = None
     avatar_url: str | None = None
+
+class DevicePushTokenUpdate(BaseModel):
+    device_id: str
+    push_token: str
+    platform: str = "android"
+    device_name: str | None = None
+

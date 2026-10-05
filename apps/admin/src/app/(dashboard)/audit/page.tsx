@@ -1,19 +1,23 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Search,
   Code2,
   Lock,
   CheckCircle2,
+  RefreshCw,
+  Loader2,
 } from "lucide-react";
 import { Modal } from "@/components/Modal";
+import { api, AuditEventItem } from "@/lib/api";
+import { useSociety } from "@/context/SocietyContext";
 
 interface AuditEvent {
   id: string;
   eventType: string;
   actor: string;
-  actorRole: "SUPER_ADMIN" | "SOCIETY_ADMIN" | "GUARD" | "RESIDENT" | "SYSTEM";
+  actorRole: string;
   targetEntity: string;
   entityId: string;
   timestamp: string;
@@ -22,10 +26,54 @@ interface AuditEvent {
 }
 
 export default function SecurityAuditPage() {
-  const [logs] = useState<AuditEvent[]>([]);
+  const { currentSociety } = useSociety();
+  const societyId = currentSociety?.id;
+
+  const [logs, setLogs] = useState<AuditEvent[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   const [search, setSearch] = useState("");
   const [selectedRole, setSelectedRole] = useState<string>("ALL");
   const [activeInspectionPayload, setActiveInspectionPayload] = useState<Record<string, any> | null>(null);
+
+  const fetchAuditLogs = async () => {
+    if (!societyId) return;
+    try {
+      setIsLoading(true);
+      const data = await api.getAuditEvents(societyId, 100);
+      const mapped: AuditEvent[] = data.map((item) => {
+        let role = "SYSTEM";
+        if (item.actor) {
+          role = "USER";
+        }
+        if (item.payload && item.payload.role) {
+          role = String(item.payload.role).toUpperCase();
+        } else if (item.event_type.startsWith("VISITOR") || item.event_type.startsWith("GATE")) {
+          role = "GUARD";
+        }
+
+        return {
+          id: item.id,
+          eventType: item.event_type,
+          actor: item.actor?.full_name || (item.actor_user_id ? `User (${item.actor_user_id.slice(0, 8)})` : "System / Engine"),
+          actorRole: role,
+          targetEntity: item.entity_type,
+          entityId: item.entity_id || "-",
+          timestamp: new Date(item.occurred_at).toLocaleString(),
+          ipAddress: item.payload?.ip || item.source || "api",
+          payload: item.payload || {},
+        };
+      });
+      setLogs(mapped);
+    } catch (err) {
+      console.warn("Failed to fetch audit events:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchAuditLogs();
+  }, [societyId]);
 
   const filteredLogs = logs.filter((item) => {
     const matchesSearch =
@@ -33,7 +81,7 @@ export default function SecurityAuditPage() {
       item.actor.toLowerCase().includes(search.toLowerCase()) ||
       item.entityId.toLowerCase().includes(search.toLowerCase());
 
-    const matchesRole = selectedRole === "ALL" || item.actorRole === selectedRole;
+    const matchesRole = selectedRole === "ALL" || item.actorRole.includes(selectedRole);
 
     return matchesSearch && matchesRole;
   });
@@ -55,6 +103,13 @@ export default function SecurityAuditPage() {
         </div>
 
         <div className="flex items-center gap-2">
+          <button
+            onClick={fetchAuditLogs}
+            disabled={isLoading}
+            className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 text-xs font-bold flex items-center gap-1.5 transition cursor-pointer"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? "animate-spin" : ""}`} /> Refresh
+          </button>
           <span className="px-3 py-1.5 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-xs font-bold flex items-center gap-1.5">
             <CheckCircle2 className="w-4 h-4" /> Integrity Verified (Hash Chain Active)
           </span>
@@ -106,38 +161,56 @@ export default function SecurityAuditPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
-              {filteredLogs.map((log) => (
-                <tr key={log.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
-                  <td className="py-3 font-mono font-bold text-sky-600 dark:text-sky-400">
-                    {log.eventType}
-                  </td>
-                  <td className="py-3">
-                    <div className="font-semibold text-slate-900 dark:text-white">{log.actor}</div>
-                    <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                      {log.actorRole}
-                    </span>
-                  </td>
-                  <td className="py-3">
-                    <span className="text-xs font-mono font-medium text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md">
-                      {log.targetEntity} : {log.entityId}
-                    </span>
-                  </td>
-                  <td className="py-3 text-slate-600 dark:text-slate-400 font-medium">
-                    {log.timestamp}
-                  </td>
-                  <td className="py-3 text-slate-500 dark:text-slate-400 font-mono">
-                    {log.ipAddress}
-                  </td>
-                  <td className="py-3 text-right">
-                    <button
-                      onClick={() => setActiveInspectionPayload(log.payload)}
-                      className="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs inline-flex items-center gap-1 cursor-pointer transition"
-                    >
-                      <Code2 className="w-3.5 h-3.5 text-sky-500 dark:text-sky-400" /> Inspect
-                    </button>
+              {isLoading ? (
+                <tr>
+                  <td colSpan={6} className="py-12 text-center text-slate-500">
+                    <div className="flex flex-col items-center justify-center gap-2">
+                      <Loader2 className="w-6 h-6 animate-spin text-sky-500" />
+                      <p className="text-xs font-semibold">Retrieving immutable audit records...</p>
+                    </div>
                   </td>
                 </tr>
-              ))}
+              ) : filteredLogs.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="py-12 text-center text-slate-500">
+                    <p className="text-xs font-semibold">No audit events match your criteria</p>
+                    <p className="text-[11px] text-slate-400 mt-1">Actions performed by guards, residents, or system triggers will be securely logged here.</p>
+                  </td>
+                </tr>
+              ) : (
+                filteredLogs.map((log) => (
+                  <tr key={log.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+                    <td className="py-3 font-mono font-bold text-sky-600 dark:text-sky-400">
+                      {log.eventType}
+                    </td>
+                    <td className="py-3">
+                      <div className="font-semibold text-slate-900 dark:text-white">{log.actor}</div>
+                      <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                        {log.actorRole}
+                      </span>
+                    </td>
+                    <td className="py-3">
+                      <span className="text-xs font-mono font-medium text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md">
+                        {log.targetEntity} : {log.entityId}
+                      </span>
+                    </td>
+                    <td className="py-3 text-slate-600 dark:text-slate-400 font-medium">
+                      {log.timestamp}
+                    </td>
+                    <td className="py-3 text-slate-500 dark:text-slate-400 font-mono">
+                      {log.ipAddress}
+                    </td>
+                    <td className="py-3 text-right">
+                      <button
+                        onClick={() => setActiveInspectionPayload(log.payload)}
+                        className="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs inline-flex items-center gap-1 cursor-pointer transition"
+                      >
+                        <Code2 className="w-3.5 h-3.5 text-sky-500 dark:text-sky-400" /> Inspect
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

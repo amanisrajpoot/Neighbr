@@ -1,10 +1,16 @@
 import uuid
+import csv
+import io
+import re
+from typing import Any
 from datetime import datetime, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 
 from app.core.errors import AppException
 from app.core.events import event_bus, DomainEvent
 from app.modules.auth.models import User, Role
+from app.modules.gates.models import Gate
 from app.modules.societies.models import (
     Society,
     SocietySettings,
@@ -26,6 +32,8 @@ from app.modules.societies.schemas import (
     UnitBulkCreate,
     AddMemberRequest,
     FamilyMemberCreate,
+    SocietyOnboardRequest,
+    BulkResidentCSVResponse,
 )
 
 class SocietyService:
@@ -263,3 +271,200 @@ class SocietyService:
 
     async def list_family_members(self, society_id: uuid.UUID, membership_id: uuid.UUID) -> list[FamilyMember]:
         return await self.repo.list_family_members(society_id, membership_id)
+
+    # Bulk Onboarding Wizard & CSV Engine
+    async def onboard_society(self, payload: SocietyOnboardRequest, creator_user: User) -> dict[str, Any]:
+        slug = payload.slug or re.sub(r"[^a-z0-9]+", "-", payload.name.lower()).strip("-")
+        base_slug = slug
+        counter = 1
+        while await self.repo.get_society_by_slug(slug):
+            slug = f"{base_slug}-{counter}"
+            counter += 1
+
+        soc_create = SocietyCreate(
+            name=payload.name,
+            slug=slug,
+            address_line1=payload.address_line1,
+            city=payload.city,
+            state=payload.state,
+            pincode=payload.pincode,
+            country=payload.country,
+        )
+        society = await self.create_society(soc_create, creator_user)
+
+        total_units_created = 0
+        units_by_key: dict[Any, Unit] = {}
+
+        # 1. Create Towers, Floors, and Units
+        for tower in payload.towers:
+            building = Building(
+                society_id=society.id,
+                name=tower.name,
+                code=tower.code or tower.name[:10].upper(),
+                total_floors=tower.floors,
+                total_units=tower.floors * tower.units_per_floor,
+            )
+            await self.repo.flush(building)
+
+            for f_idx in range(1, tower.floors + 1):
+                floor = Floor(
+                    building_id=building.id,
+                    society_id=society.id,
+                    name=f"Floor {f_idx}",
+                    floor_number=f_idx,
+                )
+                await self.repo.flush(floor)
+
+                for u_idx in range(1, tower.units_per_floor + 1):
+                    flat_num = f"{f_idx * 100 + u_idx}"
+                    unit = Unit(
+                        society_id=society.id,
+                        building_id=building.id,
+                        floor_id=floor.id,
+                        unit_number=flat_num,
+                        unit_type=tower.unit_type,
+                        is_occupied=False,
+                        is_active=True,
+                    )
+                    await self.repo.flush(unit)
+                    total_units_created += 1
+                    units_by_key[(tower.name.lower(), flat_num)] = unit
+                    units_by_key[flat_num] = unit
+
+        # 2. Create Gates
+        gates_created = 0
+        for gate_item in payload.gates:
+            gate = Gate(
+                society_id=society.id,
+                name=gate_item.name,
+                code=gate_item.code or f"G-{gates_created + 1}",
+                gate_type=gate_item.gate_type,
+                is_active=True,
+                is_online=True,
+            )
+            self.db.add(gate)
+            gates_created += 1
+
+        # 3. Onboard Initial Residents
+        residents_onboarded = 0
+        resident_role = await self.repo.get_role_by_code("resident")
+        if not resident_role:
+            resident_role = Role(code="resident", display_name="Resident", is_system=True)
+            await self.repo.flush(resident_role)
+
+        for res_item in payload.residents:
+            target_unit = None
+            if res_item.tower_name:
+                target_unit = units_by_key.get((res_item.tower_name.lower(), res_item.flat_number))
+            if not target_unit:
+                target_unit = units_by_key.get(res_item.flat_number)
+
+            user = await self.repo.get_user_by_phone(res_item.phone)
+            if not user:
+                user = User(
+                    phone=res_item.phone,
+                    full_name=res_item.name,
+                    email=res_item.email,
+                    is_active=True,
+                    phone_verified=True,
+                )
+                await self.repo.flush(user)
+
+            membership = UnitMembership(
+                society_id=society.id,
+                user_id=user.id,
+                unit_id=target_unit.id if target_unit else None,
+                role_id=resident_role.id,
+                membership_type=res_item.membership_type,
+                is_primary=True,
+                is_active=True,
+                approved_by=creator_user.id,
+                approved_at=datetime.now(timezone.utc),
+            )
+            self.db.add(membership)
+            if target_unit:
+                target_unit.is_occupied = True
+            residents_onboarded += 1
+
+        society.total_units = total_units_created
+        await self.db.commit()
+        await self.db.refresh(society)
+
+        return {
+            "society": society,
+            "towers_created": len(payload.towers),
+            "units_created": total_units_created,
+            "gates_created": gates_created,
+            "residents_onboarded": residents_onboarded,
+        }
+
+    async def bulk_onboard_residents_csv(
+        self, society_id: uuid.UUID, csv_content: str, actor_user: User
+    ) -> BulkResidentCSVResponse:
+        f = io.StringIO(csv_content.strip())
+        reader = csv.DictReader(f)
+
+        # Pre-fetch all units for this society
+        res_units = await self.db.execute(select(Unit).where(Unit.society_id == society_id))
+        all_units = res_units.scalars().all()
+        unit_map = {u.unit_number.lower(): u for u in all_units}
+
+        resident_role = await self.repo.get_role_by_code("resident")
+        if not resident_role:
+            resident_role = Role(code="resident", display_name="Resident", is_system=True)
+            await self.repo.flush(resident_role)
+
+        processed = 0
+        onboarded = 0
+        unmatched = []
+
+        for row in reader:
+            processed += 1
+            # Normalize keys
+            norm = {k.strip().lower().replace(" ", "_"): v.strip() for k, v in row.items() if k}
+            flat_num = norm.get("flat") or norm.get("flat_number") or norm.get("unit") or norm.get("unit_number")
+            name = norm.get("name") or norm.get("resident_name") or norm.get("full_name") or "Resident"
+            phone = norm.get("phone") or norm.get("mobile")
+            email = norm.get("email")
+            m_type = norm.get("type") or norm.get("membership_type") or "owner"
+
+            if not phone:
+                continue
+
+            target_unit = unit_map.get(flat_num.lower()) if flat_num else None
+            if not target_unit and flat_num:
+                unmatched.append(flat_num)
+
+            user = await self.repo.get_user_by_phone(phone)
+            if not user:
+                user = User(
+                    phone=phone,
+                    full_name=name,
+                    email=email,
+                    is_active=True,
+                    phone_verified=True,
+                )
+                await self.repo.flush(user)
+
+            membership = UnitMembership(
+                society_id=society_id,
+                user_id=user.id,
+                unit_id=target_unit.id if target_unit else None,
+                role_id=resident_role.id,
+                membership_type=m_type,
+                is_primary=True,
+                is_active=True,
+                approved_by=actor_user.id,
+                approved_at=datetime.now(timezone.utc),
+            )
+            self.db.add(membership)
+            if target_unit:
+                target_unit.is_occupied = True
+            onboarded += 1
+
+        await self.db.commit()
+        return BulkResidentCSVResponse(
+            total_rows_processed=processed,
+            residents_onboarded=onboarded,
+            unmatched_flats=unmatched,
+        )

@@ -26,6 +26,17 @@ class BillingRepository:
         )
         return res.scalar_one_or_none()
 
+    async def get_invoice_by_order_id(self, order_id: str) -> Optional[Invoice]:
+        res = await self.db.execute(
+            select(Invoice)
+            .where(Invoice.cashfree_order_id == order_id)
+            .options(
+                selectinload(Invoice.unit).selectinload(Unit.memberships),
+                selectinload(Invoice.transactions).selectinload(PaymentTransaction.user),
+            )
+        )
+        return res.scalar_one_or_none()
+
     async def list_invoices(
         self, society_id: uuid.UUID, unit_id: Optional[uuid.UUID] = None, status_filter: Optional[str] = None
     ) -> List[Invoice]:

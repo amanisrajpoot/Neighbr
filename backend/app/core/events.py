@@ -20,14 +20,25 @@ class DomainEvent(BaseModel):
 class EventBus:
     def __init__(self):
         self._handlers: dict[str, list] = {}
+        self._global_handlers: list = []
 
     def subscribe(self, event_type: str, handler):
         if event_type not in self._handlers:
             self._handlers[event_type] = []
         self._handlers[event_type].append(handler)
 
+    def subscribe_all(self, handler):
+        self._global_handlers.append(handler)
+
     async def publish(self, event: DomainEvent):
-        # Notify subscribers
+        # Notify global subscribers (e.g. audit logging)
+        for handler in self._global_handlers:
+            try:
+                await handler(event)
+            except Exception as e:
+                print(f"Error in global event handler for {event.event_type}: {e}")
+
+        # Notify type-specific subscribers
         handlers = self._handlers.get(event.event_type, [])
         for handler in handlers:
             try:

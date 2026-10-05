@@ -36,10 +36,40 @@ async def user_ws(websocket: WebSocket, user_id: str):
     
     try:
         while True:
-            # wait for messages from client (e.g. keep alive)
-            await websocket.receive_text()
+            msg = await websocket.receive_text()
+            if msg == "ping":
+                await websocket.send_text("pong")
+            else:
+                try:
+                    payload = json.loads(msg)
+                    if payload.get("type") == "ping":
+                        await websocket.send_json({"type": "pong"})
+                except Exception:
+                    pass
     except WebSocketDisconnect:
         pass
     finally:
         listener_task.cancel()
         manager.disconnect(user_id)
+
+@router.websocket("/ws/society/{society_id}")
+async def society_ws(websocket: WebSocket, society_id: str):
+    room_key = f"soc_{society_id}"
+    await manager.connect(websocket, room_key)
+    try:
+        while True:
+            msg = await websocket.receive_text()
+            if msg == "ping":
+                await websocket.send_text("pong")
+            else:
+                try:
+                    payload = json.loads(msg)
+                    if payload.get("type") == "ping":
+                        await websocket.send_json({"type": "pong"})
+                except Exception:
+                    pass
+    except WebSocketDisconnect:
+        pass
+    finally:
+        manager.disconnect(room_key)
+

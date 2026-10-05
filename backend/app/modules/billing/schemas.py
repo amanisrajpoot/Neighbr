@@ -19,6 +19,25 @@ class PayInvoiceRequest(BaseModel):
     payment_method: str = "UPI"  # UPI, CARD, NETBANKING
     amount: float | None = None
 
+class PaymentInitiateRequest(BaseModel):
+    amount: float | None = None
+    return_url: str | None = None
+
+class PaymentInitiateResponse(BaseModel):
+    invoice_id: uuid.UUID
+    order_id: str
+    cf_order_id: str | None = None
+    payment_session_id: str
+    order_amount: float
+    order_currency: str = "INR"
+    customer_name: str
+    customer_phone: str
+
+class PaymentVerifyRequest(BaseModel):
+    order_id: str
+    payment_method: str = "UPI"
+    payment_ref: str | None = None
+
 class TransactionOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -51,6 +70,8 @@ class InvoiceOut(BaseModel):
     total_amount: float
     paid_amount: float
     status: str
+    cashfree_order_id: str | None = None
+    payment_session_id: str | None = None
     line_items: list[dict] = []
     created_at: datetime
     paid_at: datetime | None = None
@@ -64,3 +85,4 @@ class LedgerSummary(BaseModel):
     total_invoices: int
     paid_invoices: int
     overdue_invoices: int
+

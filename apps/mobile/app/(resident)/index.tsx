@@ -34,7 +34,7 @@ export default function ResidentHomeScreen() {
 
   // Live waiting visitor (waiting approval) from real passes query
   const pendingPass = passes.find(
-    (p) => p.status === "WAITING_APPROVAL" && !dismissedVisitorIds.includes(p.id)
+    (p) => (p.status === "APPROVAL_PENDING" || p.status === "WAITING_APPROVAL") && !dismissedVisitorIds.includes(p.id)
   );
 
   const activeWaitingVisitor = pendingPass

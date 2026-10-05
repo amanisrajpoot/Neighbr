@@ -21,18 +21,22 @@ from app.modules.notices.router import router as notices_router
 from app.modules.audit.router import router as audit_router
 from app.modules.helpdesk.router import router as helpdesk_router
 from app.modules.amenities.router import router as amenities_router
-from app.modules.billing.router import router as billing_router
+from app.modules.billing.router import router as billing_router, webhook_router as billing_webhook_router
 from app.modules.community.router import router as community_router
 from app.modules.marketplace.router import router as marketplace_router
 from app.modules.iot.router import router as iot_router
 from app.modules.automations.router import router as automations_router
 from app.modules.ai.router import router as ai_router
+from app.modules.storage.router import router as storage_router
 from app.modules.notifications.ws_router import router as ws_router
+from fastapi.staticfiles import StaticFiles
+from pathlib import Path
 
 settings = get_settings()
 
 from contextlib import asynccontextmanager
 from app.modules.notifications.subscribers import register_subscribers
+from app.modules.audit.subscribers import register_audit_subscribers
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -56,6 +60,7 @@ async def lifespan(app: FastAPI):
     import app.modules.automations.models
 
     register_subscribers()
+    register_audit_subscribers()
     yield
     # Shutdown
 
@@ -109,11 +114,17 @@ app.include_router(audit_router, prefix=settings.API_V1_STR)
 app.include_router(helpdesk_router, prefix=settings.API_V1_STR)
 app.include_router(amenities_router, prefix=settings.API_V1_STR)
 app.include_router(billing_router, prefix=settings.API_V1_STR)
+app.include_router(billing_webhook_router, prefix=settings.API_V1_STR)
+app.include_router(billing_webhook_router)
 app.include_router(community_router, prefix=settings.API_V1_STR)
 app.include_router(marketplace_router, prefix=settings.API_V1_STR)
 app.include_router(iot_router, prefix=settings.API_V1_STR)
 app.include_router(automations_router, prefix=settings.API_V1_STR)
 app.include_router(ai_router, prefix=settings.API_V1_STR)
+app.include_router(storage_router, prefix=settings.API_V1_STR)
+
+Path("uploads").mkdir(parents=True, exist_ok=True)
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 app.include_router(ws_router)
 
